@@ -1,0 +1,1903 @@
+
+Исследования long-context моделей показывают, что просто увеличение объёма контекста не гарантирует качественного использования всех фактов: релевантная информация может теряться внутри большого массива данных. Практические рекомендации по context engineering поэтому делают акцент не на «положить в prompt всё», а на отборе максимально полезного контекста на каждый токен. arXiv Для Aivion это особенно важно: продавец с 2 000 SKU легко создаёт десятки тысяч canonical facts ещё до Search Queries, Finance и lifecycle.
+Дополнительно актуальный Ozon API продолжает быстро меняться: Stock с 17 августа 2026 стал real-time, старые Finance transaction methods будут отключены 8 сентября 2026, а FBO Acceptance Acts появились как beta только 11 августа. Telegram Performance API также продолжает менять campaign/statistics contracts. GitHub Поэтому Landscape нельзя строить непосредственно из полей Ozon — только через уже утверждённые UCDM → Capabilities/DQ → Factual API.
+1. Что такое Entity Landscape
+Предлагаю такое определение:
+Entity Landscape — детерминированное, компактное, типизированное представление фактического состояния и динамики конкретной основной бизнес-сущности Aivion в рамках одного immutable Factual Universe.
+Основные Landscape Entities v1:
+ACCOUNT
+CATEGORY
+SKU
+CAMPAIGN
+Это полностью совпадает с нашим Action Target allowlist.
+При этом:
+Promotion
+Search Query
+Posting
+Order
+Supply
+Supply Order
+Acceptance Act
+Warehouse
+Cluster
+Product Type
+Pricing Strategy
+не получают равноправные самостоятельные Discovery Landscapes.
+Они становятся supporting context основных сущностей.
+
+2. Landscape находится строго между Factual API и Materiality
+Архитектура:
+UCDM
+ ↓
+Capabilities + DQ
+ ↓
+Internal Canonical Factual API
+ ↓
+ENTITY LANDSCAPES
+ ↓
+Materiality Engine
+ ↓
+Discovery Pack
+ ↓
+Discovery AI
+ ↓
+Evidence Expansion
+ ↓
+Deep Analysis
+Landscape не обращается к Ozon.
+Landscape не читает SQL напрямую.
+Landscape не вызывает AI.
+Все данные:
+Landscape Builder
+        ↓
+Internal Canonical Factual API
+        ↓
+sealed FactualReadContext
+
+3. Что Landscape делает
+Он преобразует многочисленные typed factual calls вроде:
+GetSKUDemand()
+GetCurrentSKUStock()
+GetSKUCoverage()
+GetCurrentSKUPrice()
+GetSKUAdvertisingPerformance()
+GetSKUSearchSummary()
+GetSKUInbound()
+...
+в одну компактную структуру:
+SKU 417
+
+Sales:
+current7 / previous7 / delta
+
+Stock:
+current / coverage
+
+Price:
+current / last observed change
+
+Advertising:
+spend / attribution / DRR
+
+Search:
+latest comparable period / position
+
+Supply:
+open inbound
+
+Promotions:
+current participation summary
+
+Limitations:
+Search lagged
+Finance partially mapped
+
+4. Что Landscape категорически НЕ делает
+В нём не должно появляться:
+problem
+opportunity
+severity
+priority
+critical
+bad
+good
+healthy
+unhealthy
+overpriced
+underpriced
+inefficient
+needs attention
+recommended action
+root cause
+revenue at risk
+Например:
+coverage_days = 2
+допустимо.
+stock_problem = CRITICAL
+нет.
+
+5. Landscape также не определяет Materiality
+Это важная граница.
+Landscape может содержать:
+ordered_amount_current7 = 500 000
+account_share = 12.4%
+abs_delta = -150 000
+Но не:
+materiality_score = 87
+Это следующий слой.
+То есть Landscape отвечает:
+«Что фактически происходит с этой сущностью?»
+Materiality:
+«Насколько эту сущность вообще стоит показывать Discovery?»
+Discovery:
+«Что это означает для бизнеса?»
+
+6. Главное новое решение: Landscape нужен в двух уровнях
+Если сделать сразу богатый Landscape по всем 2 000 SKU, мы опять создадим огромную систему.
+Поэтому предлагаю:
+Landscape Core
++
+Landscape Detail
+Landscape Core
+Очень компактный.
+Строится для всех потенциально анализируемых Account / Category / SKU / Campaign.
+Используется прежде всего Materiality Engine.
+Например SKU Core:
+sales current7
+sales previous7
+sales delta
+account sales share
+
+stock
+coverage
+
+price/current change
+
+ad spend
+ad attributed amount
+
+search summary state
+
+open inbound
+
+capability flags
+Без списков Search Queries, Promotions, Supplies и Campaigns.
+Landscape Detail
+Строится только после того, как Materiality Engine выбрал сущность.
+Содержит больше контекста:
+top provider-ranked queries
+promotion context
+supply stage details
+campaign context
+price-change observations
+finance breakdown coverage
+funnel surfaces
+Но всё равно намного компактнее Evidence.
+
+7. Почему Detail ≠ Evidence
+Допустим Materiality выбрала:
+SKU 417
+Landscape Detail может дать:
+2 active promotions
+1 open supply
+3 advertising campaigns
+top 3 provider-ranked search queries
+Но Evidence Expansion позже может раскрыть конкретно:
+все открытые Supply
+их lifecycle
+Acceptance Acts
+30-day Stock observations
+campaign history
+Price observations
+Search query details
+Posting events
+Landscape — стандартный обзор.
+Evidence — глубокая динамическая выборка, зависящая от того, что Discovery решил исследовать.
+
+8. Нужен общий LandscapeContext
+Не надо повторять в каждом SKU:
+analysis_date
+cutoff
+Search lag
+Finance lag
+Funnel unavailable
+...
+Иначе на 100 SKU мы будем 100 раз тратить токены на одинаковую информацию.
+Предлагаю:
+LandscapeSet
+ ├── context
+ ├── domain_windows
+ ├── global_capabilities
+ ├── global_limitations
+ ├── account
+ ├── categories[]
+ ├── skus[]
+ └── campaigns[]
+
+9. LandscapeContext
+Концептуально:
+{
+  "analysis_date": "2026-08-19",
+  "analysis_cutoff_at": "2026-08-20T05:40:00+03:00",
+
+  "factual_universe_hash": "...",
+
+  "landscape_schema_version": "1",
+  "landscape_profile_version": "1",
+
+  "business_timezone": "Europe/Moscow"
+}
+
+10. Domain Windows храним один раз
+Это очень важно из-за разных provider lag.
+Например:
+{
+  "sales": {
+    "current": ["2026-08-13", "2026-08-19"],
+    "previous": ["2026-08-06", "2026-08-12"],
+    "aligned_to_analysis_date": true
+  },
+
+  "search": {
+    "current": ["2026-08-11", "2026-08-17"],
+    "previous": ["2026-08-04", "2026-08-10"],
+    "aligned_to_analysis_date": false,
+    "lag_days": 2
+  },
+
+  "finance": {
+    "current": ["2026-08-12", "2026-08-18"],
+    "previous": ["2026-08-05", "2026-08-11"],
+    "lag_days": 1
+  }
+}
+И Landscape просто ссылается:
+window = SALES_CURRENT_7D
+вместо повторения дат.
+
+11. Никогда не заставляем все domains использовать один fake period
+Например:
+Sales current7:
+13–19 Aug
+
+Search:
+11–17 Aug
+
+Finance:
+12–18 Aug
+Это нормально.
+Ненормально:
+Подставить Search 11–17 под label «13–19».
+Landscape должен честно сохранить source-specific window.
+
+12. Cross-domain comparison возможна только через уже утверждённый Factual API
+Например:
+Advertising Spend Share
+можно включить только если:
+Advertising period
+=
+Sales period
+
+currency compatible
+Именно Factual API уже гарантирует это.
+Landscape сам ничего не совмещает.
+
+13. Унифицированный Metric Comparison
+Чтобы AI видел динамику одинаково во всех сущностях, я предлагаю один тип.
+Например:
+{
+  "current": 700000,
+  "previous": 1000000,
+
+  "absolute_delta": -300000,
+  "pct_delta": -30,
+
+  "change_state": "COMPARABLE"
+}
+
+14. Особая ситуация Previous = 0
+Не:
+pct_delta = infinity
+Получаем:
+{
+  "current": 100,
+  "previous": 0,
+  "absolute_delta": 100,
+  "pct_delta": null,
+  "change_state": "FROM_ZERO"
+}
+Как уже установлено Temporal Framework.
+
+15. Процентные показатели сравниваются в p.p.
+Например:
+CTR:
+3.2% → 4.1%
+Landscape:
+{
+  "current_pct": 4.1,
+  "previous_pct": 3.2,
+  "delta_pp": 0.9
+}
+Не:
++28.1%
+в основном comparison field.
+
+16. Но Landscape не маркирует направление как good/bad
+Например DRR:
+20% → 30%
+Landscape:
+delta_pp = +10
+Не:
+worsened = true
+Потому что semantic interpretation принадлежит AI.
+Исключение — provider explicit judgement.
+Например Account Health:
+provider_change_meaning = BAD
+можно передать как provider fact.
+
+17. Общий BlockState
+Каждый domain block получает:
+readiness
+coverage
+entity_specific_limitations
+Но глобальные limitations не повторяются.
+Например global:
+Funnel = UNAVAILABLE_NO_SUBSCRIPTION
+тогда SKU Landscape вообще может не иметь пустой Funnel block.
+А в global_capabilities это указано один раз.
+
+18. Если limitation относится только к конкретному SKU
+Например Finance:
+SKU mapping coverage = 30%
+тогда непосредственно в SKU:
+finance:
+  readiness = PARTIAL
+  direct_mapping_coverage = 30%
+
+19. Landscape Builder не должен добавлять explanatory prose
+Не:
+"Продажи существенно снизились"
+а:
+ordered_units:
+current = 70
+previous = 100
+delta = -30
+pct_delta = -30
+Даже labels вроде:
+significant_change
+пока не нужны.
+
+20. ACCOUNT LANDSCAPE
+Account Landscape всегда один и всегда попадает в Discovery.
+Он задаёт общий масштаб бизнеса.
+Его задача:
+дать AI картину кабинета целиком, чтобы потом правильно оценивать Category/SKU/Campaign относительно всего seller.
+
+21. Account Identity Block
+Пример:
+seller account id
+marketplace = Ozon RU
+
+catalog:
+active SKU
+archived SKU
+categories represented
+campaigns current/recent
+
+analysis history depth
+Но никаких credentials/subscription secrets.
+
+22. Account Sales
+Я бы включил обязательно:
+ordered_amount current7
+previous7
+delta
+
+ordered_units current7
+previous7
+delta
+
+analysis_day
+previous_day
+
+30d ordered amount
+30d ordered units
+Основной comparison:
+current7 vs previous7
+D vs D-1 — только как дополнительный pulse.
+
+23. Почему нужен 30d Account context
+Например:
+current7 = 1m
+previous7 = 700k
+выглядит как сильный рост.
+Но 30d:
+weekly values:
+1.1m
+1.0m
+0.7m
+1.0m
+показывает, что previous7 просто была слабой.
+При этом я не предлагаю в Landscape сразу отправлять 30 daily values.
+Можно дать:
+trend_30d_total
+и Evidence позже даст series.
+
+24. Account Assortment
+Нейтральные factual показатели:
+active_sku_count
+archived_sku_count
+
+sku_with_sales_current7
+sku_without_sales_current7
+
+category_count
+
+unmapped_sku_count
+unmapped_sales_share
+Очень полезный context.
+
+25. Account Stock
+Не:
+average coverage = 12 days
+Потому что среднее по SKU может быть бессмысленным.
+Предлагаю:
+total_sellable_units
+
+demand_positive_sku_count
+
+zero_sellable_with_demand_count
+
+no_demand_sku_count
+
+coverage_p25
+coverage_p50
+coverage_p75
+
+sales_exposure_of_zero_stock_skus_pct
+Последнее означает:
+какую долю current7 ordered amount обеспечивали SKU, у которых сейчас sellable stock = 0.
+Это deterministic cross-domain fact.
+Не:
+revenue_at_risk.
+
+26. Account Price
+Не использовать:
+average product price
+по всему кабинету.
+Вместо этого:
+sku_with_observed_price_count
+
+price_increased_sku_count
+price_decreased_sku_count
+price_unchanged_sku_count
+
+price_change_coverage
+
+current_price_index_distribution
+Если history достаточна:
+sales_exposure_of_recent_price_changes
+
+27. Account Advertising
+Обязательно:
+paid_spend current7 / previous7
+bonus_spend
+
+impressions
+clicks
+
+attributed_order_amount
+attributed_order_units
+
+CTR
+CPC
+CPM
+calculated DRR
+provider DRR if available
+
+Advertising Spend Share
+И:
+campaign_count_running
+campaign_count_with_spend
+
+28. Account Funnel
+Не рисуем линейную цепь.
+Например:
+search_surface:
+  impressions
+  cart_adds
+  conversion
+
+pdp_surface:
+  impressions
+  cart_adds
+  conversion
+Только capabilities, которые реально доступны.
+
+29. Account Search
+Можно включить:
+seller search summary availability
+
+sku_with_search_data
+
+position distribution:
+p25 / p50 / p75
+
+sku_with_position_up_count
+sku_with_position_down_count
+
+Search data window/lag
+Но не:
+average query position всех queries
+если aggregation semantics не доказана.
+
+30. Account Finance
+finance_net_accrual current period
+previous
+
+provider component breakdown:
+commission
+delivery
+item fees
+non-item fees
+unmapped
+
+mapping coverage
+Не:
+profit
+margin
+revenue.
+
+31. Account Promotions
+Например:
+active_ozon_promotions_count
+active_seller_promotions_count
+
+participating_sku_count
+candidate_sku_count
+
+sales_exposure_of_participating_skus
+Но:
+candidate ≠ participant
+сохраняется.
+
+32. Account Health
+Здесь можно использовать provider statuses:
+OK count
+WARNING count
+CRITICAL count
+
+provider bad changes count
+provider good changes count
+
+penalty_score_exceeded
+
+localization index
+
+FBS/rFBS error index
+
+seller delay event count
+seller cancellation event count
+Никакого Aivion Health Score.
+
+33. Account Supply
+open_supply_order_count
+
+supplies_by_stage:
+READY
+IN_TRANSIT
+ACCEPTANCE
+RECONCILIATION
+OVERDUE
+
+sku_with_open_inbound_count
+
+pending_acceptance_act_count
+
+shortcoming_act_count
+surplus_act_count
+defect_act_count
+Но не:
+future stock.
+
+34. Account concentration
+Это очень полезно AI.
+Например:
+top_5_sku_ordered_amount_share
+
+top_3_category_ordered_amount_share
+
+top_5_campaign_spend_share
+Это математические concentration metrics.
+Они помогают понять:
+продавец диверсифицирован или несколько сущностей определяют весь результат.
+Но Backend не говорит:
+high concentration risk.
+
+35. CATEGORY LANDSCAPE
+Category Landscape нужен для категорий, реально присутствующих в seller universe.
+Главная задача:
+показать AI, что происходит с целой группой товаров до того, как он уйдёт в отдельные SKU.
+
+36. Identity
+category id
+name
+taxonomy path
+
+product type count
+
+current sku count
+
+UNMAPPED = true/false
+Parent hierarchy — context.
+
+37. Category Sales
+ordered_amount current7/previous7
+ordered_units current7/previous7
+
+account ordered_amount share
+
+sku_with_sales_count
+sku_without_sales_count
+И rank:
+category_ordered_amount_rank
+Это factual deterministic rank.
+
+38. Category Stock
+Не simple average coverage.
+Например:
+sku_count
+demand_positive_sku_count
+
+zero_stock_with_demand_count
+
+coverage p25/p50/p75
+
+sales_exposure_zero_stock
+
+sku_with_open_inbound_count
+
+39. Category Price
+Не:
+Category price = 1 500 ₽
+У холодильника и кабеля бессмысленно усреднять цену даже внутри некоторых широких категорий.
+Даем distribution/change facts:
+sku_price_increased_count
+sku_price_decreased_count
+sku_price_unchanged_count
+
+median_price_change_pct
+price_change_coverage
+
+sales_exposure_price_increased
+sales_exposure_price_decreased
+
+40. Category Advertising
+Если Advertising SKU facts имеют достаточную coverage:
+paid_spend
+attributed_order_amount
+attributed_order_units
+
+CTR if safe from summed components
+DRR
+
+sku_with_ad_activity
+
+ad_mapping_coverage
+Очень важно:
+Category Ads
+строится только из factual SKU advertising stats.
+Не из текущего Campaign membership.
+
+41. Category Search
+Самый осторожный блок.
+Можно включить только safe aggregate/distributions:
+sku_with_search_summary_count
+
+position p25/p50/p75
+position_change distribution
+
+coverage
+ambiguous_period_category_mapping_count
+Если historical Category mapping внутри direct Search period неоднозначна:
+эти SKU исключаются из Category Search aggregation
++
+coverage уменьшается
+Не приписываем их текущей Category.
+
+42. Category Funnel
+Только если metric aggregation разрешена.
+Additive:
+impressions
+cart adds
+можно агрегировать через SKU, если source semantics это допускает.
+Non-additive:
+unique sessions
+conversion
+не суммируем.
+Conversion можно пересчитать только если есть safe additive numerator/denominator.
+
+43. Category Finance
+direct_mapped_finance_net
+
+component breakdown
+
+SKU mapping coverage
+sales exposure coverage
+Не synthetic allocation account fees.
+
+44. Category Promotions
+participating_sku_count
+candidate_sku_count
+
+active_promotion_count
+
+sales_exposure_of_participating_skus
+
+45. Category Supply
+sku_with_open_inbound_count
+
+declared_open_inbound_units
+by stage
+
+sku_with_acceptance_discrepancies
+Но quantity aggregation через SKU остаётся units, а не monetary projection.
+
+46. Category Account Health
+Я не включал бы отдельный Health block.
+Большинство Account Health facts действительно account/posting scoped.
+Распределять:
+seller delays
+supply ratings
+health processing cost
+по Category мы специально запретили.
+Это хороший пример того, что Landscape не обязан иметь одинаковые blocks на всех Entity Types.
+
+47. SKU LANDSCAPE
+Это будет самый богатый Landscape.
+SKU — основная единица операционной аналитики Aivion.
+
+48. SKU Identity
+canonical_sku_id
+provider SKU
+
+offer_id
+name
+
+catalog_state
+
+category id
+category name
+category path
+
+product type
+Также:
+first_seen
+при необходимости, но я бы не тратил на это Discovery tokens без пользы.
+
+49. SKU Sales
+Обязательно:
+ordered_amount current7 / previous7
+delta
+
+ordered_units current7 / previous7
+delta
+
+account ordered_amount share
+
+category ordered_amount share
+
+account rank
+category rank
+
+analysis_day vs previous_day
+
+50. Почему Account Share очень важен
+Два SKU:
+A:
+sales -50%
+account share = 0.02%
+
+B:
+sales -15%
+account share = 18%
+Backend всё ещё не говорит, какой важнее.
+Но Materiality Engine получит нормальную factual основу для решения.
+
+51. SKU 30d context
+В Core я бы дал:
+ordered_amount_30d
+ordered_units_30d
+days_with_orders_30d
+days_without_orders_recent
+Не полный daily series.
+Evidence позже может раскрыть series.
+
+52. SKU Stock
+sellable_units
+
+coverage_days_7d
+coverage_days_30d
+
+provider_idc NULL
+provider_ads NULL
+
+stock_snapshot_as_of
+
+warehouse_position_count
+cluster_position_count
+И:
+sellable_stock_is_zero
+как factual boolean.
+Не:
+stockout_risk = high.
+
+53. SKU Price
+current price
+customer price if available
+
+old reference
+min allowed
+
+last observed price change:
+from
+to
+delta
+pct delta
+observed_at
+
+price index
+И:
+price_history_coverage
+
+54. SKU Advertising
+paid_spend current7/previous7
+
+bonus_spend
+
+impressions
+clicks
+
+attributed_order_amount
+attributed_order_units
+
+CTR
+CPC
+CPM
+DRR
+
+campaigns_with_observed_activity_count
+
+55. В Detail можно показать Campaign Context
+Например не все Campaign rows, а bounded factual summaries:
+campaign:58
+paid_spend = 8k
+attributed_amount = 20k
+
+campaign:71
+paid_spend = 4k
+attributed_amount = 5k
+Sort:
+paid_spend DESC
+Deterministic.
+Обязательно:
+returned_count
+total_count
+truncated
+
+56. SKU Funnel
+Если доступен:
+search impressions
+search cart adds
+search conversion
+
+PDP impressions
+PDP cart adds
+PDP conversion
+При UNAVAILABLE global capability не повторяется на каждом SKU.
+
+57. SKU Search
+Core:
+provider average position
+unique search users
+unique view users
+view conversion
+
+search window
+Detail:
+provider-ranked query examples
+например максимум K.
+Очень важно:
+semantic_scope =
+TOP_N_PROVIDER_RANKED
+остаётся явным.
+
+58. Почему несколько Search Queries в Detail нужны
+Если дать только:
+average position = 45
+AI не увидит, что:
+главный запрос = position 5
+
+другой крупный = 80
+При этом передавать все 15 запросов для каждого SKU тоже необязательно.
+Detail может дать небольшой deterministic slice.
+Например:
+top provider-ranked by search count
+top provider-ranked by GMV
+с dedupe.
+Конкретный K — implementation/token policy, не архитектурный invariant.
+
+59. SKU Finance
+Если есть direct mapping:
+direct finance net
+components
+
+mapping coverage
+
+period
+Никакого:
+profit
+margin.
+
+60. SKU Promotions
+Core:
+active_promotion_count
+candidate_promotion_count
+Detail:
+promotion refs
+
+origin
+mechanism
+membership state
+
+action_price
+max_action_price
+
+freeze_at
+Но эти prices явно prefixed:
+promotion_action_price
+не current Price.
+
+61. SKU Supply
+Очень полезный блок:
+open_inbound_declared_units
+
+by current stage:
+ready
+in_transit
+acceptance
+reconciliation
+
+next scheduled delivery window
+
+overdue_supply_count
+
+acceptance discrepancy context
+
+62. Но не:
+projected_stock =
+current + inbound.
+Никогда.
+
+63. SKU Account Health
+Я не включал бы общий Health block в Core.
+Health error event относится к Posting и может содержать несколько SKU.
+Если мы просто скажем:
+SKU health errors = 5
+это легко будет воспринято как:
+SKU вызвал ошибки.
+Поэтому такие relations лучше оставить Evidence.
+Единственное исключение — provider facts, однозначно принадлежащие самому SKU, но текущая утверждённая Account Health Model таких основных SKU ratings не содержит.
+
+64. SKU Supporting Context Summary
+Core может иметь только counts:
+active_campaign_count
+active_promotion_count
+open_supply_count
+А Detail — небольшой bounded factual context.
+Это уменьшает размер.
+
+65. CAMPAIGN LANDSCAPE
+Campaign — четвёртый Action Target и должен быть полноценным Landscape Entity.
+
+66. Campaign Identity / Configuration
+campaign id
+title
+
+provider_state
+payment_type
+adv_object_type
+
+target_scope
+
+budget
+weekly_budget
+
+from/to
+
+strategy context
+Но provider state:
+RUNNING
+не превращается в:
+healthy.
+
+67. Campaign Performance
+paid_spend current7/previous7
+bonus_spend
+
+impressions
+clicks
+
+attributed_order_units
+attributed_order_amount
+
+CTR
+CPC
+CPM
+
+provider DRR
+calculated DRR
+
+68. Campaign Account Exposure
+Очень полезно:
+campaign_paid_spend_share_of_account_ads
+
+campaign_attributed_amount_share_of_account_attributed_ads
+Это помогает Materiality.
+
+69. Targeting
+Для:
+EXPLICIT_SKU_SET
+можно дать:
+assigned_sku_count
+Для:
+ALL_ELIGIBLE_SKUS
+нельзя придумать:
+explicit_sku_count = 2000.
+Правильно:
+target_scope = ALL_ELIGIBLE_SKUS
+
+explicit_assignment_count = null
+
+70. Observed SKU Performance Coverage
+Отдельно:
+sku_with_observed_performance_count
+Это не означает targeting membership.
+Очень важно не смешивать.
+
+71. Campaign Detail SKU context
+Можно дать ограниченную factual выборку SKU:
+SKU 417:
+paid spend = ...
+attributed amount = ...
+
+SKU 522:
+...
+Sorted по:
+paid_spend DESC
+или provider-reported contribution.
+И снова:
+returned_count
+total_known_count
+truncated.
+
+72. Campaign Stock Context
+Здесь я был бы осторожен.
+Для explicit SKU set мы можем безопасно вычислить:
+assigned_sku_count
+
+assigned_sku_with_zero_stock_count
+
+assigned_sku_sales_exposure_zero_stock
+Но для ALL_ELIGIBLE_SKUS, если точный eligible universe не подтверждён provider source:
+target_stock_context = UNAVAILABLE_AT_FULL_SCOPE.
+Можно отдельно дать только:
+observed_performance_sku_stock_context
+с правильным label.
+
+73. Campaign Sales Context
+То же правило.
+Для explicit factual assignment можно получить:
+targeted_sku_ordered_amount
+Но это обычные Sales этих SKU, не:
+campaign sales.
+Нужно naming:
+assigned_sku_total_ordered_amount
+чтобы AI не перепутал с advertising attribution.
+
+74. Campaign Finance
+Только direct Campaign-scoped Finance accrual, если source позволяет.
+Не распределяем account advertising fees.
+
+75. Promotions/Search/Supply как отдельные Landscapes не нужны
+Это важное решение.
+Например Discovery не должен одновременно выбирать:
+SKU 417
+Promotion 92
+Query "кофемашина"
+Supply 17
+как четыре равноправные management objects.
+Пользователь действует через:
+SKU
+Category
+Campaign
+Account.
+Supporting entities помогают объяснить ситуацию.
+
+76. Supporting Context Types
+Я предлагаю стандартизировать внутренние refs:
+PromotionContextRef
+SearchQueryContextRef
+SupplyContextRef
+PostingContextRef
+WarehouseContextRef
+ProductTypeContextRef
+PricingStrategyContextRef
+Они не имеют поля:
+is_action_target.
+Это известно типом.
+
+77. Landscape Eligibility
+Не каждый когда-либо существовавший SKU/Campaign должен участвовать в текущем Landscape Set.
+Иначе будет:
+2 000 active SKU
++
+5 000 old archived SKU
++
+1 000 finished campaigns
+
+78. SKU Landscape Universe
+Я предлагаю включать SKU в текущий candidate universe, если выполняется хотя бы одно factual условие:
+current catalog active
+
+OR Sales activity in current7/previous7
+
+OR current sellable stock &gt; 0
+
+OR open Supply
+
+OR current Promotion membership
+
+OR current/recent Advertising activity
+То есть recently archived SKU с business activity не исчезает мгновенно.
+
+79. Но это ещё НЕ Materiality
+Eligibility отвечает:
+имеет ли сущность вообще отношение к текущему analysis universe?
+Materiality:
+достойна ли она внимания Discovery?
+
+80. Campaign Landscape Universe
+Включаем:
+currently active/planned
+
+OR spend current7/previous7 &gt; 0
+
+OR attributed activity current7/previous7 &gt; 0
+Старая Campaign, закончившаяся год назад:
+не входит.
+Но остаётся доступна через Factual API/Chat history.
+
+81. Category Universe
+Только категории:
+имеющие eligible SKU
+плюс:
+UNMAPPED
+если соответствующие SKU существуют.
+
+82. Parent Categories — важный вопрос
+Архитектурно я рекомендую не создавать отдельные Discovery Landscapes для каждого parent taxonomy node.
+Иначе:
+SKU
+→ leaf Category
+→ parent
+→ root
+одни и те же Sales начнут повторяться во множестве Landscapes.
+Получим огромную redundancy и риск double interpretation.
+Поэтому:
+Landscape Entity Category
+=
+seller-bearing leaf Category
+а:
+parent path
+— context.
+Вернусь к этому как к одному продуктовому вопросу в конце.
+
+83. Landscape Core должен быть cheap
+Для 2 000 SKU нельзя делать:
+20 Factual API operations × 2000.
+Хотя Batch API защищает нас от N+1, Landscape Builder должен работать доменными batch calls:
+BatchGetSKUDemand(eligibleSKU)
+BatchGetStock(...)
+BatchGetPrice(...)
+BatchGetAds(...)
+BatchGetSearch(...)
+BatchGetInbound(...)
+и собирать map:
+sku_id → blocks.
+
+84. Никакого entity-by-entity N+1
+Нужен gate:
+landscape_n_plus_one_gate
+Например для 2 000 SKU количество DB queries должно быть ограничено примерно количеством необходимых domain slices, а не количеством SKU.
+
+85. Detail строится только для selected entities
+После Materiality:
+selected SKU IDs
+selected Category IDs
+selected Campaign IDs
+Landscape Builder выполняет дополнительные bounded Batch/List calls.
+Таким образом expensive Search Query/Promotion/Supply context не загружается для всех.
+
+86. Landscape Schema Version
+Нужно разделить:
+landscape_schema_version
+и:
+landscape_profile_version.
+Schema:
+форма DTO.
+Profile:
+какие factual fields включены.
+
+87. Почему это отдельно
+Можно добавить новый optional field без изменения selection policy:
+schema v2
+profile v1.
+Или оставить schema прежней, но перестать включать какой-то неэффективный metric:
+profile v2.
+Это нужно для reproducibility.
+
+88. Landscape Profile Registry
+Например:
+ACCOUNT_DISCOVERY_V1
+
+CATEGORY_CORE_V1
+CATEGORY_DETAIL_V1
+
+SKU_CORE_V1
+SKU_DETAIL_V1
+
+CAMPAIGN_CORE_V1
+CAMPAIGN_DETAIL_V1
+
+89. Profile определяет
+required factual calls
+optional factual calls
+
+fields
+
+comparison windows
+
+supporting-context limits
+
+sort rules
+
+capability requirements
+
+serialization rules
+Но не:
+importance weights.
+Последние принадлежат Materiality.
+
+90. Landscape Profiles должны быть versioned
+Например через месяц выясним, что:
+provider IDC
+мешает AI и не даёт пользы.
+SKU Detail v2 может его удалить.
+Старый Run остаётся воспроизводим через:
+profile v1.
+
+91. Landscape не должен становиться новой БД
+Я не предлагаю таблицы:
+sku_landscapes
+category_landscapes
+campaign_landscapes
+как очередной persistent Source of Truth.
+Landscape всегда rebuildable:
+Factual Universe
++
+Landscape Profile Version
+=
+Landscape
+
+92. Что стоит сохранять
+Для каждого Analysis Run:
+landscape_profile_version
+landscape_set_hash
+А exact serialized landscapes, которые реально вошли в Discovery Pack, сохранятся внутри immutable AI artifact.
+Таким образом audit есть.
+Но нет второй mutable data model.
+
+93. Cache
+Landscape Core хорошо cache'ится:
+universe_hash
++
+entity_kind
++
+entity_id
++
+profile_version
+Для sealed universe cache immutable.
+
+94. Deterministic Landscape Hash
+Например:
+hash(
+  context hash
+  + profile version
+  + canonical serialized landscape
+)
+Одинаковые inputs:
+→ одинаковый hash.
+
+95. Landscape Serialization
+Не нужно пока решать точный ZIP/file format Discovery Pack.
+Но canonical serializer должен использовать:
+stable key ordering
+stable Decimal formatting
+ISO dates/timestamps
+explicit null semantics
+stable entity ordering
+
+96. No Free-Form Text
+Почти весь Landscape:
+JSON typed fields.
+Free-form текст:
+SKU name
+Category name
+Campaign title
+provider labels
+только provider/source strings.
+Backend не пишет narrative.
+
+97. Token efficiency
+При сериализации для AI я бы делал две вещи.
+Во-первых, global context/capabilities выводить один раз.
+Во-вторых, не включать:
+null field after null field after null field
+если block global-unavailable.
+Но omission должен быть schema-driven:
+block omitted because capability unavailable globally
+а не случайно потерян.
+
+98. Почему компактность принципиальна
+Long-context research показывает, что наличие информации в контексте ещё не гарантирует, что модель одинаково хорошо её использует, особенно когда нужные сведения распределены внутри большого входа. arXiv Практический context-engineering подход также формулирует задачу именно как оптимизацию полезности ограниченного контекста. Anthropic
+Поэтому наша цель:
+не maximum data
+а:
+maximum decision-relevant factual density.
+
+99. Но Landscape не должен слишком сильно сжимать
+Есть противоположный риск.
+Если SKU представить только:
+Sales -30%
+Stock 2 days
+AI не увидит:
+цена изменилась
+реклама изменилась
+Search lagged
+Supply exists
+Promotion active.
+Поэтому Landscape Detail должен быть достаточно cross-domain rich.
+
+100. Иерархия контекста Discovery
+Я бы строил будущий Discovery input именно так:
+1. Factual Universe / limitations
+
+2. Account Landscape
+
+3. Category Landscapes
+
+4. Campaign Landscapes
+
+5. selected SKU Landscapes
+Не хаотично перемешивать 500 объектов.
+Это даёт модели business hierarchy.
+
+101. Почему Account первым
+AI должен знать масштаб.
+Например SKU:
+-300k ₽
+ничего не означает без контекста.
+Если Account:
+3m ₽
+это огромно.
+Если Account:
+500m ₽
+намного менее существенно.
+
+102. Category идёт перед SKU
+Она помогает увидеть:
+SKU anomaly
+как:
+локальный случай
+или:
+часть общего движения категории.
+Это очень важно для causal reasoning Discovery.
+
+103. Campaign отдельно
+Campaign не является дочерней SKU hierarchy.
+Она пересекает ассортимент.
+Поэтому Campaign Landscapes идут отдельным блоком.
+
+104. Landscape не объясняет causality
+Например:
+Sales ↓
+Price ↑
+Search position ↓
+Landscape просто располагает факты рядом.
+Не пишет:
+Sales снизились из-за Price и Search.
+Это уже задача AI.
+
+105. Data limitations должны находиться рядом с affected data
+Например:
+Search:
+position = 45
+
+window:
+11–17 Aug
+
+lag_days = 2
+
+readiness = PARTIAL
+AI не должен искать limitation в 20 страницах системной metadata.
+Но global repeated limitation можно reference'ить коротко.
+
+106. Supporting Context truncation
+Любой bounded list обязан сообщать:
+total_count
+returned_count
+truncated
+sort_basis
+semantic_scope
+Например:
+{
+  "queries": {
+    "total_known": 15,
+    "returned": 3,
+    "truncated": true,
+    "sort_basis": "PROVIDER_SEARCH_RANK",
+    "semantic_scope": "TOP_N_PROVIDER_RANKED"
+  }
+}
+
+107. Никогда не молча отрезать список
+Если AI видит 3 Promotions, он должен понимать:
+это все 3
+или:
+3 из 17.
+
+108. Landscape Core rank
+Для Materiality Engine можно добавить deterministic ranks:
+account_sales_rank
+category_sales_rank
+campaign_spend_rank
+Но я бы не включал десятки рангов.
+Основные:
+ordered_amount rank
+paid_spend rank
+достаточны.
+
+109. Не использовать percentile как семантическую оценку
+Можно:
+ordered_amount_percentile = 98
+как математический context.
+Не:
+important = true.
+Но даже percentile я бы пока оставил Materiality Engine, а не Landscape.
+Landscape содержит raw share/rank.
+
+110. Landscape и Data Quality
+Если DQ говорит:
+SKU Finance resolution = 25%
+Landscape никогда не прячет это.
+Например:
+finance:
+  readiness = PARTIAL
+  mapping_coverage = 25%
+
+111. Если capability FAILED
+Landscape не использует stale previous data автоматически как current.
+Например:
+Stock FAILED today
+Не:
+stock = yesterday's 20
+под видом current.
+Если policy разрешает stale data:
+readiness = STALE
+as_of = yesterday
+явно.
+
+112. Landscape Build Flow
+В итоге я вижу так:
+Sealed Factual Universe
+        ↓
+Determine Landscape Eligibility
+        ↓
+Build Account Landscape
+        ↓
+Batch Build Category Core
+        ↓
+Batch Build SKU Core
+        ↓
+Batch Build Campaign Core
+        ↓
+Validate Landscape invariants
+        ↓
+Materiality Engine
+        ↓
+Selected Entities
+        ↓
+Build Category/SKU/Campaign Detail
+        ↓
+Discovery Pack Builder
+
+113. Landscape Validation
+Нужен отдельный deterministic validator.
+Проверяет не semantic meaning, а контракт.
+Например:
+entity exists
+seller scope correct
+
+periods valid
+values finite
+
+Money currency present
+
+comparison formula correct
+
+readiness compatible with value
+
+truncation metadata correct
+
+supporting entity refs valid
+
+no forbidden Action Targets
+
+114. Пример forbidden state
+Funnel readiness = UNAVAILABLE
++
+funnel.pdp_impressions = 10000
+если это не explicitly historical/stale representation.
+Validator должен поймать несогласованность.
+
+115. Ещё пример
+previous = 0
+pct_delta = 500%
+INVALID.
+Должно быть:
+change_state = FROM_ZERO
+pct_delta = null.
+
+116. Category double-counting gate
+Leaf Category Landscapes:
+Σ leaf + UNMAPPED
+должны reconciliate с eligible SKU aggregate, учитывая coverage.
+Parent categories не должны попадать в тот же суммируемый набор.
+
+117. Campaign attribution gate
+Campaign:
+attributed_order_amount
+никогда не добавляется к Sales.
+Landscape schema вообще хранит их в разных blocks.
+
+118. Stock/Supply gate
+Никакого поля:
+total_future_stock.
+Validator можно сделать blacklist-based дополнительно.
+
+119. Landscape implementation packages
+Например:
+internal/landscape/
+
+    api/
+        context.go
+        account.go
+        category.go
+        sku.go
+        campaign.go
+
+    builder/
+        account.go
+        category_core.go
+        category_detail.go
+        sku_core.go
+        sku_detail.go
+        campaign_core.go
+        campaign_detail.go
+
+    profile/
+    validator/
+    serializer/
+    cache/
+Dependency:
+landscape
+↓
+factualapi
+Никогда:
+landscape
+↓
+repository.
+
+120. Пример Account Landscape
+Допустим seller:
+2 000 active SKU
+24 categories
+38 campaigns
+Account:
+Sales current7:
+10m ₽
+previous7:
+9m ₽
++11.1%
+
+units:
+4100 → 4400
+
+Stock:
+1.1m sellable units
+62 demand-positive SKU with zero sellable
+sales exposure = 8.4%
+
+Ads:
+1.8m paid spend
+1.5m previous
+attributed amount = 5.2m
+DRR = 34.6%
+
+Finance:
+net accrual = 7.2m
+data through D-1
+
+Health:
+2 provider CRITICAL
+4 WARNING
+
+Supply:
+18 open supplies
+3 overdue
+И AI уже знает общий масштаб.
+
+121. Category example
+Category:
+Кофемашины
+
+120 SKU
+
+Sales:
+2m → 1.6m
+-20%
+
+Account share:
+16%
+
+Stock:
+12 demand-positive SKU with zero stock
+zero-stock sales exposure:
+11%
+
+Advertising:
+300k spend
+attributed amount 700k
+
+Price:
+28 SKU increased
+4 decreased
+
+Supply:
+31 SKU have open inbound
+Никакой строки:
+Категория проблемная.
+
+122. SKU example
+SKU 417
+Кофемашина X
+
+Category:
+Кофемашины
+
+Sales:
+100 → 70 units
+-30%
+
+210k → 161k ₽
+-23.3%
+
+Account sales share:
+1.61%
+
+Category sales share:
+10.1%
+
+Stock:
+20
+coverage 2 days
+
+Price:
+2000 → 2300
++15%
+
+Ads:
+12k spend
+40k attributed
+DRR 30%
+
+Search:
+position 18 → 45
+Search data lag 2 days
+
+Promotions:
+1 active
+
+Supply:
+0 open inbound
+Landscape не говорит, почему продажи упали.
+
+123. Campaign example
+Campaign 58
+CPC
+RUNNING
+
+Explicit SKU Set:
+75 SKU
+
+Spend:
+200k → 260k
++30%
+
+Impressions:
+1.2m → 1.3m
+
+Clicks:
+30k → 27k
+
+CTR:
+2.5% → 2.08%
+-0.42 pp
+
+Attributed amount:
+900k → 780k
+
+DRR:
+22.2% → 33.3%
++11.1 pp
+
+Account paid-spend share:
+14.4%
+Again:
+не:
+Кампания стала неэффективна.
+Это решит AI.
+
+124. Что увидит Materiality дальше
+Материальность SKU 417 сможет учитывать factual features:
+account share
+absolute Sales delta
+relative Sales delta
+
+current stock coverage
+
+ad spend
+
+price change
+
+supply presence
+Но правила Materiality мы спроектируем отдельно.
+
+125. Что увидит Discovery
+Не 2 000 SKU Detail.
+А условно:
+Account
++
+all/selected Category summaries
++
+selected Campaigns
++
+selected SKU Details
+Количество определит Materiality + Pack Budget policy.
+
+126. Почему это лучше старого Data Pack подхода
+Старый подход был примерно:
+все данные
+→ ZIP
+→ AI
+→ пусть модель сама найдёт важное
+Новая архитектура:
+все факты
+→ Canonical model
+→ safe aggregations
+→ compact landscapes
+→ deterministic materiality
+→ Discovery
+Мы не отнимаем у AI право анализировать.
+Мы убираем из его задачи:
+искать иголку в стоге сырых фактов;
+самостоятельно понимать missing;
+самостоятельно дедуплицировать;
+самостоятельно агрегировать;
+самостоятельно разбираться с stale data.
+
+127. Это не возвращение к старым Candidates
+Очень важный момент.
+В старом pipeline backend пытался заранее сформировать:
+signal/problem candidate
+и AI уже работал с backend interpretation.
+Landscape этого не делает.
+Он говорит:
+sales = -30%
+stock coverage = 2
+price = +15%
+Но не:
+candidate_type =
+SALES_DROP_DUE_TO_PRICE.
+То есть AI остаётся аналитиком.
+
+128. Разница принципиальная
+Старый Candidate:
+«SKU имеет проблему с ценой».
+Новый Landscape:
+«Sales -30%, Price +15%, Search -27 positions, Stock 2 days».
+AI сам решает:
+что здесь связано, что существенно, что требует действия.
+
+129. Acceptance Criteria
+Я бы считал Entity Landscapes готовыми только при прохождении следующих классов gate:
+Gate
+Что гарантирует
+landscape_determinism_gate
+same universe/profile → same landscape
+landscape_factual_api_only_gate
+нет SQL/repository access
+landscape_no_ai_gate
+нет OpenAI dependency
+landscape_no_semantic_labels_gate
+нет problem/priority/critical
+landscape_temporal_alignment_gate
+periods честные
+landscape_missing_zero_gate
+missing ≠ zero
+landscape_non_additive_gate
+unsafe metrics не агрегируются
+landscape_category_reconciliation_gate
+leaf + unmapped reconciles
+landscape_stock_supply_isolation_gate
+inbound ≠ stock
+landscape_attribution_isolation_gate
+ad/search attribution ≠ Sales
+landscape_supporting_context_truncation_gate
+bounded lists explicit
+landscape_n_plus_one_gate
+batch construction
+landscape_profile_version_gate
+exact profile recorded
+landscape_capability_propagation_gate
+limitations не теряются
+
+130. Архитектурный контракт
+Я предлагаю зафиксировать:
+Entity Landscape Aivion является deterministic typed projection Factual Universe для одной основной AI Entity — Account, Category, SKU или Campaign. Landscapes строятся исключительно через Internal Canonical Factual API в одном sealed FactualReadContext, не обращаются к provider API, UCDM repositories или AI и не являются самостоятельным Source of Truth.
+Landscape содержит factual state, standardized period comparisons, safe deterministic aggregates, current snapshot context, business exposure, capability/readiness metadata и ограниченный supporting context. Он не содержит problems, opportunities, priority, causal interpretation, semantic severity или recommendations. Provider judgements могут передаваться только с явным provider prefix.
+Landscapes имеют два уровня: Core для всего eligible entity universe и Detail только для сущностей, выбранных последующим Materiality Engine. Core оптимизирован для дешёвого batch-построения и factual ranking; Detail добавляет bounded Search Query, Campaign, Promotion, Supply и другие supporting contexts, но не заменяет Evidence Expansion.
+Account, Category, SKU и Campaign имеют разные typed Landscape schemas. Наличие domain block определяется фактической применимостью и capabilities; одна универсальная EAV-схема запрещена. Global Domain Windows, capabilities и limitations дедуплицируются на Landscape Set level, чтобы одинаковая metadata не повторялась для тысяч сущностей.
+Сравнения используют standard Temporal semantics: current_7d vs previous_7d является основным comparable window, процентные метрики используют p.p., transition from/to zero моделируется отдельно, snapshot facts не превращаются в daily facts. Source-native lagging domains сохраняют свои собственные explicit windows и не маскируются под analysis_date.
+Landscape supporting lists всегда bounded и детерминированно отсортированы, а truncation и semantic coverage явны. Supporting entities не становятся Action Targets. Landscapes rebuildable из Factual Universe + Profile Version; persistent mutable Landscape tables не создаются. Exact landscapes, вошедшие в AI input, сохраняются как immutable artifacts будущего Discovery Pack.
+Один продуктовый вопрос действительно появился
+Он касается Category Action Target.
+Сейчас Category Model допускает Category как полноценную AI Entity/Action Target, но taxonomy Ozon иерархическая. Если создать Landscapes одновременно для:
+Электроника
+→ Бытовая техника
+→ Кофемашины
+одни и те же SKU/Sales будут повторяться на трёх уровнях. Это сильно увеличит Discovery Context и почти наверняка создаст дублирующие выводы:
+проблема категории «Бытовая техника»
+и рядом:
+проблема категории «Кофемашины».
+Моя рекомендация для v1:
+Category Landscape и Category Action Target создавать только для seller-bearing leaf Category — той canonical Category, которая непосредственно назначена SKU. Parent Categories использовать исключительно как taxonomy/path context и для агрегированных навигационных представлений, но не как самостоятельный Action Target v1.
+Например:
+Электроника &gt; Бытовая техника &gt; Кофемашины
+Action:
+Category = Кофемашины
+а не:
+Category = Бытовая техника.
+Это сохранит однозначность и резко сократит дублирование.
+Если согласен, я бы это зафиксировал вместе с Entity Landscapes. После этого следующий блок — Materiality Engine / Material Entities, где мы впервые формально определим, какие из 2 000 SKU, десятков категорий и кампаний должны попасть в Discovery и почему, не превращая backend в semantic analyst.

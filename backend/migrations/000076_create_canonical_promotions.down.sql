@@ -1,0 +1,10 @@
+DROP TRIGGER IF EXISTS promotion_eligibility_runs_scope ON promotion_eligibility_snapshot_runs;
+DROP TRIGGER IF EXISTS promotion_memberships_scope ON promotion_sku_memberships;
+DROP TRIGGER IF EXISTS promotion_versions_scope ON promotion_versions;
+DROP FUNCTION IF EXISTS enforce_canonical_promotions_scope();
+DROP TABLE IF EXISTS promotion_sku_eligibility_snapshots;
+DROP TABLE IF EXISTS promotion_eligibility_snapshot_runs;
+DROP TABLE IF EXISTS promotion_sku_memberships;
+DROP TABLE IF EXISTS promotion_rule_components;
+DROP TABLE IF EXISTS promotion_versions;
+DROP TABLE IF EXISTS promotions;

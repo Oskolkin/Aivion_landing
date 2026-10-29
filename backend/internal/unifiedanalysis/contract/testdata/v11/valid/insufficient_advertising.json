@@ -1,0 +1,126 @@
+{
+  "schema_version": "aivion_unified_analysis_v11",
+  "analysis_meta": {
+    "pack_id": "pack_seller_1_2026_07_08_ab12",
+    "pack_hash": "9d78f0a1b2c3d4e5f678901234567890abcdef0123456789abcdef0123456789",
+    "metric_date": "2026-07-08"
+  },
+  "analysis_outcome": "insufficient_data",
+  "metric_claims": [],
+  "threshold_claims": [],
+  "findings": [
+    {
+      "finding_id": "f_source_incomplete",
+      "domain": "data_quality",
+      "finding_type": "source_incomplete",
+      "primary_block": "advertising",
+      "direction": "neutral",
+      "severity": "watch",
+      "interpretation": "observed",
+      "title": "Рекламные данные неполны",
+      "explanation_template": "Источник рекламных метрик неполон для надёжного анализа.",
+      "business_impact_template": null,
+      "scope": {
+        "scope_type": "account",
+        "entity_ids": []
+      },
+      "metric_claim_ids": [],
+      "threshold_claim_ids": [],
+      "confidence": "medium",
+      "limitation_codes": [
+        "source_incomplete"
+      ]
+    }
+  ],
+  "dashboard": {
+    "account_diagnosis": {
+      "status": "limited",
+      "headline": "Рекламные данные неполны",
+      "executive_summary_template": "Рекламный блок недоступен из-за ограничений данных.",
+      "primary_finding_ids": [],
+      "positive_finding_ids": [],
+      "improvement_levers": [],
+      "limitation_codes": [
+        "source_incomplete"
+      ]
+    },
+    "what_changed": {
+      "status": "available",
+      "summary_template": "Динамика кабинета неоднородна.",
+      "worsened": [],
+      "new_risks": [],
+      "unchanged_risks": [],
+      "improved": [],
+      "limitation_codes": []
+    },
+    "category_insights": {
+      "status": "available",
+      "items": [],
+      "limitation_codes": []
+    },
+    "funnel_insight": {
+      "status": "available",
+      "weakest_transition_key": null,
+      "headline": null,
+      "diagnosis_template": null,
+      "business_meaning_template": null,
+      "positive_context_template": null,
+      "recommended_checks": [],
+      "finding_ids": [],
+      "confidence": "medium",
+      "limitation_codes": []
+    },
+    "stock_insight": {
+      "status": "available",
+      "headline": null,
+      "diagnosis_template": null,
+      "primary_finding_ids": [],
+      "positive_finding_ids": [],
+      "recommended_checks": [],
+      "confidence": "medium",
+      "limitation_codes": []
+    },
+    "advertising_insight": {
+      "status": "unavailable",
+      "headline": null,
+      "diagnosis_template": null,
+      "primary_finding_ids": [],
+      "positive_finding_ids": [],
+      "recommended_checks": [],
+      "confidence": null,
+      "limitation_codes": [
+        "source_incomplete"
+      ]
+    },
+    "seller_pulse_insight": {
+      "status": "limited",
+      "headline": "Рекламные данные неполны",
+      "summary_template": "Часть аналитики недоступна из-за неполных рекламных данных.",
+      "key_point_finding_ids": [],
+      "important_fact_finding_ids": [],
+      "limitation_codes": [
+        "source_incomplete"
+      ]
+    },
+    "sku_focus_selection": {
+      "status": "available",
+      "order_drop": [],
+      "stock_risk": [],
+      "no_sales_with_stock": [],
+      "slow_turnover": [],
+      "key_skus": [],
+      "limitation_codes": []
+    }
+  },
+  "actions": [],
+  "limitations": [
+    {
+      "code": "source_incomplete",
+      "scope": "advertising",
+      "affected_blocks": [
+        "advertising_insight",
+        "actions"
+      ]
+    }
+  ]
+}

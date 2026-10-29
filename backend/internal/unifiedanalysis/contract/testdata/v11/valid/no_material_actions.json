@@ -1,0 +1,164 @@
+{
+  "schema_version": "aivion_unified_analysis_v11",
+  "analysis_meta": {
+    "pack_id": "pack_seller_1_2026_07_08_ab12",
+    "pack_hash": "9d78f0a1b2c3d4e5f678901234567890abcdef0123456789abcdef0123456789",
+    "metric_date": "2026-07-08"
+  },
+  "analysis_outcome": "no_material_actions",
+  "metric_claims": [
+    {
+      "claim_id": "c_orders_growth",
+      "metric_code": "orders_7d",
+      "scope_type": "account",
+      "entity_id": null,
+      "current_fact_id": "account:orders_7d:current_7d",
+      "previous_fact_id": "account:orders_7d:previous_7d",
+      "render_format": "integer",
+      "delta_mode": "percent"
+    },
+    {
+      "claim_id": "c_coverage_healthy",
+      "metric_code": "stock_coverage_days_7d",
+      "scope_type": "sku",
+      "entity_id": "801000100002",
+      "current_fact_id": "sku:801000100002:stock_coverage_days_7d",
+      "previous_fact_id": null,
+      "render_format": "days",
+      "delta_mode": "none"
+    }
+  ],
+  "threshold_claims": [],
+  "findings": [
+    {
+      "finding_id": "f_orders_growth",
+      "domain": "sales",
+      "finding_type": "orders_growth",
+      "primary_block": "seller_pulse",
+      "direction": "positive",
+      "severity": "none",
+      "interpretation": "observed",
+      "title": "Заказы выросли",
+      "explanation_template": "Заказы составили {{claim:c_orders_growth.current}} и изменились на {{claim:c_orders_growth.delta}}.",
+      "business_impact_template": "Спрос поддерживает продажи.",
+      "scope": {
+        "scope_type": "account",
+        "entity_ids": []
+      },
+      "metric_claim_ids": [
+        "c_orders_growth"
+      ],
+      "threshold_claim_ids": [],
+      "confidence": "high",
+      "limitation_codes": []
+    },
+    {
+      "finding_id": "f_coverage_healthy",
+      "domain": "stock",
+      "finding_type": "coverage_healthy",
+      "primary_block": "stock",
+      "direction": "positive",
+      "severity": "none",
+      "interpretation": "observed",
+      "title": "Покрытие запасом в норме",
+      "explanation_template": "Ключевые товары имеют достаточное покрытие.",
+      "business_impact_template": null,
+      "scope": {
+        "scope_type": "sku",
+        "entity_ids": [
+          "801000100002"
+        ]
+      },
+      "metric_claim_ids": [
+        "c_coverage_healthy"
+      ],
+      "threshold_claim_ids": [],
+      "confidence": "high",
+      "limitation_codes": []
+    }
+  ],
+  "dashboard": {
+    "account_diagnosis": {
+      "status": "available",
+      "headline": "Кабинет в устойчивом состоянии без обязательных действий",
+      "executive_summary_template": "Материальных негативных проблем, требующих обязательных Actions, не обнаружено.",
+      "primary_finding_ids": [],
+      "positive_finding_ids": [
+        "f_orders_growth",
+        "f_coverage_healthy"
+      ],
+      "improvement_levers": [],
+      "limitation_codes": []
+    },
+    "what_changed": {
+      "status": "available",
+      "summary_template": "Динамика кабинета неоднородна.",
+      "worsened": [],
+      "new_risks": [],
+      "unchanged_risks": [],
+      "improved": [],
+      "limitation_codes": []
+    },
+    "category_insights": {
+      "status": "available",
+      "items": [],
+      "limitation_codes": []
+    },
+    "funnel_insight": {
+      "status": "available",
+      "weakest_transition_key": null,
+      "headline": null,
+      "diagnosis_template": null,
+      "business_meaning_template": null,
+      "positive_context_template": null,
+      "recommended_checks": [],
+      "finding_ids": [],
+      "confidence": "medium",
+      "limitation_codes": []
+    },
+    "stock_insight": {
+      "status": "available",
+      "headline": "Остатки в допустимом диапазоне",
+      "diagnosis_template": "Подтверждённое покрытие ключевых SKU находится в здоровом диапазоне.",
+      "primary_finding_ids": [],
+      "positive_finding_ids": [
+        "f_coverage_healthy"
+      ],
+      "recommended_checks": [],
+      "confidence": "high",
+      "limitation_codes": []
+    },
+    "advertising_insight": {
+      "status": "available",
+      "headline": null,
+      "diagnosis_template": null,
+      "primary_finding_ids": [],
+      "positive_finding_ids": [],
+      "recommended_checks": [],
+      "confidence": "medium",
+      "limitation_codes": []
+    },
+    "seller_pulse_insight": {
+      "status": "available",
+      "headline": "Положительная динамика без обязательных действий",
+      "summary_template": "Заказы выросли, критических рисков по остаткам не выявлено.",
+      "key_point_finding_ids": [
+        "f_orders_growth",
+        "f_coverage_healthy"
+      ],
+      "important_fact_finding_ids": [],
+      "limitation_codes": []
+    },
+    "sku_focus_selection": {
+      "status": "available",
+      "order_drop": [],
+      "stock_risk": [],
+      "no_sales_with_stock": [],
+      "slow_turnover": [],
+      "key_skus": [],
+      "limitation_codes": []
+    }
+  },
+  "actions": [],
+  "limitations": []
+}

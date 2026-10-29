@@ -1,0 +1,34 @@
+# Default: let Git decide; force LF for identity-critical and source text.
+* text=auto
+
+# Unified Analysis immutable prompt/schema bodies — always LF in the worktree.
+backend/internal/unifiedanalysis/prompt/*.txt text eol=lf
+backend/internal/unifiedanalysis/contract/schema/*.json text eol=lf
+
+# Common source/docs formats.
+*.go text eol=lf
+*.md text eol=lf
+*.sql text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.json text eol=lf
+*.toml text eol=lf
+*.txt text eol=lf
+*.sh text eol=lf
+
+# Binary assets — never subject to text EOL conversion.
+*.zip binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.pdf binary
+*.docx binary
+*.xlsx binary
+*.pptx binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary

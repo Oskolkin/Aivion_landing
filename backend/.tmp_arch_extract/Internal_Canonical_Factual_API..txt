@@ -1,0 +1,1857 @@
+
+Да. После Capability Model у нас появился почти весь фундамент, чтобы правильно спроектировать Internal Canonical Factual API.
+Здесь я предлагаю зафиксировать одну ключевую мысль:
+Internal Canonical Factual API — единственная разрешённая точка чтения бизнес-фактов Aivion для Dashboard, Chat, Discovery, Evidence и всех будущих аналитических consumers. Никто выше этого слоя не знает таблиц UCDM, SQL, provider pagination, revision logic или того, как выбирать “правильный” Stock snapshot.
+При этом я не предлагаю делать отдельный микросервис. Для текущего Aivion это должен быть типизированный Go application layer внутри backend. Если когда-нибудь архитектура действительно разделится на сервисы, поверх него можно добавить gRPC/HTTP adapter, не меняя бизнес-контракт.
+
+1. Зачем вообще нужен Factual API
+Сейчас после UCDM мы потенциально можем написать:
+SELECT ...
+FROM fact.sales_sku_daily
+JOIN fact.stock_snapshot_positions ...
+JOIN ...
+прямо внутри Dashboard.
+Потом отдельно другой SQL внутри Chat.
+Ещё один — для Discovery.
+Ещё один — для Evidence.
+И через несколько месяцев получим четыре разных определения:
+current stock
+current category
+7d sales
+advertising spend
+finance expense
+Именно этого мы должны избежать.
+Правильная схема:
+                      UCDM
+                       │
+                       ↓
+             Internal Factual API
+                       │
+        ┌──────────────┼──────────────┐
+        ↓              ↓              ↓
+    Dashboard         Chat        AI pipeline
+                                     │
+                              ┌──────┴───────┐
+                              ↓              ↓
+                          Discovery       Evidence
+
+2. Factual API — semantic firewall
+Он отвечает не просто:
+какая строка лежит в PostgreSQL?
+А:
+какой canonical fact является правильным для этого seller, entity, периода и factual universe?
+Например consumer спрашивает:
+GetCurrentStock(SKU 417)
+Factual API сам должен:
+понять seller;
+получить Read Context;
+проверить capability;
+выбрать последний COMPLETE Stock Snapshot, разрешённый данным context;
+исключить overlapping inventory pools;
+корректно просуммировать sellable stock;
+сохранить NULL ≠ 0;
+вернуть freshness/as-of;
+вернуть coverage/limitations;
+при необходимости дать ссылку на provenance.
+Consumer вообще не должен знать, что существуют:
+stock_snapshot_runs
+stock_snapshot_positions
+inventory_pools
+
+3. И особенно AI не должен знать SQL
+Никаких:
+AI → SQL → canonical DB
+даже read-only.
+И никаких generic:
+POST /facts/query
+{
+  "table": "...",
+  "group_by": "...",
+  "formula": "..."
+}
+Это постепенно превратится в SQL через JSON.
+Правильно:
+GetSKUDemand(...)
+GetCurrentSKUStock(...)
+GetSKUPrice(...)
+GetCampaignPerformance(...)
+GetSKUQueryPerformance(...)
+...
+То есть API отражает business semantics, а не структуру PostgreSQL.
+
+4. Архитектурно это не HTTP API
+Внутри backend я бы сделал примерно:
+internal/factualapi
+с Go interfaces.
+Например:
+type SalesReader interface {
+    GetAccountDemand(ctx context.Context, req AccountDemandRequest) (AccountDemandResult, error)
+    BatchGetSKUDemand(ctx context.Context, req BatchSKUDemandRequest) (BatchSKUDemandResult, error)
+}
+А не:
+HTTP → localhost → HTTP → factual service
+Причины:
+backend сейчас один;
+нет реальной независимой service scaling requirement;
+не нужен network hop;
+не нужен второй auth layer;
+не нужен отдельный deployment;
+compile-time Go types гораздо полезнее.
+
+5. Но transport contract отделяем
+Структура:
+PostgreSQL
+    ↓
+Repositories
+    ↓
+Factual API Services
+    ↓
+    ├── Dashboard Application Service
+    ├── Chat
+    ├── Discovery
+    ├── Evidence
+    └── HTTP handlers
+Если позже потребуется:
+gRPC
+REST
+они становятся adapters поверх Factual API.
+
+6. Главный объект — FactualReadContext
+Любой запрос фактов должен выполняться не просто для seller, а внутри определённого factual context.
+Например:
+type FactualReadContext struct {
+    SellerAccountID int64
+
+    AnalysisDate    date.Date
+    CutoffAt        time.Time
+
+    TemporalPolicyVersion string
+    CapabilityPolicyVersion string
+
+    FactualUniverseID   *int64
+    FactualUniverseHash string
+
+    Mode ReadMode
+}
+
+7. Зачем нужен Read Context
+Допустим Discovery стартовал:
+20 Aug 05:40
+В этот момент:
+Stock snapshot = 05:35
+Search through = 17 Aug
+Finance through = 18 Aug
+В 05:50 появился:
+новый Stock snapshot.
+Evidence спрашивает Stock.
+Без Context получим:
+Discovery → Stock 05:35
+Evidence → Stock 05:50
+То есть AI анализирует две разные реальности.
+С Context:
+cutoff = 05:40
+Evidence всё равно получает snapshot 05:35.
+
+8. Два режима Read Context
+Я предлагаю только два.
+SEALED_UNIVERSE
+Для:
+Discovery
+Evidence
+Deep Analysis
+Publication
+historical publication replay
+Обязательно привязан:
+Factual Universe Manifest ID
+После seal изменить нельзя.
+
+LATEST_STABLE
+Для:
+Dashboard
+interactive Chat
+внутренних diagnostics
+В начале operation backend фиксирует:
+cutoff_at = now
+и один раз resolve'ит доступные domain bindings.
+Все запросы внутри operation используют этот же context.
+
+9. Не держим длинные PostgreSQL транзакции
+Можно было бы использовать:
+REPEATABLE READ
+и держать DB transaction весь Discovery → Evidence → Deep.
+Но это плохая идея.
+PostgreSQL действительно гарантирует в REPEATABLE READ, что последовательные SELECT внутри транзакции видят один snapshot, в отличие от READ COMMITTED, где каждый запрос может видеть более свежие committed изменения. PostgreSQL
+Но AI pipeline может длиться минуты.
+Держать DB transaction всё это время не нужно.
+У нас уже сильнее business mechanism:
+analysis_cutoff_at
++
+append-only revisions
++
+bound snapshot IDs
++
+capability manifest
+Поэтому DB transaction используется только внутри конкретной Factual API operation.
+
+10. Правило AS KNOWN AT
+Это один из важнейших invariants Factual API.
+Для revisionable facts запрос должен читать:
+latest revision
+WHERE observed_at &lt;= context.cutoff_at
+Например Sales:
+19 Aug:
+
+rev1
+100 units
+observed 20 Aug 05:00
+
+rev2
+105 units
+observed 20 Aug 08:00
+Context:
+cutoff = 06:00
+ответ:
+100
+Не:
+105
+
+11. То же для Canonical mappings
+Например 20 августа SKU был:
+UNMAPPED
+21 августа Category taxonomy обновилась и удалось resolve его.
+Старая Publication 20 августа всё равно должна увидеть:
+UNMAPPED.
+Не сегодняшнее улучшенное mapping.
+Иначе publication перестанет быть воспроизводимой.
+
+12. API никогда не принимает business_date там, где нужен snapshot
+Например:
+GetStock(
+    sku,
+    date = 2026-08-19
+)
+я бы запретил.
+Потому что Stock — не daily fact.
+Правильно:
+GetCurrentSKUStock(context, sku)
+или:
+ListSKUStockObservations(
+    context,
+    from_at,
+    to_at
+)
+Это защищает Temporal Framework непосредственно через API contract.
+
+13. И наоборот для Sales
+Sales получает:
+Period
+не:
+as_of timestamp.
+Например:
+type Period struct {
+    From date.Date
+    To   date.Date
+}
+Обе границы inclusive.
+
+14. Standard Period References
+Consumer не должен самостоятельно считать:
+today - 6
+today - 13
+Для стандартной аналитики:
+ANALYSIS_DAY
+PREVIOUS_DAY
+CURRENT_7D
+PREVIOUS_7D
+TREND_30D
+Например:
+type PeriodRef string
+Factual API через TemporalResolver получает реальные даты.
+
+15. Explicit Period тоже разрешён
+Например Chat спрашивает:
+продажи с 1 по 15 августа.
+Тогда:
+ExplicitPeriod {
+  from: 1 Aug
+  to: 15 Aug
+}
+Но только если конкретная metric supports эту period semantics.
+Например Sales — да.
+Search unique users — только через direct-period source.
+Stock — нет.
+
+16. Самая важная защита: aggregation policy
+Factual API знает из Metric Registry:
+ordered_amount
+→ SUM_SAFE
+
+unique_search_users
+→ DIRECT_PERIOD
+
+average_position
+→ DIRECT_PERIOD
+
+stock
+→ SNAPSHOT_ONLY
+
+conversion
+→ DIRECT_PERIOD
+
+CTR
+→ DERIVE_FROM_COMPONENTS
+Поэтому consumer не может запросить:
+SUM(unique_search_users daily)
+
+17. Никакого generic Aggregate(metric, SUM)
+Такой метод я бы вообще запрещал.
+Плохо:
+Aggregate(
+   metric = "search.unique_users",
+   function = SUM,
+   groupBy = CATEGORY,
+)
+Правильно:
+GetSearchPerformance(...)
+и сама domain implementation знает допустимую mathematics.
+
+18. Common Entity Reference
+Для переходов между domains:
+type EntityRef struct {
+    Kind EntityKind
+    ID   int64
+}
+Например:
+SKU:417
+CATEGORY:75
+CAMPAIGN:58
+POSTING:734
+PROMOTION:52
+SUPPLY:71
+
+19. Action Target отдельно
+type ActionTargetRef struct {
+    Kind ActionTargetKind
+    ID   int64
+}
+Enum только:
+ACCOUNT
+CATEGORY
+SKU
+CAMPAIGN
+Нельзя случайно cast:
+Promotion
+→ ActionTargetRef.
+Compile-time/type validation.
+
+20. Типизированные Money
+Никакого:
+float64
+type Money struct {
+    Amount Decimal
+    Currency string
+}
+Например:
+{
+  "amount": "123456.78",
+  "currency": "RUB"
+}
+
+21. Percent тоже должен иметь ясную scale
+В API:
+8.4%
+храним/возвращаем как:
+8.4
+если type называется:
+Percent
+А не иногда:
+0.084
+
+22. Missing ≠ Zero на уровне API
+Я бы ввёл typed wrapper:
+type Value[T any] struct {
+    State ValueState
+    Value *T
+
+    ReasonCode string
+}
+States:
+KNOWN
+UNAVAILABLE
+UNKNOWN
+NOT_APPLICABLE
+NO_DENOMINATOR
+
+23. Пример
+Реальный ноль:
+{
+  "state": "KNOWN",
+  "value": 0
+}
+Источник недоступен:
+{
+  "state": "UNAVAILABLE",
+  "reason_code": "NO_SUBSCRIPTION"
+}
+Нет denominator:
+{
+  "state": "NO_DENOMINATOR"
+}
+Это фундаментально лучше одного:
+null.
+
+24. Но wrapper не превращает API в EAV
+Например response всё равно типизирован:
+type AdvertisingPerformance struct {
+    Impressions            Value[int64]
+    Clicks                 Value[int64]
+    PaidSpend              Value[Money]
+    AttributedOrderAmount  Value[Money]
+    CTR                    Value[Percent]
+    DRR                    Value[Percent]
+}
+Не:
+[]MetricValue
+для всего подряд.
+
+25. Common Fact Metadata
+Каждый meaningful factual response получает:
+type FactMeta struct {
+    Readiness ReadinessStatus
+
+    AsOfAt     *time.Time
+    Period     *Period
+
+    Coverage   CoverageMeta
+    Limitations []Limitation
+
+    FactRef    FactRef
+}
+
+26. Coverage Meta
+Например:
+type CoverageMeta struct {
+    SemanticScope string
+
+    ExpectedEntities *int64
+    ObservedEntities *int64
+    ResolvedEntities *int64
+
+    SourceCoverageRatio *Decimal
+    ResolutionCoverageRatio *Decimal
+}
+
+27. Limitations
+Не string только для человека.
+type Limitation struct {
+    Code string
+    Message string
+}
+Например:
+TOP_N_PROVIDER_RANKED
+SOURCE_MATURITY_LAG
+PARTIAL_SKU_MAPPING
+STALE_SNAPSHOT
+AI Pack позже может использовать и code, и краткое explanation.
+
+28. FactRef
+Нам нужна возможность:
+Откуда взялось это число?
+Поэтому результат содержит opaque:
+FactRef
+например:
+factref_01H...
+Consumer не разбирает его.
+
+29. TraceFact(FactRef)
+Отдельный diagnostic API:
+TraceFact(ctx, FactRef)
+может вернуть:
+canonical fact
+source payload
+source endpoint
+source contract
+revision
+formula version
+input facts
+
+30. Для derived metric trace особенно ценен
+Например:
+coverage_days_7d = 2.4
+Trace:
+sellable_stock = 24
+source = stock snapshot 700
+
+avg_daily_ordered_units = 10
+source = Sales current_7d
+
+formula =
+stock_coverage_v1
+Это потом будет чрезвычайно полезно для Evidence и внешнего аудита.
+
+31. Репозиторий и Factual API — разные вещи
+Очень важно не назвать SQL repository «Factual API».
+Repository:
+type SalesRepository interface {
+    ...
+}
+знает:
+fact.sales_sku_daily
+revision_no
+DISTINCT ON
+Factual API:
+GetSKUDemand(...)
+знает:
+ordered units
+ordered amount
+period semantics
+capability
+
+32. Dependency direction
+Строго:
+Dashboard
+Chat
+Discovery
+Evidence
+        ↓
+Factual API
+        ↓
+Domain Policies / Resolvers
+        ↓
+Repositories
+        ↓
+UCDM
+Никаких:
+Dashboard → repository
+Discovery → SQL
+
+33. Go package boundary
+Я бы построил примерно:
+internal/factualapi/
+    context.go
+    entity.go
+    capability.go
+
+    sales.go
+    stock.go
+    price.go
+    advertising.go
+    funnel.go
+    finance.go
+    search.go
+    promotion.go
+    health.go
+    supply.go
+
+    trace.go
+    errors.go
+    pagination.go
+Implementation:
+internal/factual/
+    service/
+    repository/
+    postgres/
+    resolver/
+    policy/
+Consumers имеют dependency только:
+factualapi
+
+34. API Entity Service
+Минимально:
+GetAccount
+
+GetSKU
+BatchGetSKUs
+ListSKUs
+
+GetCategory
+ListCategories
+
+GetCampaign
+BatchGetCampaigns
+ListCampaigns
+
+GetPosting
+ListPostings
+
+GetPromotion
+ListPromotions
+
+GetSupply
+ListSupplies
+Но supporting entity existence здесь не означает Action Target.
+
+35. ListSKUs
+Например request:
+type ListSKUsRequest struct {
+    ReadContext FactualReadContext
+
+    CatalogState []CatalogState
+    CategoryIDs []int64
+
+    PageSize int
+    PageToken string
+}
+Не допускаем:
+raw SQL filter string.
+
+36. Pagination — обязательно с первого дня
+Коллекции SKU, postings, finance lines, Search Query могут расти сильно.
+Google API guidance рекомендует page_size/page_token изначально для List methods и opaque next_page_token, а Microsoft также рекомендует server-side pagination с самого начала, поскольку добавление её позже становится breaking change. google.aip.dev
+Поэтому каждый потенциально большой List:
+items
+next_page_token
+
+37. Page Token должен быть opaque
+Не:
+page=17
+offset=1600
+а:
+eyJ...
+Token внутри может содержать:
+read_context_hash
+filter_hash
+ordering
+last_sort_key
+last_entity_id
+и быть подписан backend.
+Consumer его не разбирает.
+
+38. Token привязывается к Read Context
+Нельзя:
+page 1
+context cutoff = 05:40
+
+page 2
+latest cutoff = 05:50.
+Page token содержит context identity/hash.
+Если context другой:
+PAGE_TOKEN_CONTEXT_MISMATCH.
+
+39. Ordering deterministic
+Каждый List имеет default order.
+Например SKU:
+canonical_sku_id ASC
+Finance:
+business_date DESC
+id DESC
+Search Queries:
+provider ranking
+then canonical_query_id
+Всегда tie-breaker.
+
+40. Не делаем arbitrary order_by
+Сортировка может быть дорогой, особенно совместно с pagination; API guidance прямо рекомендует поддерживать произвольную сортировку только при реальной необходимости. GitHub
+Поэтому:
+SortMode
+с закрытым allowlist.
+Например:
+BY_ORDERED_AMOUNT_DESC
+BY_PAID_SPEND_DESC
+BY_STOCK_ASC
+только если это factual-safe и реально нужно consumer.
+
+41. Filters тоже закрытые и типизированные
+Google AIP описывает generic filter syntax как вариант для broad public APIs. google.aip.dev
+Для нашего internal Factual API я бы сознательно сделал строже:
+type SKUFilter struct {
+    CategoryIDs []int64
+    CatalogStates []CatalogState
+
+    OrderedAmountMin *Money
+}
+а не:
+filter =
+"whatever SQL-like expression"
+Потому что нам важнее semantic safety.
+
+42. Batch APIs обязательны
+Целевая аудитория:
+700–2000 SKU.
+Discovery/Materiality постоянно будет работать с десятками/сотнями SKU.
+Если сделать только:
+GetSKU(1)
+GetSKU(2)
+...
+получим N+1.
+Google API guidelines отдельно выделяют Batch methods после стандартных Get/List как нормальную оптимизацию. google.aip.dev
+
+43. Поэтому
+Например:
+BatchGetSKUDemand
+BatchGetCurrentSKUStock
+BatchGetSKUPrices
+BatchGetSKUSearchSummary
+BatchGetSKUInbound
+Обрабатывают список IDs одним SQL/query plan.
+
+44. Batch limit
+Не hardcode в архитектуре:
+exactly 100.
+Но adapter имеет configurable:
+max_batch_size.
+Для текущего seller масштаба разумно поддерживать сотни SKU за operation.
+
+45. Batch result не падает целиком из-за одного SKU
+Например:
+417 → READY
+418 → READY
+999 → NOT_FOUND
+Ответ содержит per-item result.
+Не:
+500 entire request.
+
+46. Sales API
+Я вижу такие основные методы.
+Demand
+GetAccountDemand
+GetSKUDemand
+BatchGetSKUDemand
+ListSKUDemand
+GetCategoryDemand
+ListCategoryDemand
+
+47. Пример GetSKUDemand
+Request:
+context
+sku_id = 417
+period = CURRENT_7D
+Response:
+ordered_units
+ordered_amount
+
+period_from
+period_to
+
+readiness
+
+category attribution metadata
+fact refs
+
+48. Sales Trend
+GetDemandSeries
+Но только для additive daily metrics:
+ordered_units
+ordered_amount
+Request:
+entity
+period
+grain = DAY
+Не generic arbitrary metric time series.
+
+49. Lifecycle API
+GetOrder
+GetPosting
+
+ListPostings
+ListLifecycleEvents
+ListReturns
+Можно фильтровать:
+SKU
+Posting
+Event type
+business period
+fulfillment
+Но не использовать lifecycle для demand.
+
+50. Stock API
+GetCurrentSKUStock
+BatchGetCurrentSKUStock
+ListCurrentSKUStock
+
+GetStockPositions
+
+GetSKUStockHistory
+
+GetSKUCoverage
+BatchGetSKUCoverage
+
+51. GetCurrentSKUStock
+Response:
+total_sellable_units
+
+positions:
+optional/detail mode
+
+snapshot_as_of
+collection_window
+
+freshness
+provider context
+
+capability
+
+52. GetStockPositions
+Это detail operation.
+Например Evidence хочет выяснить:
+где находится запас SKU.
+Возвращает:
+inventory pool
+warehouse
+cluster
+fulfillment channel
+sellable
+reserved
+provider-specific known states
+Но никакого:
+good warehouse
+bad warehouse.
+
+53. GetSKUCoverage
+Derived factual API:
+coverage_days_7d
+coverage_days_30d
+Trace говорит:
+Stock snapshot
++
+Sales period
++
+formula policy version.
+
+54. Никакого GetCriticalStock
+Не должно существовать метода:
+ListCriticalStock()
+или:
+GetStockProblems()
+Это уже interpretation/materiality.
+Можно:
+ListCurrentSKUStock(
+    coverage_days_lte = X
+)
+если X передаёт deterministic caller policy.
+Но понятия critical Factual API не знает.
+
+55. Price API
+GetCurrentSKUPrice
+BatchGetCurrentSKUPrice
+ListCurrentSKUPrices
+
+GetSKUPriceHistory
+
+GetSKUPriceIndex
+
+GetPricingStrategy
+ListPricingStrategies
+
+56. Price History возвращает observations
+Например:
+18 Aug 05:30 → 2200
+19 Aug 05:30 → 2000
+Не:
+daily price = 2200
+если это не было observed ежедневно.
+
+57. Price components остаются раздельными
+Response:
+provider_current_price
+seller_promo_price
+customer_price
+old_reference_price
+minimum_allowed_price
+retail_price
+Не:
+price = choose min(all).
+
+58. Advertising API
+GetCampaign
+ListCampaigns
+
+GetCampaignPerformance
+BatchGetCampaignPerformance
+
+GetCampaignSKUPerformance
+ListCampaignSKUPerformance
+
+GetAccountAdvertisingPerformance
+
+ListAdAttributionEvents
+
+GetAdvertisingEfficiency
+GetAdvertisingSpendShare
+
+59. Advertising Efficiency
+Allowed deterministic:
+CTR
+CPC
+CPM
+calculated DRR
+Не:
+campaign efficiency score.
+
+60. Spend Share — composite fact
+paid ad spend
+/
+Sales ordered_amount
+Factual API проверяет:
+same period
+currency compatible
+both capabilities usable.
+Если нет:
+UNAVAILABLE
+TEMPORAL_INCOMPATIBILITY
+а не считает приблизительно.
+
+61. Funnel API
+GetAccountFunnel
+GetSKUFunnel
+BatchGetSKUFunnel
+
+GetCategoryFunnel
+Request явно содержит:
+period.
+
+62. Funnel response не обязана быть одной линейной воронкой
+Например:
+Search surface:
+    impressions
+    cart adds
+    conversion
+
+PDP surface:
+    impressions
+    cart adds
+    conversion
+И downstream Sales context отдельно.
+Никакой fake:
+Search → PDP → Cart → Order
+
+63. Grain safety
+Если Category query запрашивает:
+unique_sessions
+и Metric Registry говорит:
+NON_ADDITIVE
+Factual API не пытается суммировать SKU.
+Возвращает:
+UNAVAILABLE_AT_GRAIN
+или использует direct Category provider grain, если такой источник когда-нибудь появится.
+
+64. Finance API
+GetAccountAccrualSummary
+
+ListAccrualRecords
+GetAccrualRecord
+
+ListAccrualLines
+
+GetSKUFinance
+BatchGetSKUFinance
+
+GetCategoryFinance
+
+GetPostingFinance
+
+GetCampaignFinance
+
+GetSupplyFinance
+
+GetFinanceMappingCoverage
+
+GetBalanceSnapshot
+GetSettlementContext
+
+65. GetAccountAccrualSummary
+Использует:
+parent record total.
+Не:
+parent + lines.
+Это должно быть невозможно внутри implementation.
+
+66. SKU Finance
+Response обязательно содержит:
+direct_mapped_amount
+coverage
+unmapped/account_only context
+Не пытается дать:
+full SKU P&amp;L
+если source не позволяет.
+
+67. Search API
+GetSKUSearchSummary
+BatchGetSKUSearchSummary
+ListSKUSearchSummary
+
+ListSKUQueryPerformance
+
+GetSearchQuery
+
+GetMarketQuerySnapshot
+SearchMarketQueries
+
+GetSKUSearchHistory
+
+68. ListSKUQueryPerformance
+Response обязательно содержит:
+semantic_coverage =
+TOP_N_PROVIDER_RANKED
+и:
+retrieval_reason
+TOP_BY_SEARCHES
+TOP_BY_GMV
+...
+Нельзя скрыть это metadata.
+
+69. Factual API не суммирует Query GMV
+Для SKU total Search используется:
+Seller Search Summary source.
+Не:
+SUM(top query GMV).
+
+70. Promotions API
+GetPromotion
+ListPromotions
+
+GetSKUCurrentPromotions
+BatchGetSKUCurrentPromotions
+
+ListPromotionParticipants
+ListPromotionCandidates
+
+GetPromotionMembershipHistory
+GetPromotionEligibilitySnapshot
+
+71. Candidate и Participant — разные методы
+Именно физически.
+Не:
+ListPromotionProducts(status)
+где легко перепутать semantics.
+Так API contract сам предотвращает ошибку.
+
+72. Promotion Price не Price API
+GetPromotion может вернуть:
+action_price
+max_action_price
+Но никогда не поле:
+current_price.
+Если Evidence нужны обе цены:
+Promotion API
++
+Price API.
+
+73. Account Health API
+GetAccountHealthSummary
+
+ListAccountRatings
+
+GetRatingHistory
+GetRatingThresholds
+
+GetLocalizationIndex
+
+GetFBSRFBSHealth
+ListFBSRFBSErrorEvents
+
+74. Не возвращаем Aivion Health Score
+Response:
+provider OK count
+WARNING count
+CRITICAL count
+individual ratings
+provider statuses
+FBS error index
+AI интерпретирует.
+
+75. Health Error Event связывается с Posting
+Например:
+SELLER_DELAY
+posting_ref = posting:734
+Но event не создаёт вторую cancellation/delay lifecycle truth.
+
+76. Supply API
+Только FBO:
+ListSupplyOrders
+GetSupplyOrder
+
+ListSupplies
+GetSupply
+
+GetSKUInbound
+BatchGetSKUInbound
+
+GetSupplyPlannedItems
+
+ListSupplyAcceptanceActs
+GetSupplyAcceptanceAct
+
+GetAcceptanceActItems
+GetSupplyDiscrepancies
+
+77. GetSKUInbound
+Например:
+ready_declared_units
+in_transit_declared_units
+acceptance_declared_units
+
+fact_accepted_units
+Но не:
+future_stock.
+
+78. Timeslot naming
+Response:
+scheduled_delivery_window
+Не:
+stock_eta.
+
+79. Capability API
+Это тоже часть Internal Factual API:
+GetCapabilities
+GetCapability
+ListCapabilities
+
+GetDomainReadiness
+Но обычно domain methods уже возвращают relevant capability metadata.
+
+80. Consumer не должен сам повторно оценивать capabilities
+Плохо:
+Dashboard:
+if Premium...
+или:
+Discovery:
+if value != null...
+Правильно:
+Factual API result.readiness.
+
+81. Strict capability preflight
+Для некоторых operations удобно:
+CheckRequirements(context, RequirementSet)
+Например будущий Pack Builder говорит:
+Need:
+Sales demand
+Stock
+Price
+Backend возвращает:
+Sales READY
+Stock READY
+Price READY
+Но это не заменяет сам capability manifest.
+
+82. Что делать при unavailable capability
+Это обычно не API error.
+Например:
+GetSKUFunnel(...)
+при отсутствии Premium.
+Ответ:
+readiness = UNAVAILABLE
+reason = NO_SUBSCRIPTION
+а не Go error.
+Потому что это нормальное business state.
+
+83. Когда возвращаем error
+Настоящие ошибки:
+INVALID_ARGUMENT
+
+ENTITY_NOT_FOUND
+
+SELLER_SCOPE_MISMATCH
+
+READ_CONTEXT_INVALID
+
+READ_CONTEXT_NOT_SEALED
+
+PAGE_TOKEN_INVALID
+
+UNSUPPORTED_GRAIN
+
+UNSUPPORTED_PERIOD
+
+UNSUPPORTED_AGGREGATION
+
+CURRENCY_MISMATCH
+
+DATA_INVARIANT_VIOLATION
+
+INTERNAL
+
+84. Почему capability unavailable не error
+Иначе consumer будет вынужден делать:
+if err == ErrNoPremium...
+И снова каждый consumer начнёт интерпретировать provider semantics.
+Нам это не нужно.
+
+85. External HTTP error contract
+Если Factual API через Dashboard adapter превращается в HTTP, я бы использовал RFC 9457 application/problem+json, который стандартизирует machine-readable problem details для HTTP APIs. RFC Editor
+Например:
+{
+  "type": "/problems/invalid-page-token",
+  "title": "Invalid page token",
+  "status": 400,
+  "code": "PAGE_TOKEN_INVALID"
+}
+Но внутри Go — typed errors.
+
+86. API schema version
+Хотя API внутренний, contract version всё равно нужен.
+Например:
+factual_contract_version = 1
+Но я бы не заводил:
+internal/factualapi/v1/v2/v3
+заранее.
+Compile-time Go consumers меняются вместе.
+Версионировать нужно прежде всего:
+serialized/public contracts
+Factual Universe
+Pack Builder
+published artifacts.
+
+87. Provider names не должны протекать наверх без причины
+Например consumer должен видеть:
+ordered_amount
+а не:
+revenue
+Потому что revenue — Ozon source name, а canonical semantics — ordered amount.
+Но provider-specific facts, где semantics важна:
+provider_drr
+provider_price_index
+provider_rating_status
+сохраняют provider prefix.
+
+88. Никаких source payload JSON в обычных responses
+Не:
+raw_provider_payload: {...}
+Для этого существует:
+TraceFact
+и audit tooling.
+Это уменьшает payload и предотвращает случайный PII leakage.
+
+89. Security boundary
+Внешний handler после auth определяет:
+SellerAccountID.
+Дальше этот seller идёт в:
+ReadContext.
+Consumers не должны свободно подставлять:
+seller_id = 123.
+
+90. AI вообще не передаёт Seller ID
+Discovery уже получает context:
+seller=1
+manifest=52.
+Все factual calls наследуют его.
+AI output не может сказать:
+дай seller 2.
+
+91. PII вообще не входит в Factual DTO
+Posting:
+posting number
+status
+SKU
+quantities
+timestamps
+Да.
+Покупатель:
+ФИО
+телефон
+адрес
+Нет.
+
+92. Caching — sealed contexts дают огромное преимущество
+Для:
+Factual Universe H
+данные immutable.
+Поэтому cache key:
+universe_hash
++
+operation
++
+request_hash
+
+93. Пример
+GetSKUDemand(
+  H,
+  SKU 417,
+  CURRENT_7D
+)
+может кэшироваться сколько угодно, пока существует Universe H.
+
+94. Current Dashboard cache
+Для LATEST_STABLE:
+cutoff/context hash
+тоже входит в cache key.
+Не:
+seller_1_stock
+без version.
+
+95. Cache никогда не является Source of Truth
+Cache miss:
+read UCDM.
+Cache corruption:
+can rebuild.
+
+96. Query budgets
+Чтобы Chat/AI не смогли случайно запросить:
+all finance lines
+for all 2000 SKU
+for 3 years
+каждый operation имеет:
+max page size
+max period
+max batch size
+max expanded detail size
+
+97. Heavy operations только explicit
+Например:
+ListFinanceAccrualLines
+всегда paginated.
+GetSupplyAcceptanceActItems
+paginated.
+ListLifecycleEvents
+paginated.
+
+98. Нет hidden fan-out
+Если:
+GetSKUCoreFacts
+когда-нибудь появится, он не должен неожиданно делать:
+11 domains × 100 queries.
+Я вообще пока не предлагаю вводить такой composite endpoint.
+Почему?
+Следующий наш этап:
+Entity Landscapes
+как раз определит нужные cross-domain projections.
+Сейчас Factual API остаётся чистым domain layer.
+
+99. Единственное исключение — approved deterministic composite facts
+Например:
+Stock Coverage
+Ad Spend Share
+их формулы уже архитектурно утверждены.
+Поэтому такие methods допустимы.
+
+100. Не вводим пока GetSKU360
+Очень заманчиво:
+GetSKU360()
+который возвращает:
+Sales
+Stock
+Price
+Ads
+Search
+Finance
+Promo
+Supply...
+Я бы сейчас этого не делал.
+Потому что это уже фактически SKU Landscape.
+Это следующий слой.
+
+101. Observability
+Каждый Factual API operation должен создавать trace span.
+Например:
+factual.sales.get_sku_demand
+Attributes:
+factual.domain = sales
+factual.operation = get_sku_demand
+factual.context_mode = sealed
+factual.readiness = ready
+factual.cache_hit = true
+factual.result_count = 1
+OpenTelemetry рекомендует единые semantic attributes для корреляции telemetry и не перегружать spans огромными или unbounded complex attributes. OpenTelemetry
+
+102. Не писать в span
+full SKU name
+full search query
+raw payload
+2000 SKU IDs
+Высокая cardinality.
+Это logs/debug artifacts, если действительно нужно.
+
+103. Metrics
+Минимально:
+factual_api_requests_total
+factual_api_duration_seconds
+
+factual_api_results_total{readiness}
+
+factual_api_cache_hits_total
+
+factual_api_rows_read
+
+factual_api_batch_size
+
+factual_api_errors_total{code}
+
+104. Slow query diagnostics
+Например operation &gt; configurable threshold:
+log:
+operation
+context
+query plan identifier
+duration
+rows
+Не automatically EXPLAIN ANALYZE production every time.
+
+105. Data invariant violation — отдельный severe error
+Например Factual API обнаружил:
+two active SKU category assignments
+Хотя DB constraint должен был это запретить.
+Это не:
+PARTIAL.
+Это:
+DATA_INVARIANT_VIOLATION
+и alert.
+
+106. SQL Repository rules
+Repository queries должны всегда содержать:
+seller scope
+cutoff/binding
+Не должно быть:
+SELECT latest...
+без context.
+
+107. Versioned states
+Resolver:
+ResolveStateAsOf(
+    entity,
+    effective_at,
+    knowledge_cutoff
+)
+То есть нужны две временные оси:
+когда state относится
+и:
+когда Aivion о нём знал.
+
+108. Category example
+Ищем Category SKU на Sales date:
+effective date = 10 Aug
+knowledge cutoff = 20 Aug 05:40
+Это не просто:
+current category.
+
+109. Snapshot resolver
+ResolveLatestCompleteSnapshot(
+    domain,
+    completed_at &lt;= cutoff,
+    freshness policy
+)
+Но для sealed universe обычно snapshot уже должен быть выбран в Domain Binding.
+Factual API не переигрывает binding.
+
+110. Sealed Context сильнее latest resolution
+Если manifest говорит:
+Stock Snapshot 700
+Factual API читает:
+700.
+Не ищет:
+последний &lt;= cutoff
+ещё раз.
+Это делает manifest полноценным immutable binding.
+
+111. Live context
+Для current Dashboard такой binding создаётся transient resolver'ом:
+latest complete eligible snapshot
+и фиксируется внутри request context.
+
+112. Domain methods должны возвращать Data Context
+Не обязательно весь manifest в каждом response.
+Но минимум:
+context_id/hash
+cutoff
+analysis_date
+может идти в common envelope.
+Например внешнему Dashboard полезно понимать:
+данные актуальны на...
+
+113. Common Response Envelope
+Концептуально:
+type ResponseMeta struct {
+    FactualContractVersion string
+
+    ContextHash string
+
+    AnalysisDate date.Date
+    CutoffAt time.Time
+
+    GeneratedAt time.Time
+}
+И domain payload.
+
+114. Для internal Go это можно не сериализовать каждый раз
+Но external adapter добавляет.
+Внутри FactualReadContext уже есть metadata.
+
+115. Пример полного вызова
+Допустим Discovery позже решил посмотреть SKU 417.
+Context:
+seller = 1
+analysis_date = 19 Aug
+cutoff = 20 Aug 05:40
+universe = 52
+Вызов:
+BatchGetSKUDemand(
+  sku = 417,
+  period = CURRENT_7D
+)
+Получает:
+13–19 Aug
+ordered_units = 70
+ordered_amount = 161000 RUB
+READY
+
+116. Stock
+GetCurrentSKUStock(417)
+возвращает:
+snapshot = 20 Aug 05:31
+
+sellable = 20
+
+coverage source:
+FULL
+
+READY
+
+117. Price
+GetCurrentSKUPrice(417)
+current = 2300
+old_reference = 2900
+customer = unavailable
+
+READY/PARTIAL depending capability
+
+118. Search
+GetSKUSearchSummary(
+  417,
+  CURRENT_7D equivalent provider-compatible period
+)
+возвращает:
+position = 45
+
+through = 17 Aug
+
+readiness = PARTIAL
+
+limitations:
+SOURCE_MATURITY_LAG
+
+119. Funnel
+GetSKUFunnel(...)
+возвращает:
+readiness = UNAVAILABLE
+reason = NO_SUBSCRIPTION
+Не error.
+
+120. Что видит будущий Landscape builder
+Он получает четыре независимых factual results:
+Sales      READY
+Stock      READY
+Price      READY
+Search     PARTIAL
+Funnel     UNAVAILABLE
+И уже строит компактное представление SKU.
+Factual API ничего не решает о:
+problem / opportunity.
+
+121. Очень важный пример Category
+Sales:
+GetCategoryDemand(Category 75, CURRENT_7D)
+Factual API:
+SKU facts
++
+historical SKU→Category assignments
++
+UNMAPPED rules
+и возвращает:
+ordered_amount = X
+
+mapping_coverage = 96%
+readiness = PARTIAL
+если 4% SKU нельзя классифицировать.
+
+122. А Search Category может быть недоступен
+Если SKU сменил Category внутри direct Search period:
+13–19 Aug
+Factual API не присваивает весь Search fact одной Category.
+Response:
+CATEGORY_PERIOD_MAPPING_AMBIGUOUS
+Это показывает, насколько ценным становится Factual API.
+Consumer не обязан помнить этот сложный invariant.
+
+123. Что не должно существовать в Factual API
+Я бы прямо запретил следующие методы:
+GetProblems
+
+GetOpportunities
+
+GetRecommendations
+
+GetCriticalSKUs
+
+GetBadCampaigns
+
+GetOptimalPrice
+
+GetRevenueAtRisk
+
+GetHealthScore
+
+GetPromotionEffect
+
+GetSalesCause
+
+PredictStock
+
+GetProjectedStock
+Это либо AI layer, либо будущий forecasting layer.
+
+124. Не должно существовать и generic financial revenue
+Только:
+Sales.ordered_amount
+Advertising.attributed_order_amount
+Search.provider_search_gmv
+Finance.product_accrual
+Так contracts сами предотвращают semantic regression.
+
+125. Testing pyramid
+Нужны четыре уровня.
+Unit
+Resolvers/formulas.
+Repository Integration
+PostgreSQL test DB.
+Factual Contract Tests
+Input fixture → exact canonical response.
+Cross-domain invariant tests
+Проверяют запрещённые смешения.
+
+126. Temporal contract tests
+Например:
+rev1 observed before cutoff
+rev2 after cutoff
+API обязан вернуть rev1.
+
+127. Snapshot test
+Partial snapshot свежее Complete.
+Partial 05:39
+Complete 05:30
+API:
+current = Complete 05:30
+не partial 05:39.
+
+128. Sealed binding test
+После manifest seal появился новый Complete snapshot.
+API по старому context:
+старый snapshot.
+
+129. Missing/zero test
+ordered_units = 0
+response:
+KNOWN 0.
+Source failed:
+UNAVAILABLE/FAILED.
+
+130. Non-additive metric test
+Monday users 100.
+Tuesday users 100.
+Weekly API:
+не имеет права вернуть:
+200
+без direct provider weekly period fact.
+
+131. Finance test
+Parent total -800
+
+lines:
+-500
+-200
+-100
+Account summary:
+-800
+не:
+-1600.
+
+132. Supply test
+Stock 20
+Inbound 100
+никакой API не должен возвращать:
+120 stock.
+
+133. Advertising attribution test
+Sales:
+100k
+Ads:
+40k attributed
+Search:
+20k attributed
+Sales API всегда:
+100k.
+
+134. Seller isolation test
+Context:
+Seller 1
+Request SKU belonging Seller 2.
+Response:
+ENTITY_NOT_FOUND
+или seller-scope violation internally.
+Я бы внешнему consumer обычно не раскрывал existence foreign entity.
+
+135. Pagination stability test
+Получили page 1.
+После этого DB получила новые observations.
+По тому же ReadContext + page token page 2 остаётся deterministic.
+
+136. Performance test
+Для seller:
+2000 SKU
+должны быть benchmarks для:
+BatchGetSKUDemand
+
+BatchGetCurrentSKUStock
+
+BatchGetSKUPrice
+без N+1.
+
+137. Factual API не должен зависеть от OpenAI
+Ни одной dependency:
+OpenAI client
+prompt
+schema
+в этом package.
+Это pure business-data layer.
+
+138. Factual API не должен зависеть от Dashboard DTO
+Например:
+SellerPulseCard
+не является factual object.
+Dashboard преобразует facts в свои UI contracts.
+
+139. И не должен зависеть от Discovery schema
+Иначе мы снова построим DB под один prompt.
+Discovery Pack Builder становится consumer.
+
+140. Implementation order
+Я бы внедрял не все методы одновременно.
+FAPI-0 — Foundation
+FactualReadContext
+EntityRef
+Money
+Percent
+Value[T]
+
+ResponseMeta
+FactMeta
+
+PageToken
+Errors
+
+Capability adapter
+TemporalResolver
+FactTrace
+
+141. FAPI-1 — Entity API
+Account
+SKU
+Category
+Campaign
+
+batch/list.
+Supporting entities постепенно.
+
+142. FAPI-2 — Core Sales
+Потому что Sales hard gate.
+Account Demand
+SKU Demand
+Category Demand
+series
+lifecycle
+
+143. FAPI-3 — Stock + Price
+Это даст первый полноценный operational SKU factual surface:
+Demand
+Stock
+Coverage
+Price
+
+144. FAPI-4 — Advertising
+Campaign + daily performance + attribution.
+
+145. FAPI-5 — Funnel + Search
+С Metric Registry и direct-period semantics.
+
+146. FAPI-6 — Finance
+С coverage и mapping semantics.
+
+147. FAPI-7 — Promotions + Health + Supply
+Все supporting operational domains.
+
+148. FAPI-8 — Trace/Provenance audit
+Базовый FactRef можно сделать сразу.
+Но полный recursive trace:
+derived → inputs → sources
+можно закончить после всех domains.
+
+149. FAPI-9 — Consumer cutover
+Когда новый API готов:
+Dashboard
+Chat
+AI
+не имеют imports repository packages.
+Я бы даже сделал architecture test:
+packages выше factualapi не могут импортировать internal/factual/repository или internal/db factual tables.
+
+150. Architecture lint
+Можно автоматически проверить dependency graph.
+Например CI gate:
+factual_api_boundary_gate = PASS
+Проверяет:
+Dashboard → factualapi only
+Chat → factualapi only
+AI → factualapi only
+
+no forbidden DB imports
+
+151. N+1 gate
+Добавил бы integration test:
+BatchGet 500 SKU
+и assert:
+DB query count &lt;= expected constant
+Не строго один запрос — некоторые domains требуют 2–4.
+Но не:
+500.
+
+152. Semantic ownership gate
+Например scan/contract tests гарантируют:
+Sales response
+не содержит finance accrual fields.
+
+Stock response
+не содержит inbound as stock.
+
+Price response
+не содержит promotion action price as current.
+
+Finance response
+не содержит ordered_amount under revenue.
+
+153. ReadContext determinism gate
+Самый важный:
+same ReadContext
++
+same request
+=
+same factual response/hash
+даже после позднего ingestion.
+Если этот gate проходит — у нас действительно работает Factual Universe architecture.
+
+154. Как это связано со следующим этапом
+После Factual API мы получаем:
+UCDM
+↓
+Capabilities
+↓
+Factual API
+Теперь можно наконец строить:
+Entity Landscapes
+не думая:
+откуда брать Sales?
+какой Stock snapshot использовать?
+можно ли суммировать Search?
+доступен ли Funnel?
+Всё это уже решено ниже.
+
+Архитектурный контракт Internal Canonical Factual API
+Я предлагаю зафиксировать его так:
+Internal Canonical Factual API Aivion является единственным типизированным application-level read contract над UCDM для всех бизнес-consumers. Dashboard, Chat, Discovery, Evidence и будущие analytical services не имеют прямого доступа к factual SQL/repositories. В текущей архитектуре Factual API реализуется как in-process Go service layer, а HTTP/gRPC являются только optional adapters и не образуют отдельный microservice.
+Каждое чтение выполняется внутри immutable FactualReadContext, который фиксирует seller, analysis date, knowledge cutoff, Temporal/Capability Policy и при AI-run — sealed Factual Universe Manifest. Period facts, snapshots, events и versioned states разрешаются согласно их собственной temporal semantics; API никогда не подменяет snapshot business date, не использует current state для historical query и не показывает revisions, observed после context cutoff.
+API contracts являются business-semantic и typed: Sales, Stock, Price, Advertising, Funnel, Finance, Search, Promotions, Account Health и Supply имеют собственные explicit methods. Generic SQL/EAV query, arbitrary metric aggregation и generic SUM/AVG API запрещены. Metric Registry определяет допустимые temporal/entity aggregations; non-additive metrics нельзя агрегировать вне разрешённой semantics.
+Missing, Known Zero, Unavailable, Unknown, Not Applicable и No Denominator различаются в API contract. Capability unavailability является нормальным factual result, а не transport/application error. Каждый result может содержать readiness, temporal/as-of metadata, semantic/entity coverage, limitations и opaque FactRef для provenance. Derived facts используют versioned deterministic formulas и могут быть traced до входных facts и provider sources.
+Все большие collections имеют server-side cursor pagination с opaque context-bound tokens, deterministic ordering и configurable limits. Batch methods обязательны для SKU/campaign workloads и не реализуются через N+1. Filters и sorting являются закрытыми typed allowlists, а не произвольным SQL-like expression.
+Factual API не содержит AI interpretation: в нём отсутствуют concepts “problem”, “opportunity”, “critical SKU”, “bad campaign”, “optimal price”, “revenue at risk”, “health score” или recommendation. Он предоставляет исключительно source-backed canonical facts, deterministic safe projections и declared limitations. Cross-domain composite methods допустимы только для заранее утверждённых deterministic formulas вроде Stock Coverage и Advertising Spend Share.
+Seller isolation является частью Read Context и repository queries; PII не включается в factual DTO. Sealed-context results детерминированно cacheable по universe hash + operation + request hash. Observability строится через OpenTelemetry spans/metrics с ограниченной cardinality.
+Продуктовых вопросов у меня здесь не возникло
+Есть implementation-параметры — batch sizes, page sizes, cache TTL для live context, query timeout, конкретная Go decimal-библиотека, — но это не продуктовые решения и их лучше подобрать после profiling.
+То есть Internal Canonical Factual API можно фиксировать как следующий закрытый архитектурный блок.
+Дальше по нашему плану уже логично проектировать Data Quality / Readiness Model. После него — Entity Landscapes, где впервые начнём превращать все эти правильные факты в компактное представление кабинета для первого AI-вызова.

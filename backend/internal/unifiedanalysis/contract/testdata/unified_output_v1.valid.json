@@ -1,0 +1,914 @@
+{
+  "schema_version": "aivion_unified_analysis_v10",
+  "analysis_meta": {
+    "pack_id": "pack_example_v1",
+    "pack_hash": "sha256:example",
+    "metric_date": "2026-07-08"
+  },
+  "analysis_outcome": "material_actions_found",
+  "dashboard": {
+    "account_summary": {
+      "status": "available",
+      "health_score": 62,
+      "health_score_delta": -8,
+      "severity": "high",
+      "headline": "Заказы и реклама требуют внимания",
+      "executive_summary": "Снижение заказов на ключевых SKU и рост ДРР требуют приоритизации пополнения и пересмотра кампаний.",
+      "improvement_summary": "Сфокусируйтесь на пополнении дефицитных SKU и снижении неэффективных трат.",
+      "risk_drivers": [
+        {
+          "id": "key_sku_stock_risk",
+          "category": "stock",
+          "category_label": "Остатки",
+          "severity": "critical",
+          "impact_score": 80,
+          "title": "Дефицит по ключевым SKU",
+          "reason": "Доступный остаток ниже покрытия на 7 дней",
+          "fact_ids": [
+            "fact:account"
+          ],
+          "entity_ids": [],
+          "impact_level": "среднее",
+          "affected_metric": "orders"
+        }
+      ],
+      "metric_date": "2026-07-08",
+      "improvement_levers": [
+        {
+          "title": "Снизить влияние: Дефицит по ключевым SKU",
+          "explanation": "Доступный остаток ниже покрытия на 7 дней",
+          "factor_id": "key_sku_stock_risk",
+          "linked_action_id": null,
+          "expected_direction": "снижение давления на индекс"
+        }
+      ]
+    },
+    "what_changed": {
+      "status": "available",
+      "summary": "Заказы снизились, рекламные траты выросли.",
+      "main_conclusion": "Состояние кабинета требует внимания из-за снижения заказов и выручки. Главное ухудшение — просадка продаж на горизонте 7 дней. Основная причина — давление дефицита остатков и локальные рекламные исключения. Риски по покрытию SKU сохраняются. Точкой опоры остаётся нормальный общий ДРР кабинета. Приоритет реакции — пополнение рисковых SKU и точечный разбор кампаний.",
+      "groups": [
+        {
+          "key": "worsened",
+          "label": "Ухудшилось",
+          "tone": "negative",
+          "summary": "Падение заказов 7д к предыдущим 7д",
+          "empty_text": "",
+          "items": [
+            {
+              "label": "Заказы",
+              "text": "Заказы снизились на 12%",
+              "highlights": [
+                "-12%"
+              ],
+              "signal_id": "sig_worsened_1372",
+              "signal_type": "worsened",
+              "primary_section": "what_changed_worsened",
+              "fact_ids": [
+                "fact:generic"
+              ],
+              "entity_ids": [],
+              "metric": null,
+              "direction": null,
+              "period": "2026-07-02..2026-07-08",
+              "severity": null,
+              "previous_state": null,
+              "current_state": null,
+              "first_seen_publication_id": null
+            }
+          ]
+        },
+        {
+          "key": "new_risks",
+          "label": "Новые риски",
+          "tone": "warning",
+          "summary": "Рост ДРР на ключевых кампаниях",
+          "empty_text": "",
+          "items": [
+            {
+              "label": "ДРР",
+              "text": "ДРР вырос до 28%",
+              "highlights": [
+                "28%"
+              ],
+              "signal_id": "sig_new_risks_1790",
+              "signal_type": "new_risks",
+              "primary_section": "what_changed_new_risks",
+              "fact_ids": [
+                "fact:generic"
+              ],
+              "entity_ids": [],
+              "metric": null,
+              "direction": null,
+              "period": "2026-07-02..2026-07-08",
+              "severity": null,
+              "previous_state": "absent_in_previous_publication",
+              "current_state": null,
+              "first_seen_publication_id": "previous:unknown"
+            }
+          ]
+        },
+        {
+          "key": "unchanged_risks",
+          "label": "Активные проблемы",
+          "tone": "neutral",
+          "summary": "Дефицит по ключевым SKU сохраняется",
+          "empty_text": "",
+          "items": [
+            {
+              "label": "Остатки",
+              "text": "Дефицит по ключевым SKU не закрыт",
+              "highlights": [],
+              "signal_id": "sig_unchanged_risks_2177",
+              "signal_type": "unchanged_risks",
+              "primary_section": "what_changed_active_problems",
+              "fact_ids": [
+                "fact:generic"
+              ],
+              "entity_ids": [],
+              "metric": null,
+              "direction": null,
+              "period": "2026-07-02..2026-07-08",
+              "severity": null,
+              "previous_state": "present_in_previous_publication",
+              "current_state": null,
+              "first_seen_publication_id": null
+            }
+          ]
+        },
+        {
+          "key": "improved",
+          "label": "Точки опоры",
+          "tone": "positive",
+          "summary": "Заметных улучшений по сравнению с прошлой сводкой не выявлено.",
+          "empty_text": "Текущие риски пока не компенсируются улучшениями в продажах, остатках или рекламе.",
+          "items": [
+            {
+              "label": "Общий ДРР кабинета в норме",
+              "text": "Кабинетный ДРР остаётся в комфортном диапазоне, несмотря на отдельные кампании с аномальным ДРР.",
+              "highlights": [
+                "ДРР"
+              ],
+              "signal_id": "sig_support_drr",
+              "signal_type": "support_drr",
+              "primary_section": "what_changed_support_points",
+              "fact_ids": [
+                "fact:ads"
+              ],
+              "entity_ids": [],
+              "metric": "drr",
+              "direction": "stable",
+              "period": "2026-07-02..2026-07-08",
+              "severity": "low",
+              "previous_state": null,
+              "current_state": "normal",
+              "first_seen_publication_id": null
+            }
+          ]
+        }
+      ]
+    },
+    "category_summaries": [
+      {
+        "category_id": "10",
+        "category_name": "Category A",
+        "category_score": 6,
+        "score_max": 10,
+        "health_score": 55,
+        "severity": "important",
+        "headline": "Категория проседает по заказам",
+        "key_risk": "Слабая конверсия в корзину",
+        "recommended_action": "Проверить карточки и остатки"
+      },
+      {
+        "category_id": "20",
+        "category_name": "Category B",
+        "category_score": 8,
+        "score_max": 10,
+        "health_score": 74,
+        "severity": "watch",
+        "headline": "Стабильная категория",
+        "key_risk": "Нет критичных рисков",
+        "recommended_action": "Поддерживать текущий ассортимент"
+      }
+    ],
+    "sales_funnel": {
+      "status": "available",
+      "stages": [
+        {
+          "key": "impressions",
+          "label": "Показы",
+          "value": 50000,
+          "previous_day_value": 48000,
+          "change_vs_previous_day_pct": 4.2
+        },
+        {
+          "key": "product_views",
+          "label": "Просмотры",
+          "value": 9000,
+          "conversion_from_previous": 18.0,
+          "conversion_from_top": 18.0
+        },
+        {
+          "key": "add_to_cart",
+          "label": "В корзину",
+          "value": 900,
+          "conversion_from_previous": 10.0
+        },
+        {
+          "key": "orders",
+          "label": "Заказы",
+          "value": 120,
+          "conversion_from_previous": 13.3
+        }
+      ]
+    },
+    "funnel_analysis": {
+      "status": "available",
+      "primary_drop_stage": "product_views_to_add_to_cart",
+      "primary_drop_message": "Слабый переход из просмотра в корзину",
+      "ai_analysis": {
+        "status": "available",
+        "short_summary": "Основная потеря на этапе корзины",
+        "trend_vs_yesterday": "чуть хуже",
+        "trend_vs_7d": "стабильно слабый",
+        "related_signals": [
+          "content",
+          "price"
+        ],
+        "recommended_focus": [
+          "карточки",
+          "цена"
+        ],
+        "full_analysis": "Конверсия просмотр→корзина ниже типичного уровня для категории.",
+        "summary": "Слабая корзинная конверсия",
+        "main_conclusion": "Нужно проверить контент и оффер",
+        "action_items": [
+          "Проверить изображения",
+          "Сверить цену с рынком"
+        ]
+      }
+    },
+    "stock_coverage": {
+      "status": "available",
+      "total_skus": 12,
+      "segments": [
+        {
+          "key": "deficit",
+          "label": "Дефицит",
+          "sku_count": 3,
+          "severity": "critical"
+        },
+        {
+          "key": "actual",
+          "label": "Норма",
+          "sku_count": 7,
+          "severity": "watch"
+        },
+        {
+          "key": "surplus",
+          "label": "Избыток",
+          "sku_count": 2,
+          "severity": "important"
+        }
+      ],
+      "narrative": {
+        "status": "available",
+        "headline": "Дефицит по ключевым SKU",
+        "summary": "Три SKU с коротким покрытием требуют пополнения.",
+        "next_step": "Сформировать поставку",
+        "tone": "critical"
+      }
+    },
+    "ad_efficiency": {
+      "status": "available",
+      "summary": {
+        "current_drr_pct": 91.8,
+        "previous_drr_pct": 22.0,
+        "average_drr_7d_pct": 91.8,
+        "total_spend_today": 12000,
+        "total_revenue_today": 13072,
+        "total_orders_today": 18,
+        "campaigns_high_drr_count": 2,
+        "campaigns_no_orders_count": 1,
+        "high_drr_spend": 7000,
+        "spend_without_orders": 1500
+      },
+      "narrative": {
+        "status": "available",
+        "summary": "За период 2–8 июля на рекламу потрачено 163800 рублей. Это составляет 16,8% общей выручки кабинета. Выручка, атрибутированная рекламным кампаниям, составила 178500 рублей, поэтому доля расходов в рекламной выручке достигла 91,8%. Проблемы сосредоточены в отдельных кампаниях.",
+        "checklist": [
+          {
+            "title": "Проверить кампании с высоким ДРР",
+            "text": "Две кампании тратят бюджет с ДРР выше целевого уровня — пересмотреть ставки и связки SKU.",
+            "target": "high_drr_campaigns"
+          },
+          {
+            "title": "Разобрать кампании без заказов",
+            "text": "Одна кампания расходует бюджет без заказов — проверить релевантность объявлений.",
+            "target": "no_order_campaigns"
+          }
+        ],
+        "limitations": [
+          "Часть кампаний без SKU-связок"
+        ],
+        "headline": "Реклама умеренно нагружает кабинет, но окупаемость кампаний остаётся низкой",
+        "metric_claims": [
+          {
+            "fact_id": "account:ad_spend_share_of_total_store_revenue_pct:current_7d",
+            "metric_code": "ad_spend_share_of_total_store_revenue_pct",
+            "value": 16.8,
+            "period_type": "current_7d",
+            "period_start": "2026-07-02",
+            "period_end": "2026-07-08"
+          },
+          {
+            "fact_id": "account:attributed_campaign_drr_pct:current_7d",
+            "metric_code": "attributed_campaign_drr_pct",
+            "value": 91.8,
+            "period_type": "current_7d",
+            "period_start": "2026-07-02",
+            "period_end": "2026-07-08"
+          }
+        ],
+        "threshold_claims": []
+      }
+    },
+    "risk_distribution": {
+      "status": "available",
+      "total": 6,
+      "groups": [
+        {
+          "group": "stock",
+          "label": "Остатки",
+          "count": 3,
+          "severity": "critical"
+        },
+        {
+          "group": "advertising",
+          "label": "Реклама",
+          "count": 2,
+          "severity": "important"
+        },
+        {
+          "group": "funnel",
+          "label": "Воронка",
+          "count": 1,
+          "severity": "watch"
+        }
+      ]
+    },
+    "seller_pulse": {
+      "kpis": [
+        {
+          "key": "orders",
+          "label": "Заказы",
+          "value": "120",
+          "delta": {
+            "abs": -16,
+            "pct": -11.8,
+            "label": "к пред. 7д",
+            "unit": "count"
+          }
+        },
+        {
+          "key": "revenue",
+          "label": "Выручка",
+          "value": "430 000 ₽",
+          "delta": {
+            "abs": -40000,
+            "pct": -8.5,
+            "label": "к пред. 7д",
+            "unit": "RUB"
+          }
+        }
+      ],
+      "trend_7d": [
+        {
+          "date": "2026-07-02",
+          "revenue": 60000,
+          "orders": 18
+        },
+        {
+          "date": "2026-07-03",
+          "revenue": 58000,
+          "orders": 17
+        },
+        {
+          "date": "2026-07-04",
+          "revenue": 61000,
+          "orders": 19
+        },
+        {
+          "date": "2026-07-05",
+          "revenue": 59000,
+          "orders": 16
+        },
+        {
+          "date": "2026-07-06",
+          "revenue": 62000,
+          "orders": 18
+        },
+        {
+          "date": "2026-07-07",
+          "revenue": 64000,
+          "orders": 17
+        },
+        {
+          "date": "2026-07-08",
+          "revenue": 66000,
+          "orders": 15
+        }
+      ],
+      "narrative": {
+        "status": "available",
+        "tone": "warning",
+        "headline": "Итог недели смешанный",
+        "summary": "За период кабинет требует внимания: выручка и заказы снизились. Основное давление создают дефицит остатков и локально неэффективные кампании. Общий ДРР кабинета остаётся в пределах нормы. Главный приоритет — восстановить запасы по рисковым SKU и точечно пересмотреть кампании с аномальным ДРР.",
+        "important_facts": [
+          {
+            "signal_id": "sig_pulse_stock_imp",
+            "signal_type": "important_0",
+            "primary_section": "seller_pulse_important",
+            "title": "Сейчас важно #1: состояние кабинета",
+            "explanation": "Отдельное наблюдение #1 о текущем состоянии: конкретный масштаб и период подтверждены Pack (не пересказ AI-резюме). Период 2026-07-02–2026-07-08.",
+            "fact_ids": [
+              "account:stock_coverage_days:current_7d"
+            ],
+            "entity_ids": [
+              "sku:8000"
+            ],
+            "metric": "stock_risk",
+            "direction": "risk",
+            "period": "2026-07-02..2026-07-08",
+            "severity": "critical",
+            "previous_state": null,
+            "current_state": "critical_coverage",
+            "first_seen_publication_id": null,
+            "period_type": "current_7d",
+            "period_start": "2026-07-02",
+            "period_end": "2026-07-08",
+            "metric_code": "stock_risk",
+            "claims": [
+              {
+                "fact_id": "account:revenue_7d:current_7d",
+                "metric_code": "revenue_7d",
+                "value": 975389.79,
+                "period_type": "current_7d",
+                "period_start": "2026-07-02",
+                "period_end": "2026-07-08"
+              }
+            ],
+            "value": null
+          },
+          {
+            "signal_id": "sig_pulse_drr_ok_imp",
+            "signal_type": "important_1",
+            "primary_section": "seller_pulse_important",
+            "title": "Сейчас важно #2: состояние кабинета",
+            "explanation": "Отдельное наблюдение #2 о текущем состоянии: конкретный масштаб и период подтверждены Pack (не пересказ AI-резюме). Период 2026-07-02–2026-07-08.",
+            "fact_ids": [
+              "account:drr:current_7d"
+            ],
+            "entity_ids": [
+              "campaign:9001"
+            ],
+            "metric": "ads_local",
+            "direction": "risk",
+            "period": "2026-07-02..2026-07-08",
+            "severity": "low",
+            "previous_state": null,
+            "current_state": "normal",
+            "first_seen_publication_id": null,
+            "period_type": "current_7d",
+            "period_start": "2026-07-02",
+            "period_end": "2026-07-08",
+            "metric_code": "ads_local",
+            "claims": [
+              {
+                "fact_id": "account:revenue_7d:current_7d",
+                "metric_code": "revenue_7d",
+                "value": 975389.79,
+                "period_type": "current_7d",
+                "period_start": "2026-07-02",
+                "period_end": "2026-07-08"
+              }
+            ],
+            "value": null
+          },
+          {
+            "signal_id": "sig_pulse_orders_imp",
+            "signal_type": "important_2",
+            "primary_section": "seller_pulse_important",
+            "title": "Сейчас важно #3: состояние кабинета",
+            "explanation": "Отдельное наблюдение #3 о текущем состоянии: конкретный масштаб и период подтверждены Pack (не пересказ AI-резюме). Период 2026-07-02–2026-07-08.",
+            "fact_ids": [
+              "account:orders:current_7d"
+            ],
+            "entity_ids": [],
+            "metric": "stable_ctr",
+            "direction": "stable",
+            "period": "2026-07-02..2026-07-08",
+            "severity": "medium",
+            "previous_state": null,
+            "current_state": "lower",
+            "first_seen_publication_id": null,
+            "period_type": "current_7d",
+            "period_start": "2026-07-02",
+            "period_end": "2026-07-08",
+            "metric_code": "stable_ctr",
+            "claims": [
+              {
+                "fact_id": "account:revenue_7d:current_7d",
+                "metric_code": "revenue_7d",
+                "value": 975389.79,
+                "period_type": "current_7d",
+                "period_start": "2026-07-02",
+                "period_end": "2026-07-08"
+              }
+            ],
+            "value": null
+          }
+        ],
+        "key_points": [
+          {
+            "signal_id": "sig_pulse_stock_kp",
+            "signal_type": "key_point_0",
+            "primary_section": "seller_pulse_key_point",
+            "title": "Риск дефицита по ключевым SKU",
+            "explanation": "У части SKU покрытие менее 3 дней, включая позицию 801000100010.",
+            "fact_ids": [
+              "account:stock_coverage_days:current_7d"
+            ],
+            "entity_ids": [],
+            "metric": "revenue_7d",
+            "direction": "down",
+            "period": "2026-07-02..2026-07-08",
+            "severity": "critical",
+            "previous_state": null,
+            "current_state": "critical_coverage",
+            "first_seen_publication_id": null,
+            "period_type": "current_7d",
+            "period_start": "2026-07-02",
+            "period_end": "2026-07-08",
+            "metric_code": "revenue_7d",
+            "claims": [
+              {
+                "fact_id": "account:stock_coverage_days:current_7d",
+                "metric_code": "stock_coverage_days",
+                "value": 1.0,
+                "period_type": "current_7d",
+                "period_start": "2026-07-02",
+                "period_end": "2026-07-08"
+              }
+            ],
+            "value": 975389.79
+          },
+          {
+            "signal_id": "sig_pulse_drr_ok_kp",
+            "signal_type": "key_point_1",
+            "primary_section": "seller_pulse_key_point",
+            "title": "Общий ДРР кабинета в норме",
+            "explanation": "Кабинетный ДРР остаётся в комфортном диапазоне при локальных исключениях кампаний.",
+            "fact_ids": [
+              "account:drr:current_7d"
+            ],
+            "entity_ids": [],
+            "metric": "orders_7d",
+            "direction": "down",
+            "period": "2026-07-02..2026-07-08",
+            "severity": "low",
+            "previous_state": null,
+            "current_state": "normal",
+            "first_seen_publication_id": null,
+            "period_type": "current_7d",
+            "period_start": "2026-07-02",
+            "period_end": "2026-07-08",
+            "metric_code": "orders_7d",
+            "claims": [
+              {
+                "fact_id": "account:drr:current_7d",
+                "metric_code": "drr",
+                "value": 1.0,
+                "period_type": "current_7d",
+                "period_start": "2026-07-02",
+                "period_end": "2026-07-08"
+              }
+            ],
+            "value": 672.0
+          },
+          {
+            "signal_id": "sig_pulse_orders_kp",
+            "signal_type": "key_point_2",
+            "primary_section": "seller_pulse_key_point",
+            "title": "Снижение заказов за неделю",
+            "explanation": "Заказы снизились относительно предыдущих 7 дней.",
+            "fact_ids": [
+              "account:orders:current_7d"
+            ],
+            "entity_ids": [],
+            "metric": "account_drr_pct",
+            "direction": "stable",
+            "period": "2026-07-02..2026-07-08",
+            "severity": "medium",
+            "previous_state": null,
+            "current_state": "lower",
+            "first_seen_publication_id": null,
+            "period_type": "current_7d",
+            "period_start": "2026-07-02",
+            "period_end": "2026-07-08",
+            "metric_code": "account_drr_pct",
+            "claims": [
+              {
+                "fact_id": "account:orders:current_7d",
+                "metric_code": "orders",
+                "value": 672.0,
+                "period_type": "current_7d",
+                "period_start": "2026-07-02",
+                "period_end": "2026-07-08"
+              }
+            ],
+            "value": 16.8
+          }
+        ],
+        "metric_claims": [
+          {
+            "fact_id": "account:revenue_7d:current_7d",
+            "metric_code": "revenue_7d",
+            "value": 975389.79,
+            "period_type": "current_7d",
+            "period_start": "2026-07-02",
+            "period_end": "2026-07-08"
+          },
+          {
+            "fact_id": "account:orders_7d:current_7d",
+            "metric_code": "orders_7d",
+            "value": 672,
+            "period_type": "current_7d",
+            "period_start": "2026-07-02",
+            "period_end": "2026-07-08"
+          }
+        ]
+      }
+    },
+    "sku_focus": {
+      "order_drop": [
+        {
+          "sku": 801000100001,
+          "offer_id": "offer-1",
+          "product_name": "SKU One",
+          "problem": "Падение заказов",
+          "key_metric": "-35% заказов 7д"
+        }
+      ],
+      "stock_risk": [
+        {
+          "sku": 801000100002,
+          "offer_id": "offer-2",
+          "product_name": "SKU Two",
+          "problem": "Дефицит остатка",
+          "key_metric": "покрытие 2 дня"
+        }
+      ],
+      "no_sales_with_stock": [
+        {
+          "sku": 801000100003,
+          "product_name": "SKU Three",
+          "problem": "Нет продаж при остатке",
+          "key_metric": "14 дней без продаж"
+        }
+      ],
+      "slow_turnover": [
+        {
+          "sku": 801000100004,
+          "product_name": "SKU Four",
+          "problem": "Медленная оборачиваемость",
+          "key_metric": "IDC 90 дней"
+        }
+      ],
+      "key_skus": [
+        {
+          "sku": 801000100001,
+          "product_name": "SKU One",
+          "revenue_share_pct": 22.5,
+          "reason": "Входит в топ по выручке"
+        }
+      ]
+    },
+    "top_action_ids": [
+      "a1",
+      "a2",
+      "a3"
+    ],
+    "recommended_action_ids": [
+      "a1",
+      "a2",
+      "a4"
+    ]
+  },
+  "actions": [
+    {
+      "analysis_action_id": "a1",
+      "type": "stock_replenishment",
+      "category": "stock",
+      "priority": "critical",
+      "title": "Пополнить дефицитные SKU",
+      "summary": "Три ключевых SKU близки к стокауту.",
+      "problem": "Доступный остаток не покрывает спрос на 7 дней.",
+      "why_now": "Риск потери выручки уже в ближайшие дни.",
+      "operational_goal": "Восстановить покрытие минимум на 14 дней",
+      "expected_effect": "Снижение риска стокаута и сохранение продаж",
+      "scope": {
+        "scope_type": "sku",
+        "entity_ids": [
+          "sku:801000100002",
+          "sku:801000100005"
+        ]
+      },
+      "steps": [
+        {
+          "order": 1,
+          "title": "Сформировать поставку",
+          "description": "Подготовить поставку по дефицитным SKU",
+          "entity_ids": [
+            "sku:801000100002"
+          ]
+        },
+        {
+          "order": 2,
+          "title": "Отправить на склад",
+          "description": "Согласовать и отгрузить поставку"
+        }
+      ],
+      "completion_criteria": "Покрытие по целевым SKU >= 14 дней",
+      "completion_conditions": [
+        {
+          "condition_key": "coverage_days",
+          "type": "metric_threshold",
+          "title": "Покрытие запасом",
+          "description": "Среднее покрытие >= 14 дней",
+          "metric_field": "stock_coverage_days_7d",
+          "baseline_fact_id": "sku:801000100002:stock_coverage_days_7d",
+          "baseline_value": 4,
+          "operator": "gte",
+          "target_value": 14,
+          "period_days": 7
+        }
+      ],
+      "evidence_summary": "IDC и available_stock по SKU ниже порога",
+      "evidence_fact_ids": [
+        "sku:801000100002:available_stock",
+        "sku:801000100005:stock_coverage_days_7d"
+      ],
+      "source_signal_ids": [],
+      "limitations": [
+        "История спроса ограничена 14 днями"
+      ],
+      "confidence": "high",
+      "execution_tier": "required"
+    },
+    {
+      "analysis_action_id": "a2",
+      "type": "ad_high_drr_review",
+      "category": "advertising",
+      "priority": "important",
+      "title": "Пересмотреть кампании с высоким ДРР",
+      "summary": "Две кампании тратят бюджет с завышенным ДРР.",
+      "problem": "ДРР выше целевого порога.",
+      "why_now": "Перерасход бюджета снижает маржу.",
+      "operational_goal": "Снизить ДРР без потери ключевых заказов",
+      "expected_effect": "Более эффективное распределение бюджета",
+      "scope": {
+        "scope_type": "campaign",
+        "entity_ids": [
+          "campaign:882000001625"
+        ]
+      },
+      "steps": [
+        {
+          "order": 1,
+          "title": "Проверить связки SKU",
+          "description": "Убедиться, что кампания ведет на релевантные SKU",
+          "entity_ids": [
+            "campaign:882000001625"
+          ]
+        }
+      ],
+      "completion_criteria": "ДРР кампании ниже 20%",
+      "evidence_summary": "Spend/revenue по кампании за 7 дней",
+      "evidence_fact_ids": [
+        "campaign:882000001625:drr_7d"
+      ],
+      "source_signal_ids": [],
+      "confidence": "medium",
+      "execution_tier": "required"
+    },
+    {
+      "analysis_action_id": "a3",
+      "type": "funnel_weak_transition",
+      "category": "funnel",
+      "priority": "important",
+      "title": "Усилить переход в корзину",
+      "summary": "Конверсия просмотр→корзина слабая.",
+      "problem": "Потеря трафика на этапе корзины.",
+      "why_now": "Падение конверсии влияет на заказы аккаунта.",
+      "operational_goal": "Поднять конверсию просмотр→корзина",
+      "expected_effect": "Рост заказов при том же трафике",
+      "scope": {
+        "scope_type": "funnel",
+        "entity_ids": [
+          "funnel:account"
+        ]
+      },
+      "steps": [
+        {
+          "order": 1,
+          "title": "Проверить карточки",
+          "description": "Сравнить контент и цену с конкурентами"
+        }
+      ],
+      "completion_criteria": "Конверсия просмотр→корзина выросла",
+      "evidence_summary": "Funnel transitions last_7d",
+      "evidence_fact_ids": [
+        "funnel:view_to_cart:conversion_7d"
+      ],
+      "source_signal_ids": [],
+      "confidence": "medium",
+      "execution_tier": "required"
+    },
+    {
+      "analysis_action_id": "a4",
+      "type": "no_sales_with_stock",
+      "category": "slow_turnover",
+      "priority": "watch",
+      "title": "Разобрать SKU без продаж при остатке",
+      "summary": "Есть SKU с остатком без продаж.",
+      "problem": "Замороженный товар без динамики.",
+      "why_now": "Сток занимает место и капитал.",
+      "operational_goal": "Запустить продажи или вывести остаток",
+      "expected_effect": "Снижение замороженного остатка",
+      "scope": {
+        "scope_type": "mixed",
+        "entity_ids": [
+          "sku:801000100003",
+          "category:10"
+        ]
+      },
+      "steps": [
+        {
+          "order": 1,
+          "title": "Проверить видимость",
+          "description": "Проверить статус карточки и цену"
+        }
+      ],
+      "completion_criteria": "Появились продажи или снижен остаток",
+      "evidence_summary": "days_without_sales + available_stock",
+      "evidence_fact_ids": [
+        "sku:801000100003:days_without_sales"
+      ],
+      "source_signal_ids": [],
+      "confidence": "low",
+      "execution_tier": "recommended"
+    },
+    {
+      "analysis_action_id": "a5",
+      "type": "sku_orders_drop",
+      "category": "sku",
+      "priority": "watch",
+      "title": "Разобрать SKU с просадкой заказов",
+      "summary": "Один SKU потерял заказы при сохранении остатка.",
+      "problem": "Резкое снижение заказов на горизонте 7 дней.",
+      "why_now": "Просадка уже влияет на выручку кабинета.",
+      "operational_goal": "Восстановить заказы или вывести из ассортимента",
+      "expected_effect": "Стабилизация заказов по целевому SKU",
+      "scope": {
+        "scope_type": "sku",
+        "entity_ids": [
+          "sku:801000100004"
+        ]
+      },
+      "steps": [
+        {
+          "order": 1,
+          "title": "Проверить цену и видимость",
+          "description": "Сравнить цену и выдачу с конкурентами",
+          "entity_ids": [
+            "sku:801000100004"
+          ]
+        }
+      ],
+      "completion_criteria": "Заказы по SKU вернулись к среднему 7д или SKU выведен",
+      "evidence_summary": "orders_7d drop vs previous_7d + available_stock",
+      "evidence_fact_ids": [
+        "sku:801000100004:orders_7d"
+      ],
+      "source_signal_ids": [],
+      "confidence": "medium",
+      "execution_tier": "recommended"
+    }
+  ],
+  "limitations": [
+    "История daily metrics ограничена 14 днями",
+    "Часть 30-дневных stock метрик может быть недоступна"
+  ]
+}

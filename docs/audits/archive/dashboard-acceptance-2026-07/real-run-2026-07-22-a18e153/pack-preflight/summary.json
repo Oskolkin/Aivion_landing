@@ -1,0 +1,24 @@
+{
+  "archive_sha256": "2c4acd2799c6065f7538fbf52f2003f309284a26e3ecbc757eac1c389ad84eeb",
+  "build_duration_ms": 129,
+  "compressed_bytes": 45002,
+  "limitations_count": 8,
+  "metric_date": "2026-07-08",
+  "output_dir": "..\\docs\\audits\\real-run-2026-07-22-a18e153\\pack-preflight",
+  "pack_hash": "17e80bbe7eccb4f8cf7740e1d1ada796c22e4dd581b61c76874c38da036be854",
+  "pack_id": "pack:1:2026-07-08:17e80bbe7eccb4f8",
+  "row_counts": {
+    "account_daily.csv": 30,
+    "account_summary.csv": 1,
+    "campaign_daily.csv": 300,
+    "campaign_sku.csv": 110,
+    "campaign_summary.csv": 10,
+    "product_enrichment.csv": 94,
+    "sku_daily.csv": 1974,
+    "sku_summary.csv": 94
+  },
+  "seller_id": 1,
+  "storage_key": "",
+  "uncompressed_bytes": 270110,
+  "validation_status": true
+}

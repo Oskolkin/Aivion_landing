@@ -1,0 +1,2 @@
+check,status,entity_id,expected,actual,detail
+ai_output_grounded,ok,,valid=true,valid=true errors=0 warnings=0 actions=3,outputvalidator.Validate over the frozen AI output against the run's Pack facts registry

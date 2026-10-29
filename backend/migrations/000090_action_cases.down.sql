@@ -1,0 +1,12 @@
+DROP TABLE IF EXISTS action_system_events;
+DROP TABLE IF EXISTS action_user_events;
+DROP TABLE IF EXISTS action_support_assessments;
+DROP TABLE IF EXISTS action_case_assessments;
+DROP TABLE IF EXISTS action_proposal_supports;
+ALTER TABLE IF EXISTS action_case_state DROP CONSTRAINT IF EXISTS fk_action_case_state_current_proposal;
+DROP TABLE IF EXISTS action_case_proposals;
+DROP TABLE IF EXISTS action_case_state;
+ALTER TABLE IF EXISTS action_signature_state DROP CONSTRAINT IF EXISTS fk_action_signature_state_active_case;
+DROP TABLE IF EXISTS action_cases;
+DROP TABLE IF EXISTS action_signature_state;
+DROP TABLE IF EXISTS action_signatures;

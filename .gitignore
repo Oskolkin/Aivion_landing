@@ -1,0 +1,120 @@
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.env
+!deploy/env/runtime.env.example
+*.secret
+*.secrets
+secrets/
+.secret/
+.credentials/
+
+# Server-only deploy runtime / secret material if copied into the tree
+deploy/**/runtime.env
+deploy/secrets/
+**/staging_basic_auth
+
+# Stage-2 deploy evidence payloads (keep the index README only)
+docs/audits/stage-2-deployment/**
+!docs/audits/stage-2-deployment/
+!docs/audits/stage-2-deployment/README.md
+
+# Backup files that may contain secrets
+*.bak
+*.backup
+*.bak-*
+*.old
+*.orig
+*.save
+*.swp
+*.swo
+*~
+
+# Private keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+
+# Local runtime / debug artifacts
+*.exe
+*.test
+cookies.txt
+dashboard-home.json
+tmp/
+temp/
+.gotmp/
+.cache/
+coverage/
+artifacts/
+debug-*.err
+debug-*.out
+debug-*.txt
+debug-*.json
+*.tmp
+*.log
+*.err
+*.out
+
+# Go
+bin/
+dist/
+coverage.out
+coverage.*
+backend/bin/
+backend/.gotmp/
+backend/chunks/
+backend/act.json
+backend/act_headers.txt
+backend/dash.json
+backend/dash_headers.txt
+backend/dump.err
+backend/run23_full_out.txt
+backend/run23_validated.json
+
+# Local acceptance dumps under backend/debug (keep *.go tooling tracked)
+backend/debug/**
+!backend/debug/**/
+!backend/debug/**/*.go
+!backend/debug/repository-cleanup/
+!backend/debug/repository-cleanup/**
+
+# Node dependencies
+node_modules/
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/playwright-report/
+frontend/test-results/
+frontend/blob-report/
+frontend/e2e-results/
+frontend/debug-pulse-accept/
+frontend/e2e/helpers/.e2e-credentials.json
+frontend/e2e/helpers/.seller-id
+
+# IDE
+.idea/
+.vscode/
+
+# Docker
+*.pid
+
+# Redis dump artifacts
+*.rdb
+dump.rdb
+backend/debug/repository-cleanup/integration-*.log
+
+# External audit runtime artifacts (never commit live bundles / URLs)
+deploy/external-audit/node_modules/
+/opt/aivion/shared/external-audit/
+**/external_audit_url
+**/external-audit-bundle/
+deploy/external-audit/work/

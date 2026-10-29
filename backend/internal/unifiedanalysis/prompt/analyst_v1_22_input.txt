@@ -1,0 +1,42 @@
+Analyze the uploaded Aivion Analysis Pack and produce the complete Aivion Unified Analysis result.
+
+Use Code Interpreter briefly: open the ZIP, read manifest + needed CSVs, compute metrics, then STOP tools. Do not keep iterating in Python once the numbers are ready. Never print or assemble the final JSON inside Python — emit only via the structured output schema.
+
+Read manifest.json first and copy pack_id, pack_hash, and metric_date into analysis_meta exactly.
+Build valid_sku_ids and valid_campaign_ids from sku_summary.csv / campaign_summary.csv before writing any Action entity_ids.
+Never invent campaign aliases (cmp-*) or SKU placeholders — copy exact Pack IDs only.
+
+HARD COMPLETENESS for material_actions_found and no_material_actions (do not omit any):
+- schema_version = aivion_unified_analysis_v8
+- every Action MUST set evidence_fact_ids with at least one fact_id copied verbatim from the Pack facts registry (never invent fact_ids); source_signal_ids may reference the diagnostic signal_ids that motivated the Action (empty array allowed)
+- every Action completion_conditions entry MUST set baseline_fact_id (a real Pack facts fact_id), baseline_value (its current value), operator, target_value and period_days; keep completion_criteria text consistent with the machine conditions
+- HARD: completion target must be unmet at analysis time — for operator >= or >: target_value > baseline_value; for <= or <: target_value < baseline_value; for ==: target_value != baseline_value. Never set a target that baseline already satisfies (example FAIL: baseline=5, operator=\">=\", target=3)
+- HARD: each Pack SKU id may appear in at most ONE Action scope.entity_ids / primary entity — never reuse the same sku across Actions
+- For material_actions_found with full Pack coverage: produce 5–15 Actions; at least 3 with execution_tier=required; deep analysis across all domains before selecting Actions (do not stop after 2 problems); dedup by type+operational_goal+affected entities; top_action_ids must reference exactly the 3 required Actions (or the top 3 required if more)
+- For no_material_actions: 0 Actions is required/acceptable; top/recommended IDs empty
+- account_summary.health_score REQUIRED (integer 0..100); never omit; 0 only when factors truly confirm critical cabinet; must include risk_drivers/factors for material_actions_found; severity must match score bands (critical/high/medium/low)
+- account_summary.improvement_levers non-empty when risk_drivers non-empty
+- seller_pulse.narrative.headline = one WEEKLY thesis (≤150 chars, no trailing period)
+- seller_pulse.narrative.summary with 2–3 short analytical sentences starting with the current_7d range (numbers + causes + support); never mix day/week without labels
+- seller_pulse.narrative.metric_claims with grounded weekly/daily numeric refs (fact_id=account:<metric>:<period_type>)
+- seller_pulse.narrative.key_points with 3–5 AI-резюме bullets (primary_section=seller_pulse_key_point)
+- seller_pulse.narrative.important_facts with 3–5 distinct «Что важно знать» items (primary_section=seller_pulse_important); not a rewrite of key_points
+- what_changed.main_conclusion with 4–6 synthesis sentences (not a card copy)
+- what_changed.improved labeled "Точки опоры" and filled when Pack has positive/stable signals
+- signal metadata on what_changed items, key_points and important_facts; no duplicate primary ownership
+- Russian presentation terms only (AI not ИИ, ДРР, CTR всех карточек / кликабельность); SKU allowed
+- TWO advertising share metrics (never mix denominators):
+  - ad_spend_share_of_total_revenue_pct = ad_spend / revenue (общая выручка кабинета) — Seller Pulse
+  - ad_spend_share_of_attributed_revenue_pct = ad_spend / ad_revenue (выручка, атрибутированная рекламным кампаниям) — Advertising block
+- Never write bare «выручка» without specifying which; always «общая выручка кабинета» or «выручка, атрибутированная рекламным кампаниям»
+- ad_efficiency.narrative.headline: short one-thesis advertising conclusion without trailing period; may contrast cabinet ad load vs attributed campaign efficiency; NO recommendations
+- ad_efficiency.narrative.summary: separate 2–4 sentence explanation that MUST cover (1) total ad spend, (2) total store revenue, (3) store-revenue share, (4) attributed ad revenue, (5) attributed-revenue share, (6) local campaign issues, (7) overall assessment; arithmetic must match Pack; use decimal comma; do not repeat the headline verbatim; NO recommendations / imperative steps («нужно», «следует», «рекомендуется»)
+- NEVER emit ad_efficiency.narrative.recommendation — actions belong only in Actions
+- dashboard.category_summaries non-empty whenever sku_summary.csv has category_id/category_name (one entry per significant category; each MUST include category_score, headline, key_risk, recommended_action)
+- sku_focus: at least one non-empty list among order_drop / stock_risk / no_sales_with_stock / slow_turnover / key_skus; every card must set numeric sku from Pack (never null sku)
+- funnel_analysis.ai_analysis with short_summary and/or main_conclusion
+- for material_actions_found: non-empty risk_distribution.groups
+- limitations[] may only use codes that exist in the Pack limitations/policy — never invent codes
+
+For every category_summaries entry fill BOTH key_risk and recommended_action with non-empty Pack-grounded text.
+After calculations, stop tools and return the result only through the configured structured output schema.

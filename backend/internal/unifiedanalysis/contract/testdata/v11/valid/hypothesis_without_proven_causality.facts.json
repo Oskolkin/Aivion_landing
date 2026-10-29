@@ -1,0 +1,10 @@
+{
+  "facts": [
+    {
+      "fact_id": "account:impression_to_view_pct:current_7d",
+      "metric_code": "impression_to_view_pct",
+      "scope_type": "funnel",
+      "entity_id": null
+    }
+  ]
+}

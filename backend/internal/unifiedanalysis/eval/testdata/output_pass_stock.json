@@ -1,0 +1,63 @@
+{
+  "schema_version": "aivion_unified_analysis_v1",
+  "analysis_meta": {
+    "pack_id": "pack_eval_pass",
+    "pack_hash": "sha256:eval",
+    "metric_date": "2026-07-08"
+  },
+  "analysis_outcome": "material_actions_found",
+  "dashboard": {
+    "account_summary": {
+      "status": "available",
+      "headline": "Дефицит по ключевому SKU",
+      "executive_summary": "Ключевой SKU без остатка требует пополнения.",
+      "metric_date": "2026-07-08"
+    },
+    "what_changed": { "status": "available", "groups": [] },
+    "category_summaries": [],
+    "sales_funnel": { "status": "available" },
+    "funnel_analysis": { "status": "available", "ai_analysis": { "status": "available" } },
+    "stock_coverage": { "status": "available" },
+    "ad_efficiency": { "status": "available" },
+    "risk_distribution": { "status": "available" },
+    "seller_pulse": { "kpis": [], "trend_7d": [] },
+    "sku_focus": {
+      "order_drop": [],
+      "stock_risk": [],
+      "no_sales_with_stock": [],
+      "key_skus": []
+    },
+    "top_action_ids": ["action_001"],
+    "recommended_action_ids": ["action_001"]
+  },
+  "actions": [
+    {
+      "analysis_action_id": "action_001",
+      "type": "stock_replenishment",
+      "category": "stock",
+      "priority": "critical",
+      "title": "Пополнить ключевой SKU",
+      "summary": "Остаток ключевого SKU исчерпан.",
+      "problem": "Стокаут по SKU с высокой долей выручки.",
+      "why_now": "Риск потери продаж уже сегодня.",
+      "operational_goal": "Восстановить остаток",
+      "expected_effect": "Возобновление продаж",
+      "scope": {
+        "scope_type": "sku",
+        "entity_ids": ["sku:901042000001"]
+      },
+      "steps": [
+        {
+          "order": 1,
+          "title": "Сформировать поставку",
+          "description": "Подготовить поставку по SKU",
+          "entity_ids": ["sku:901042000001"]
+        }
+      ],
+      "completion_criteria": "Остаток восстановлен",
+      "evidence_summary": "available_stock=0 на ключевом SKU",
+      "confidence": "high"
+    }
+  ],
+  "limitations": []
+}

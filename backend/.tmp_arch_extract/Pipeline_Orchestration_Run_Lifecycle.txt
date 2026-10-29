@@ -1,0 +1,1987 @@
+
+Ключевой принцип всего блока:
+Analysis Run — это возобновляемый, идемпотентный технический workflow. Publication — только результат полностью успешного Run. Любой crash, retry или повторная доставка job не должен приводить к повторному анализу уже завершённых стадий, смешиванию разных factual universes или частичной публикации.
+
+1. Общая архитектура orchestration
+Физически я предлагаю оставить существующий стек:
+PostgreSQL
+    =
+source of truth состояния workflow
+
+Redis / Asynq
+    =
+очередь выполнения отдельных stages
+
+Worker
+    =
+исполнитель stages
+
+MinIO
+    =
+immutable stage artifacts
+
+OpenAI Responses API
+    =
+только Discovery и Deep
+Я не рекомендую сейчас добавлять Temporal, Step Functions или отдельный workflow-service.
+Причина не в том, что такие системы плохие. Наоборот, durable workflow-системы хорошо решают retries и recovery. Но нам уже хватает PostgreSQL для durable state и Asynq для at-least-once execution. Ключевое требование — каждый stage должен быть идемпотентным и resumable. Современные рекомендации по distributed workflows исходят именно из того, что task может выполниться больше одного раза; retries должны быть bounded, а операции — идемпотентными. AWS Документы
+
+2. Полный pipeline
+Итоговая цепочка должна выглядеть так:
+DAILY TRIGGER
+      ↓
+SELLER ELIGIBILITY
+      ↓
+READINESS / ANALYSIS DATE RESOLUTION
+      ↓
+CAPTURE BASE PUBLICATION
+      ↓
+SEAL FACTUAL UNIVERSE
+      ↓
+NO-OP CHECK
+      ↓
+PREPARE ACTION CONTINUITY
+      ↓
+BUILD LANDSCAPE CORE
+      ↓
+MATERIALITY
+      ├── mandatory continuity targets
+      └── fresh material entities
+      ↓
+BUILD DETAIL LANDSCAPES
+      ↓
+BUILD DISCOVERY PACK
+      ↓
+DISCOVERY AI
+      ↓
+DISCOVERY VALIDATION
+      ↓
+EVIDENCE EXPANSION
+      ├── DISCOVERY_REQUESTED
+      └── CONTINUITY_REQUIRED
+      ↓
+BUILD DEEP PACK
+      ↓
+DEEP AI
+      ├── thread resolutions
+      ├── findings
+      ├── recommendations
+      ├── new actions
+      └── previous action revalidation
+      ↓
+DEEP / ACTION VALIDATION
+      ↓
+ACTION RECONCILIATION PLAN
+      ↓
+BUILD PUBLICATION CANDIDATE
+      ↓
+BUILD REQUIRED PROJECTIONS
+      ↓
+PUBLICATION VALIDATION
+      ↓
+ATOMIC PUBLISH
+      ↓
+CURRENT POINTER
+      ↓
+OUTBOX
+      ↓
+CACHE / UI REFRESH
+После SEAL FACTUAL UNIVERSE никаких запросов в Ozon в рамках этого Analysis Run больше нет.
+Это один из важнейших invariants.
+
+3. Scheduler не определяет, готовы ли данные
+У нас уже принято:
+clock ≠ readiness
+Поэтому Scheduler делает только:
+«пора проверить, можно ли анализировать seller».
+Например после нашего not-before около окончания ежедневного ingestion window он запускает Analysis Eligibility Evaluation.
+Но он не говорит:
+сейчас 00:05, значит данные за вчера готовы.
+Решение принимает:
+AnalysisDateResolver
++
+DataQuality / Readiness
+
+4. Как определяется analysis_date
+Уже принято правило:
+последний полностью пригодный Core Sales business date, не позже вчерашнего дня.
+Например сегодня 21 августа.
+Проверяем:
+20 Aug → READY?
+Если да:
+analysis_date = 20 Aug
+Если нет:
+19 Aug → READY?
+и так до последнего корректного дня.
+Но fallback на старый день не означает, что обязательно создаётся новая Publication.
+Если current Publication уже:
+analysis_date = 19 Aug
+universe_hash = ABC
+и новый candidate для 19 августа также:
+universe_hash = ABC
+то:
+NO_OP
+
+5. Core hard gate
+Для продвижения analysis_date по-прежнему обязательны только Core:
+Canonical SKU / catalog integrity
+
++
+
+Core Sales Demand
+with complete current7 / previous7 context
+
++
+
+required maturity
+
++
+
+acceptable account ↔ SKU reconciliation
+Search, Advertising, Stock, Finance, Funnel, Promotions, Supply и Health не блокируют анализ целиком.
+Они входят:
+READY
+PARTIAL
+STALE
+UNAVAILABLE
+FAILED
+NOT_APPLICABLE
+и Deep получает эту картину.
+
+6. Минимальные 14 дней
+До первой стандартной генерации:
+14 полных дней
+Core Sales Demand
+обязательны.
+Если seller имеет:
+0 analyzable SKU
+получаем:
+CONNECTED_NO_ANALYZABLE_DATA
+Если SKU есть, но истории меньше:
+INSUFFICIENT_ANALYSIS_HISTORY
+В этих состояниях Analysis Run вообще не создаём.
+Не запускаем OpenAI, чтобы получить красивое:
+недостаточно данных.
+Это должен знать backend.
+
+7. Readiness evaluation — не часть дорогостоящего Run
+Я бы разделил:
+Analysis Trigger Evaluation
+и:
+Analysis Run
+Scheduler может проверять readiness несколько раз.
+Это дешёвая операция.
+Например:
+00:05
+→ core not ready
+
+00:20
+→ core not ready
+
+00:40
+→ ready
+→ создаём Analysis Run
+Не надо создавать:
+Run 301 WAITING
+Run 302 WAITING
+Run 303 WAITING
+
+8. При создании Run фиксируем Base Publication
+Очень важно.
+Допустим current:
+Publication 108
+Run начинает анализ.
+В него записывается:
+base_publication_id = 108
+Именно её Actions он обязан revalidate.
+Даже если пока Run выполняется другой процесс somehow опубликовал:
+Publication 109
+Run всё равно знает:
+я строился поверх 108.
+При publish он увидит, что current уже изменился, и не сможет слепо стать новым current.
+
+9. Sealed Factual Universe
+Run получает:
+analysis_date
+analysis_cutoff_at
+Например:
+analysis_date:
+2026-08-20
+
+analysis_cutoff_at:
+2026-08-21 05:43:17 MSK
+После этого строится:
+Factual Universe Manifest
+Он фиксирует:
+какие canonical revisions известны;
+
+какие snapshots выбраны;
+
+какие provider periods существуют;
+
+какие capabilities доступны;
+
+DQ state;
+
+domain watermarks;
+
+SKU universe;
+
+category history;
+
+campaign universe;
+
+source coverage.
+
+10. analysis_cutoff_at означает «что Aivion знал»
+Это не:
+provider event happened before 05:43.
+Это:
+факт был известен Aivion к 05:43.
+Например Ozon завтра сообщил корректировку продажи за 15 августа.
+Она относится к:
+provider_date = 15 Aug
+но:
+observed_at = 22 Aug
+Она не должна появиться в Universe 21 августа.
+Она попадёт в следующий Universe.
+Так обеспечивается историческая честность Publication.
+
+11. Никакой длинной DB transaction
+Мы не открываем транзакцию:
+BEGIN
+
+→ Build Universe
+→ Discovery AI
+→ Evidence
+→ Deep AI
+
+COMMIT
+на несколько минут.
+Это категорически неверно.
+Вместо этого Manifest фиксирует exact revision boundaries.
+Deep через час всё равно читает:
+SEALED_UNIVERSE FU891
+даже если canonical DB уже получила новые данные.
+
+12. После sealing — быстрый no-op check
+До дорогих AI-вызовов.
+Вычисляется logical analysis key:
+seller
++
+factual_universe_hash
++
+analysis_contract_bundle_hash
++
+base_publication_semantic_context
++
+run_intent
+Если current Publication уже построена по фактически той же аналитической комбинации:
+Run → NO_OP
+Не вызываем Discovery.
+Не вызываем Deep.
+
+13. Почему одного universe_hash недостаточно
+Потому что мы можем специально изменить:
+Materiality Policy
+Discovery Prompt
+Evidence Catalog
+Deep Prompt
+Action Catalog
+и захотеть переанализировать те же данные.
+Поэтому key включает:
+analysis_contract_bundle_hash.
+
+14. Но policy update сам по себе не должен автоматически перепубликовать всех sellers
+Я рекомендую разделить:
+STANDARD_DAILY
+и:
+EXPLICIT_REANALYSIS
+Если мы выпустили:
+deep_prompt_v7
+это не означает:
+немедленно заново вызвать OpenAI для всех исторических Publications.
+Для rollout создаётся явный reanalysis intent.
+
+15. Типы Runs
+Достаточно:
+Run kind
+Смысл
+STANDARD_DAILY
+обычный production daily analysis
+EXPLICIT_REANALYSIS
+сознательный повтор на новом contract/model policy
+EVALUATION
+eval/debug, никогда сам не становится current
+RECOVERY
+логически тот же Run, а не новый анализ
+Я специально не создавал бы RETRY_RUN.
+Retry относится к Stage Attempt внутри того же Run.
+
+16. Backfill не является AI Run
+90-дневный backfill:
+Ozon
+→ UCDM
+и Daily AI Publication — разные вещи.
+Мы не должны после подключения seller автоматически генерировать:
+90 исторических AI Publications.
+Цель backfill:
+дать текущему анализу исторический factual context.
+
+17. Stage-based state machine
+Каждый Run разбивается на независимые stages.
+Основной stage registry я предлагаю такой:
+Stage
+Тип
+RESOLVE_CONTEXT
+deterministic
+SEAL_UNIVERSE
+deterministic
+PREPARE_CONTINUITY
+deterministic
+BUILD_LANDSCAPE_CORE
+deterministic
+RUN_MATERIALITY
+deterministic
+BUILD_LANDSCAPE_DETAIL
+deterministic
+BUILD_DISCOVERY_PACK
+deterministic
+DISCOVERY_AI
+nondeterministic external AI
+VALIDATE_DISCOVERY
+deterministic
+EXPAND_EVIDENCE
+deterministic
+BUILD_DEEP_PACK
+deterministic
+DEEP_AI
+nondeterministic external AI
+VALIDATE_DEEP
+deterministic
+PLAN_ACTION_RECONCILIATION
+deterministic
+BUILD_PUBLICATION
+deterministic
+BUILD_PROJECTIONS
+deterministic
+VALIDATE_PUBLICATION
+deterministic
+PUBLISH
+transactional side effect
+POST_PUBLISH
+asynchronous/idempotent
+
+18. Stage status
+Stage не должен иметь 25 ambiguous состояний.
+Достаточно:
+PENDING
+READY
+RUNNING
+SUCCEEDED
+SUCCEEDED_WITH_LIMITATIONS
+FAILED_RETRYABLE
+FAILED_TERMINAL
+SKIPPED
+CANCELLED
+А Run:
+PREPARING
+RUNNING
+READY_TO_PUBLISH
+PUBLISHED
+
+NO_OP
+
+FAILED
+CANCELLED
+STALE
+
+19. SUCCEEDED_WITH_LIMITATIONS
+Например Evidence Expansion:
+30 Evidence Items expected
+
+27 COMPLETE
+1 EMPTY_VALID
+1 UNAVAILABLE
+1 FAILED
+Если failed item optional и contract позволяет Deep продолжить:
+EXPAND_EVIDENCE
+=
+SUCCEEDED_WITH_LIMITATIONS
+Deep получает limitation.
+Не надо называть весь Run:
+PARTIAL_SUCCESS
+потому что финальная Publication может быть совершенно корректной.
+
+20. Domain failure и stage failure — разные вещи
+Например Advertising API вчера не дал данные.
+Во frozen Capability Manifest:
+Advertising = FAILED
+Но SEAL_UNIVERSE:
+SUCCEEDED.
+Это валидное описание мира.
+А вот если Manifest невозможно построить из-за corrupted canonical state:
+SEAL_UNIVERSE = FAILED_TERMINAL.
+
+21. Mandatory Action Continuity
+Теперь это обязательная часть orchestration.
+Из:
+base_publication_id
+извлекаются все atomic Action Proposals предыдущей current Publication.
+Например:
+12 Actions.
+Создаётся:
+Continuity Revalidation Set = 12
+Все двенадцать должны быть переоценены новым Deep.
+
+22. Continuity не конкурирует с Fresh Materiality
+Materiality теперь фактически получает:
+MANDATORY CONTINUITY TARGETS
++
+FRESH MATERIALITY CANDIDATES
+Например:
+previous Actions:
+SKU1
+SKU2
+Campaign7
+
+fresh Materiality:
+SKU5
+SKU8
+Category3
+Campaign12
+Deep должен видеть оба набора.
+
+23. Очень важный budget invariant
+Поскольку все прошлые Actions обязательны для revalidation:
+max_atomic_actions_per_publication
+&lt;=
+continuity_capacity
+должно быть hard invariant.
+Мы не можем вчера позволить AI опубликовать 100 Actions, а сегодня сказать:
+в Deep помещается только 30, остальные не проверили.
+Это архитектурная ошибка конфигурации.
+
+24. Если invariant неожиданно нарушен
+Например из-за бага прошлой версии:
+previous atomic Actions = 53
+
+continuity max = 40
+Я бы не выбрасывал 13 случайных Actions.
+Run:
+FAILED_TERMINAL
+CONFIGURATION_INVARIANT_VIOLATION
+и требует инженерного исправления.
+Тихое dropping здесь гораздо опаснее.
+
+25. Discovery всё равно выполняет роль breadth analysis
+Mandatory Continuity target не означает:
+Discovery должен обязательно создать по нему Thread.
+Discovery получает информацию, что объект участвует в continuity context.
+Но сама mandatory revalidation прошлого Action не зависит от Discovery Thread creation.
+Иначе Discovery случайно не создаст Thread — и Action останется непроверенным.
+
+26. Evidence имеет два происхождения
+Мы уже расширили контракт:
+DISCOVERY_REQUESTED
+
+CONTINUITY_REQUIRED
+Discovery-requested Evidence отвечает:
+что нужно для исследования новых Threads.
+Continuity-required отвечает:
+что обязательно нужно для проверки вчерашних Actions.
+
+27. Continuity Evidence строится автоматически
+Например вчера был:
+SKU_INCREASE_REPLENISHMENT
+Action Catalog знает, что для revalidation могут потребоваться:
+Sales context
+Stock context
+Supply context
+Evidence Expansion получает соответствующие closed recipes.
+AI не придумывает запросы заново.
+
+28. Evidence Expansion можно параллелить
+Например:
+20 SKU Sales Histories
+20 Stock Contexts
+5 Campaign Histories
+можно batch'ить по Evidence Type.
+Это не должно быть:
+for every SKU:
+    query sales
+    query stock
+    query ads
+N+1 запрещён.
+
+29. Но concurrency bounded
+Нельзя:
+2000 goroutines
+→ PostgreSQL/Factual API collapse.
+У Evidence Type / Worker pool должна быть versioned concurrency policy.
+То же касается OpenAI across sellers.
+
+30. Discovery Pack строится immutable
+На этой стадии создаём:
+discovery-pack.json
+и фиксируем:
+input_hash
+schema_version
+artifact_hash
+После этого DISCOVERY_AI attempt никогда не получает немного другой Pack.
+
+31. Discovery AI retry
+Если OpenAI отвечает:
+429
+timeout
+5xx
+network transient
+делаем bounded retries с exponential backoff + jitter.
+Это стандартный resilience pattern: transient failures стоит retry'ить с увеличивающейся задержкой, но количество retries должно быть ограничено, иначе retry storm только усугубит проблему. AWS Документы
+
+32. Не retry'им всё подряд
+Например:
+invalid local configuration
+unknown prompt version
+broken schema
+factual universe mismatch
+не исправится через 30 секунд.
+Это:
+FAILED_TERMINAL.
+Fail fast.
+
+33. Structured Outputs не отменяет application validation
+Discovery и Deep используют strict Structured Outputs.
+Это гарантирует структурное соответствие JSON Schema, но не истинность значений внутри результата. OpenAI прямо отмечает, что Structured Outputs не исключают содержательных ошибок модели, а также могут не дать нормальный schema-result при отказе или преждевременном завершении generation. OpenAI
+Поэтому:
+provider schema
+↓
+our technical validator
+↓
+business-contract invariants
+всё равно обязательны.
+
+34. Invalid AI output
+Например Deep вернул schema-valid JSON, но:
+Action references nonexistent SKU
+или:
+previous Action 7 was not assessed
+Output invalid.
+Мы не repair'им его.
+Возможен bounded full rerun:
+same Pack
+same Prompt
+same Schema
+same model policy
+
+35. Retry не использует предыдущий ответ
+По нашему уже принятому решению:
+previous_response_id = null
+каждый attempt stateless.
+Attempt 2 не получает:
+Вот ошибки attempt 1, исправь.
+
+36. Все AI Attempts сохраняются
+Например:
+Discovery Attempt 1
+→ timeout
+
+Discovery Attempt 2
+→ invalid semantic references
+
+Discovery Attempt 3
+→ valid
+Сохраняем все три.
+Publication ссылается только на accepted:
+Attempt 3.
+
+37. Я бы не делал silent model fallback v1
+Например:
+primary model unavailable
+→ автоматически использовать другую модель
+я не рекомендую.
+Почему?
+Получаем одну и ту же model policy, но совершенно другое model behavior.
+Лучше:
+retry according to policy
+→ FAILED
+а fallback model вводить только как явную versioned Model Policy после eval.
+Это улучшает воспроизводимость.
+
+38. OpenAI stage должен иметь собственный resource queue
+Я бы разделил worker capacity как минимум логически:
+CONTROL / DETERMINISTIC
+
+AI_DISCOVERY
+
+AI_DEEP
+
+PROJECTION / PUBLICATION
+Чтобы 200 Deep-вызовов не заблокировали:
+readiness
+publication
+recovery.
+Это аналог bulkhead pattern: разные workload classes не должны лишать друг друга ресурсов. TECHCOMMUNITY.MICROSOFT.COM
+
+39. Deep Pack immutable
+После Evidence:
+Deep Pack
+строится один раз.
+В него входят:
+current account context
+
+current thread context
+
+Evidence Registry
+
+continuity Actions
+
+prior REQUIRED_SUPPORT
+
+current continuity evidence
+
+capabilities / limitations
+
+Fact Handles
+
+Action Menu.
+
+40. Deep обязан оценить все previous Actions
+Если предыдущая Publication имеет:
+12 atomic actions
+Deep output должен иметь:
+12 previous_action_assessments
+Ровно.
+Hard gate.
+
+41. Revalidation outcomes
+Мы уже согласовали:
+FULLY_SUPPORTED
+
+PARTIALLY_SUPPORTED
+
+NOT_SUPPORTED
+
+UNVERIFIABLE
+
+SUPERSEDED
+Orchestrator не принимает это решение.
+Он только проверяет полноту и применяет deterministic reconciliation.
+
+42. FULLY_SUPPORTED
+same Action Case
++
+new Action Proposal
+Например:
+yesterday:
+replenish 120
+
+today:
+replenish 150
+Required basis тот же.
+Case остаётся.
+
+43. PARTIALLY_SUPPORTED
+Хотя Action Type может совпасть, старый occurrence не переносится.
+Если Deep всё ещё рекомендует действие, но уже на новом наборе оснований:
+old Case → close BASIS_CHANGED
+new Case occurrence → OPEN
+
+44. NOT_SUPPORTED
+old Case
+→ system resolved
+
+Action отсутствует
+в новой Publication.
+После этого применяется recurrence suppression policy.
+
+45. UNVERIFIABLE
+Например required Stock data отсутствует.
+По принятому правилу:
+показываем только Actions, у которых все основания актуальны.
+Поэтому:
+Action отсутствует
+в новой Publication.
+Но Case:
+SUSPENDED_UNVERIFIED
+а не resolved.
+Когда capability возвращается, Case должен быть revalidated снова.
+
+46. SUPERSEDED
+Старое действие заменено другим.
+Например:
+decrease price
+→ superseded
+
+increase price
+→ new Action.
+Cooldown не применяется.
+
+47. User DONE
+DONE означает:
+конкретный occurrence пользователь считает выполненным.
+Но current Deep всё равно revalidate'ит его.
+Если факты по-прежнему дают:
+FULLY_SUPPORTED
+создаём новый Action Case occurrence сразу.
+Без cooldown.
+То есть менеджер не может случайным DONE скрыть объективно существующую рекомендацию.
+
+48. User DISMISSED / «Неактуально»
+Наше последнее решение:
+same business action identity
+→ suppression 30 календарных дней.
+Deep всё равно может анализировать ситуацию и даже сформировать Action Proposal.
+Но deterministic Action Eligibility Policy перед Publication говорит:
+SUPPRESSED_BY_USER
+until 2026-09-20
+И Action не попадает в visible current Action Snapshot.
+
+49. Почему suppression применяется после Deep, а не до него
+Это важный нюанс.
+Если вообще не показывать entity AI на 30 дней:
+мы потеряем Findings и понимание ситуации.
+Правильнее:
+AI reasoning
+→ происходит честно
+
+Action visibility
+→ регулируется product policy.
+Backend не говорит AI:
+притворись, что проблемы нет.
+Он говорит:
+это Action сейчас не показываем пользователю.
+
+50. Противоположный Action не suppress'ится
+Если пользователь отклонил:
+PRICE DECREASE
+на 30 дней,
+а Deep через неделю рекомендует:
+PRICE INCREASE
+это другая intent_signature.
+Показываем сразу.
+
+51. Multi-entity suppression атомарный
+Группа:
+Пополнить 4 товара.
+Пользователь:
+Неактуально для всех.
+Внутри:
+4 × DISMISSED
+4 × suppression window
+У группы suppression-state нет.
+
+52. Action Reconciliation Plan строится до DB mutations
+После валидного Deep:
+PLAN_ACTION_RECONCILIATION
+строит immutable plan:
+reaffirm Cases
+
+close Cases
+
+suspend Cases
+
+supersede Cases
+
+create Cases
+
+suppress proposals
+
+new visible action snapshot
+
+Action Groups.
+На этом этапе БД ещё не меняется.
+
+53. Зачем сначала Plan
+Потому что Publication Projections должны строиться до atomic commit.
+Нельзя:
+поменять Cases
+↓
+projection failed
+↓
+Publication не опубликована
+Тогда Action state уже относится к несуществующей Publication.
+Правильно:
+Deep
+↓
+Reconciliation Plan
+↓
+Publication Candidate
+↓
+Projections
+↓
+Validation
+↓
+одним commit применить всё.
+
+54. IDs можно зарезервировать заранее
+Новые:
+publication_id
+action_case_id
+action_proposal_id
+group_id
+лучше использовать UUID.
+Они генерируются во время Candidate build, сохраняются в immutable plan, а в publish transaction уже вставляются.
+Если worker упал:
+retry использует те же reserved IDs.
+
+55. Projection failure не вызывает OpenAI снова
+Пример:
+Deep ✅
+
+Build Overview ✅
+Build Stock ❌
+Retry:
+BUILD_PROJECTIONS
+а не:
+Discovery AI again
+Deep AI again.
+Это одно из главных преимуществ stage architecture.
+
+56. Каждый Stage имеет input_hash
+Например:
+BUILD_DEEP_PACK
+input_hash =
+hash(
+  universe
+  + discovery result
+  + evidence
+  + action catalog
+  + continuity context
+  + pack profile
+)
+Если stage уже:
+SUCCEEDED
+with input_hash X
+и job приходит второй раз с X:
+return existing output.
+
+57. Для deterministic stages проверяем output determinism
+Например одинаковый:
+input_hash
+при rebuild дал другой:
+output_hash.
+Это не:
+ну чуть изменилось.
+Это:
+DETERMINISM_VIOLATION
+и должно быть alert/failure.
+
+58. Для AI stages это правило не действует
+Одинаковый Pack может дать разные outputs.
+Поэтому сохраняем:
+logical stage
+attempts[]
+accepted_attempt_id
+
+59. Stage lease
+At-least-once queue означает ситуацию:
+worker A взял task
+↓
+завис/умер
+
+queue позже дала task worker B.
+В PostgreSQL у analysis_run_stage нужен:
+lease_owner
+lease_expires_at
+heartbeat_at
+Если lease истёк:
+другой worker может продолжить.
+
+60. Но lease — не lock на весь Run
+Мы не держим PostgreSQL lock:
+30 минут
+пока OpenAI думает.
+Только durable stage ownership.
+
+61. Seller concurrency
+Я бы в v1 сделал:
+не более одного активного publishing Analysis Run на seller.
+Другие sellers выполняются параллельно.
+Это сильно упрощает:
+base Publication
+Action continuity
+current pointer
+resource usage.
+
+62. Не нужно держать advisory lock всё время
+При создании Run можно на короткую транзакцию взять:
+seller analysis lock
+проверить active run и создать новый.
+PostgreSQL advisory locks предназначены как раз для application-defined coordination, но долгие session-level locks вокруг внешней работы нам не нужны. PostgreSQL
+
+63. Hard DB invariant лучше lock-only
+Я бы также сделал DB constraint/partial unique index концептуально:
+one active publishing run per seller
+Lock предотвращает гонку.
+Constraint является последней защитой.
+
+64. Manual Evaluation Run может выполняться параллельно
+Потому что:
+publish_mode = NONE
+Он не меняет:
+current pointer
+Action Cases
+и используется для:
+eval
+prompt test
+model comparison.
+Но он всё равно читает sealed Universe.
+
+65. New canonical data arrived during Run
+Например Deep работает на:
+FU891
+и ingestion сохраняет:
+new Stock
+new Finance
+new Sales revision.
+Run их не видит.
+Ни Materiality.
+Ни Evidence.
+Ни Projection.
+Ничего.
+Следующий Analysis Run построит новый Universe.
+
+66. Это значит, что Analysis Run не блокирует ingestion
+Ingestion продолжает работать независимо.
+Очень важно.
+Никаких:
+пока AI работает, не принимать новые Ozon данные.
+
+67. Source API rate limits отделены от AI Run
+Поскольку live Ozon calls после sealing запрещены, проблемы с provider throttling относятся прежде всего к ingestion/capability collection.
+Analysis Core не должен случайно увеличивать нагрузку на Ozon только потому, что Discovery решил изучить 20 SKU.
+Это ещё одно большое преимущество архитектуры.
+
+68. Readiness revision после Publication
+Допустим Publication уже создана на D.
+Позже Ozon исправил Core Sales за D.
+Получаем новый factual universe hash.
+Архитектура должна допускать:
+same analysis_date
++
+new cutoff
++
+new universe
+→ new Run.
+Это уже принято.
+
+69. Но не запускаем бесконечно после каждой маленькой revision
+Нужен versioned:
+ReanalysisTriggerPolicy
+Я предлагаю три причины автоматического eligibility:
+ANALYSIS_DATE_ADVANCED
+
+MATERIAL_CORE_REVISION
+
+RECOVERY_REQUIRED
+Плюс explicit manual:
+EXPLICIT_REANALYSIS.
+
+70. Core revision нужно debounce'ить
+Если provider прислал пять corrections за десять минут:
+не нужно:
+5 × Discovery
+5 × Deep.
+Reanalysis Trigger Policy должен иметь:
+settling/debounce window
+
+max automatic publications per seller/day
+Конкретные числа лучше калибровать, а не придумывать сейчас.
+
+71. Optional-domain revision
+Например изменился только Finance detail.
+Я бы не обязательно запускал новый полный AI Analysis немедленно.
+Обычный следующий Daily Run его подхватит.
+Автоматический same-date reanalysis v1 я бы резервировал прежде всего за Core revision, которая способна изменить Materiality и основной анализ.
+
+72. NO_MEANINGFUL_THREADS
+Pipeline не заканчивается после Discovery.
+Как уже принято:
+Discovery
+→ NO_MEANINGFUL_THREADS
+Evidence для новых Threads:
+empty.
+Но:
+CONTINUITY_REQUIRED Evidence
+всё равно может существовать.
+И Deep всё равно запускается.
+
+73. Даже если предыдущих Actions тоже нет
+Deep получает:
+Account Context
+Capabilities
+NO_MEANINGFUL_THREADS
+и формирует truthful account summary.
+Actions:
+[]
+допустимы.
+
+74. Deep failure не изменяет Action Cases
+Очень важно.
+До:
+PUBLISH
+никаких lifecycle mutations.
+Если Deep пять раз упал:
+current Publication
+current Actions
+остаются предыдущими.
+
+75. Что видит пользователь во время failed Run
+Последнюю успешную Publication.
+Не:
+Dashboard empty.
+Можно отдельно показать:
+последнее обновление анализа не завершилось,
+но это уже UI/operations contract.
+
+76. Publish Candidate
+После:
+Validated Deep
++
+Validated Action Reconciliation Plan
+строим:
+Canonical Publication Candidate.
+Она получает:
+reserved publication UUID
+base_publication_id
+analysis_date
+cutoff
+universe ref/hash
+semantic result refs
+action plan
+contract bundle
+
+77. Required Projections
+Перед publish обязаны быть валидны необходимые page-level read models.
+Например:
+Overview
+Funnel state
+Stock index
+Advertising index
+Categories index
+SKU index
+Historical Actions Snapshot
+Chat Publication Index
+Unavailable Funnel:
+valid projection with UNAVAILABLE
+а не failure.
+
+78. Detail projections могут оставаться lazy
+Например:
+SKU detail
+Category detail
+Campaign detail
+могут строиться on-demand.
+Но их projector contract должен уже быть versioned и deterministic.
+
+79. Final Publication Validation
+Перед commit проверяем end-to-end chain:
+Seller
+↓
+Universe
+↓
+Landscape
+↓
+Materiality
+↓
+Discovery
+↓
+Evidence
+↓
+Deep
+↓
+Actions
+↓
+Projection
+везде один seller и один Universe.
+Ни одного unresolved Fact Handle.
+
+80. Publish lock
+Только в самом конце берём короткий seller-level publish lock.
+Не на весь analysis.
+
+81. Снова проверяем current pointer
+Run стартовал с:
+base_publication = 108.
+Перед publish:
+current = ?
+Если всё ещё:
+108
+нормально.
+Если:
+109
+candidate нужно считать stale относительно current lineage.
+
+82. Stale candidate не публикуется
+Run:
+STALE
+Не меняет:
+Action Cases
+current publication
+projections.
+Результаты и artifacts можно оставить для аудита/eval.
+
+83. Atomic publish transaction
+В одной короткой PostgreSQL transaction:
+INSERT Publication
+
+INSERT publication component links
+
+INSERT projection manifests
+
+INSERT new Action Cases
+
+INSERT new Action Proposals
+
+UPDATE reaffirmed Cases
+
+CLOSE / SUSPEND / SUPERSEDE Cases
+
+INSERT Action assessments
+
+UPDATE current publication pointer
+
+INSERT release event
+
+INSERT transactional outbox rows
+
+COMMIT
+Или всё.
+Или ничего.
+
+84. Никаких внешних calls внутри этой transaction
+Не:
+OpenAI
+MinIO
+Redis
+Ozon
+MinIO artifacts уже должны существовать и иметь проверенный hash.
+
+85. Transactional Outbox
+После commit нужно:
+invalidate cache
+notify frontend
+warm current projections
+update Chat cache
+emit metrics/events.
+Нельзя делать это перед commit.
+И нельзя полагаться на:
+COMMIT
+then Redis publish
+без защиты: процесс может умереть между этими двумя действиями. Transactional Outbox сохраняет business changes и event-intent в одной транзакции, после чего worker доставляет событие отдельно; consumer должен быть идемпотентным. Microsoft Learn
+
+86. Outbox at-least-once
+Например:
+PUBLICATION_PUBLISHED
+event_id = E100
+может быть доставлен дважды.
+Consumer:
+already_processed(E100)
+→ ignore
+
+87. Poison jobs
+Если stage job стабильно падает из-за:
+bad configuration
+corrupted input
+bug
+Asynq не должен retry'ить его бесконечно.
+После policy max-attempts:
+FAILED_TERMINAL
+и задача уходит в failure/dead-letter/debug flow.
+В queue-based systems poison messages отдельно изолируют именно для того, чтобы один невалидный task не циркулировал бесконечно. Microsoft Learn
+
+88. Retry Policy должна быть per-stage
+Не один:
+MAX_RETRY = 5
+на всё.
+Например:
+MinIO temporary error
+и:
+OpenAI schema-contract violation
+имеют совершенно разную retry semantics.
+Поэтому:
+orchestration_retry_policy_version
+определяет поведение каждого stage/failure code.
+
+89. Я бы не фиксировал сейчас конкретное число retries навечно
+Архитектурно фиксируем:
+bounded
+exponential backoff
+jitter
+stage-specific
+А initial values выбираем через нагрузочные/e2e тесты.
+Иначе сейчас мы просто выдумаем:
+2 или 3
+без реальной latency/error статистики.
+
+90. Retry budget должен быть ограничен ещё и временем
+Например 50 очень быстрых retry — тоже плохо.
+Политика должна поддерживать:
+max_attempts
+max_elapsed_time
+что соответствует стандартной практике ограниченных retries. AWS Документы
+
+91. Timeouts
+Каждый external/dependency stage имеет:
+attempt_timeout
+stage_timeout
+Чтобы RUNNING не висел бесконечно.
+
+92. Worker crash recovery
+Пример:
+Deep completed
+raw output saved
+validated output saved
+
+worker died
+before marking stage SUCCEEDED.
+Recovery worker проверяет artifact/attempt record.
+Если accepted output уже есть и hashes valid:
+mark SUCCEEDED
+и не вызывает OpenAI заново.
+
+93. Artifact-before-state pattern
+Для stage output:
+build artifact
+↓
+store MinIO
+↓
+verify hash
+↓
+commit stage output metadata + SUCCEEDED.
+Не наоборот.
+Иначе:
+DB says succeeded
+artifact missing.
+
+94. Deterministic DB outputs также persist
+Не обязательно каждый маленький DTO писать отдельным MinIO файлом.
+Но основные analysis-boundary artifacts должны быть immutable:
+Factual Universe Manifest
+Landscape Set
+Materiality Selection
+Discovery Pack
+Discovery Output
+Evidence Manifest
+Deep Pack
+Deep Output
+Action Reconciliation Plan
+Publication Candidate
+Projection Bundle.
+
+95. Stage attempt audit
+Для каждого attempt:
+attempt_id
+stage_id
+worker_id
+
+started_at
+finished_at
+
+failure_class
+failure_code
+
+provider response id
+if applicable
+
+input tokens
+output tokens
+reasoning tokens
+cached tokens
+
+artifact refs
+
+error summary
+
+96. Не храним огромные provider errors прямо в DB
+DB:
+failure_code
+short diagnostic
+artifact_ref
+Полный raw body/log:
+MinIO/debug artifact
+с secret scrubbing.
+
+97. Run physical model
+Основные таблицы я бы сделал так:
+analysis.analysis_triggers
+
+analysis.analysis_runs
+
+analysis.analysis_run_stages
+
+analysis.analysis_stage_attempts
+
+analysis.analysis_run_events
+
+analysis.analysis_run_artifacts
+
+analysis.orchestration_policy_versions
+Плюс уже спроектированные domain/AI/publication/action tables.
+
+98. analysis_runs
+Концептуально:
+id
+seller_account_id
+
+run_kind
+publish_mode
+
+base_publication_id
+
+analysis_date
+analysis_cutoff_at
+
+factual_universe_manifest_id
+factual_universe_hash
+
+contract_bundle_hash
+
+status
+current_stage
+
+trigger_reason
+
+requested_at
+started_at
+completed_at
+
+failure_code
+
+published_publication_id
+
+99. analysis_run_stages
+id
+run_id
+
+stage_key
+stage_version
+ordinal
+
+status
+
+input_hash
+output_hash
+
+attempt_count
+accepted_attempt_id
+
+lease_owner
+lease_expires_at
+
+started_at
+completed_at
+
+failure_code
+Unique:
+run_id + stage_key.
+
+100. analysis_stage_attempts
+Каждый retry отдельной строкой.
+Никогда не overwrite предыдущую попытку.
+
+101. analysis_run_events
+Append-only:
+RUN_CREATED
+STAGE_STARTED
+STAGE_RETRIED
+STAGE_SUCCEEDED
+STAGE_FAILED
+RUN_STALE
+PUBLICATION_COMMITTED
+...
+Это не Event Sourcing.
+Основное current состояние по-прежнему хранится нормальными колонками.
+Ledger нужен для debugging/audit.
+
+102. Cancellation
+Run может быть отменён по объективным причинам.
+Например seller:
+integration disabled
+hard purge requested
+analysis disabled
+Orchestrator ставит:
+CANCEL_REQUESTED
+Следующий safe stage boundary:
+CANCELLED.
+
+103. Не убиваем publish transaction посередине
+Если уже вошли в atomic PUBLISH:
+либо transaction commits, либо rolls back.
+Cancellation применяется до неё.
+
+104. Seller disconnect во время Run
+Мы уже приняли:
+disconnect ≠ delete history.
+Но я рекомендую:
+если seller connection/analysis entitlement отключён до publish, незавершённый Run не становится новой current Publication.
+Historical Publications остаются.
+
+105. Subscription изменилась во время Run
+Например Premium отключили после cutoff.
+Run всё равно анализирует capability state, который был sealed.
+Почему?
+Потому что это корректная картина на cutoff.
+Но следующий Run увидит новый access state.
+
+106. Model/prompt policy изменилась во время Run
+То же.
+Run использует:
+contract bundle frozen at run creation.
+Не:
+latest prompt from DB
+перед каждым attempt.
+
+107. Package budget должен быть рассчитан до AI call
+Discovery Pack Builder и Deep Pack Builder обязаны проверить:
+estimated input size
+output reserve
+schema budget
+до вызова provider.
+Если Pack превышает policy:
+PACK_BUDGET_EXCEEDED
+это deterministic pipeline defect/configuration issue.
+Не:
+отправим и посмотрим.
+
+108. Никакого arbitrary truncation
+Если Pack не помещается:
+не:
+slice(last 20%)
+А deterministic Budget/Profile degradation, который мы уже заложили.
+Если и он не укладывается:
+FAILED_TERMINAL.
+
+109. Structured Output schema warming
+У Structured Outputs первый запрос с новой сложной схемой может иметь дополнительную latency из-за подготовки grammar/cache. OpenAI это отдельно документирует. Поэтому при deployment новой Discovery/Deep schema разумно делать controlled schema warm-up/eval перед production rollout, а не удивляться первому production request. OpenAI
+Это optimisation, не correctness requirement.
+
+110. OpenAI usage observability
+На уровне каждого AI Attempt обязательно сохраняем:
+model
+reasoning configuration
+input tokens
+cached input
+output tokens
+reasoning tokens
+latency
+status
+Чтобы потом реально подобрать:
+Discovery model policy
+Deep model policy
+по quality/cost.
+
+111. Run не должен считаться failed из-за post-publish notification
+Например:
+Publication committed ✅
+
+Redis refresh failed ❌
+Run:
+PUBLISHED.
+Outbox остаётся pending и retry'ится отдельно.
+Не откатываем Publication из-за cache invalidation.
+
+112. PUBLISHED — terminal Run status
+После него Run никогда больше не меняет semantic output.
+Downstream delivery живёт отдельно.
+
+113. FAILED не означает потерю промежуточных результатов
+Если Deep не завершился:
+Discovery/Evidence artifacts сохраняются.
+Manual retry/recovery может продолжить тот же logical Run, если input context всё ещё считается valid.
+
+114. Recovery vs New Run
+Если stage просто упал технически:
+resume same Run.
+Если Factual Universe сознательно меняем:
+new Run.
+Нельзя:
+раз уж старый Run упал, подмешаем ему сегодняшние новые данные.
+
+115. Same Universe retries
+Все automatic retry/recovery внутри Run должны сохранять:
+same universe
+same packs
+same policies
+same base publication.
+
+116. When old Run becomes obsolete
+Например Run долго находился в AI retry.
+Тем временем operator отменил его и новый valid Run на более свежем Universe стал current.
+Старый:
+STALE/CANCELLED.
+Даже если OpenAI позже ответит, publication path закрыт.
+Output можно сохранить как orphan/eval artifact, но не publish.
+
+117. Current pointer chronology
+Publish candidate сравнивается с current:
+analysis_date
+analysis_cutoff
+lineage
+explicit reanalysis intent
+Обычный старый Run не может победить новый просто потому, что закончил позже.
+
+118. Projection/build можно parallelize
+После validated Deep:
+Overview
+Stock
+Advertising
+Categories
+SKU index
+Chat index
+можно строить параллельно.
+Но publish barrier ждёт все required projections.
+
+119. Required projection barrier
+N required
+N valid
+→ READY_TO_PUBLISH
+Если:
+N-1 valid
+current pointer не двигается.
+
+120. Current Dashboard consistency
+Пользователь никогда не должен получить:
+Overview from Publication 110
+Stock from Publication 109
+Actions from 108.
+API должен всегда начинать с:
+current_publication_id
+и читать publication-bound projections.
+Mutable user Action status — единственный сознательный overlay.
+
+121. Пользовательские Action events не требуют Analysis Run
+Если пользователь нажал:
+DONE
+DISMISSED
+это обычная application transaction.
+Current Actions projection обновляется сразу.
+AI Run не запускается.
+
+122. Следующая генерация всё равно revalidate'ит прошлый analytical Action
+Даже если UI его уже скрыл через DONE/DISMISSED.
+Для DISMISSED итоговый новый Action может быть suppressed продуктовой policy 30 дней.
+
+123. Orchestration и Chat независимы
+Chat не должен менять state Daily Analysis Run.
+Если пользователь проводит ad-hoc анализ:
+это отдельный request scope.
+Нельзя:
+Chat обнаружил проблему и записал её в текущий Daily Publication.
+Только следующий Daily/explicit analysis.
+
+124. Run observability
+Я бы считал обязательными минимум такие группы метрик:
+readiness lag
+analysis date lag
+
+run count / status
+stage latency
+queue wait
+
+stage retry count
+failure classes
+
+Discovery/Deep token usage
+cost
+provider latency
+
+Pack sizes
+
+Evidence item counts
+Evidence failures
+
+previous Actions revalidated
+FULLY_SUPPORTED
+PARTIALLY_SUPPORTED
+NOT_SUPPORTED
+UNVERIFIABLE
+SUPERSEDED
+
+new Actions
+suppressed Actions
+group sizes
+
+publication build latency
+publish latency
+
+no-op rate
+
+current publication age
+
+outbox lag
+Это одна логическая метрика-система; не просто логи.
+
+125. Alerts
+Инженерный alert нужен, например, когда:
+seller Core readiness stuck
+
+current Publication too old
+
+stage lease expired repeatedly
+
+same deterministic input → different output hash
+
+AI validation failure spike
+
+continuity coverage != 100%
+
+publication pointer mismatch
+
+outbox backlog growing
+
+cross-seller isolation violation
+
+126. Business anomaly ≠ engineering alert
+Например:
+sales -80%
+stock 0
+не orchestration alert.
+Это бизнес-данные для AI.
+Monitoring не должен снова стать альтернативным business rule engine.
+
+127. Run-level trace
+Каждый лог должен иметь:
+seller_id
+run_id
+stage_id
+attempt_id
+publication_id when available
+Чтобы один seller analysis можно было полностью восстановить.
+
+128. Secret handling
+Analysis artifacts не должны содержать:
+Ozon API secret
+OAuth refresh tokens
+OpenAI API key
+Analysis Run вообще не должен нуждаться в Ozon credentials после sealing.
+Это ещё один хороший security boundary.
+
+129. Retention
+Canonical Publication / accepted AI artifacts:
+long-lived / immutable.
+Failed attempt raw artifacts:
+можно хранить по отдельной debug retention policy.
+Например не обязательно хранить бесконечно каждый network timeout body.
+Но metadata попытки сохранять дольше.
+
+130. Old Run cleanup
+Никакой cleanup job не должен удалять artifacts, на которые ссылается:
+Publication
+Action Case history
+accepted Deep result.
+Reference-aware retention.
+
+131. Manual force
+Для production я бы разделил две команды.
+force evaluate
+создаёт:
+EVALUATION run
+publish_mode = NONE.
+Безопасно для prompt/model testing.
+А:
+force production reanalysis
+явно создаёт:
+EXPLICIT_REANALYSIS
+publish_mode = IF_VALID.
+Не надо, чтобы обычный debug CLI случайно менял current seller Publication.
+
+132. Hard Core gates нельзя обходить --force
+Даже manual production reanalysis не должен позволять:
+Sales incomplete
+→ ну всё равно publish.
+force означает:
+пересчитать несмотря на no-op/policy trigger,
+а не:
+отключить factual correctness.
+Для таких экспериментов только:
+EVALUATION
+без публикации.
+
+133. Pipeline state ownership
+Важно, чтобы не получилось:
+Asynq говорит completed
+
+Postgres говорит running.
+Source of truth:
+PostgreSQL.
+Queue лишь сигнал:
+попробуй выполнить stage X.
+
+134. Worker algorithm
+Получил task:
+run_id
+stage_key
+Дальше:
+load stage from PostgreSQL
+
+if already SUCCEEDED
+→ ACK
+
+if Run terminal
+→ ACK
+
+try acquire stage lease
+
+if cannot
+→ another worker owns
+
+validate dependencies
+
+execute
+
+persist output
+
+transition stage
+
+enqueue next ready stages
+Это делает повторную доставку безопасной.
+
+135. Не передавать большие Pack через Redis
+Queue payload:
+run_id
+stage_key
+Не:
+15 MB Deep Pack.
+Stage сам читает artifact по persisted ref.
+Это уменьшает queue corruption/size issues и соответствует общему durable-workflow подходу, где крупные payloads лучше хранить отдельно, а workflow передаёт ссылки. AWS Документы
+
+136. Полная модель crash recovery
+Представим процесс умер в любой точке.
+Before Universe sealed
+→ resume SEAL
+
+After Universe
+→ resume next stage
+
+After Discovery provider response
+before validation
+→ validate stored response
+
+After Evidence
+→ build Deep
+
+After valid Deep
+→ build reconciliation
+
+After projections
+before publish
+→ publish existing candidate
+
+During DB publish
+→ transaction guarantees commit/rollback
+
+After commit
+before Redis update
+→ outbox continues.
+Ни в одном случае не нужно:
+начать всё с самого начала,
+если upstream stage уже успешно сохранён.
+
+137. Acceptance Gates orchestration
+К уже спроектированным domain/AI/action/publication gates я бы добавил orchestration-level gates:
+Gate
+Смысл
+run_single_active_publisher_gate
+один publishing Run на seller
+run_base_publication_gate
+frozen base lineage
+run_analysis_date_gate
+дата разрешена readiness
+run_universe_sealed_gate
+Universe immutable
+run_no_live_provider_after_seal_gate
+после seal нет Ozon calls
+run_stage_dependency_gate
+stage не стартует раньше dependency
+run_stage_idempotency_gate
+duplicate delivery безопасна
+run_deterministic_hash_gate
+deterministic outputs reproducible
+run_ai_pack_immutability_gate
+retries используют один Pack
+run_ai_stateless_retry_gate
+нет hidden previous response
+run_bounded_retry_gate
+нет бесконечных retries
+run_stage_timeout_gate
+stage не висит бесконечно
+run_continuity_100pct_gate
+все прошлые Actions переоценены
+run_continuity_capacity_gate
+прошлые Actions всегда помещаются
+run_action_reconcile_precommit_gate
+lifecycle plan готов заранее
+run_required_projection_barrier_gate
+нет partial publication
+run_stale_publish_gate
+старый Run не заменяет новый
+run_atomic_publish_gate
+publication/actions/pointer/outbox atomic
+run_outbox_idempotency_gate
+duplicate events безопасны
+run_no_partial_semantic_mutation_gate
+failed Run не меняет current state
+run_recovery_resume_gate
+restart продолжает со stage checkpoint
+run_seller_isolation_gate
+все stages одного seller
+run_terminal_immutability_gate
+Published Run не мутирует
+
+138. Самый важный end-to-end пример
+Текущая Publication:
+P108
+
+Action Group:
+Пополнить 4 SKU
+
+417
+522
+816
+901
+Новый Run:
+Trigger
+↓
+analysis_date = 21 Aug
+↓
+FU900 sealed
+↓
+continuity = 4 Actions
+
+fresh materiality:
+ещё 12 entities
+↓
+Discovery
+↓
+Evidence
+  discovery evidence
+  +
+  continuity evidence
+↓
+Deep
+Deep:
+417 → NOT_SUPPORTED
+522 → FULLY_SUPPORTED
+816 → FULLY_SUPPORTED
+901 → FULLY_SUPPORTED
+
++
+
+new Action:
+Campaign58 lower budget
+Action Plan:
+417 Case → resolve
+
+522 → same Case + new Proposal
+816 → same Case + new Proposal
+901 → same Case + new Proposal
+
+Campaign58 → new Case
+Publication projection:
+Group:
+Пополнить 3 SKU
+
++
+
+Campaign:
+Скорректировать бюджет
+Publish transaction:
+P109 insert
+Cases update
+Proposals insert
+current 108 → 109
+outbox insert
+COMMIT
+Пользователь мгновенно видит:
+Пополнить 3 товара
+Скорректировать бюджет кампании
+А P108 навсегда остаётся:
+Пополнить 4 товара.
+Это именно тот lifecycle, который ты описал.
+
+139. Если один из четырёх не удалось проверить
+Допустим:
+901 Stock unavailable.
+Deep:
+901 → UNVERIFIABLE.
+Новая Publication:
+Пополнить 2 товара
+522
+816
+Если 417 resolved.
+901 не показываем как подтверждённое действие.
+Но его Case:
+SUSPENDED_UNVERIFIED.
+Следующая генерация обязана снова его проверить.
+
+140. Если менеджер поставил DONE на 522, но не пополнил
+До следующего анализа UI скрывает 522.
+Следующая генерация:
+522 still fully supported.
+Старый occurrence:
+DONE.
+Новый:
+OPEN.
+SKU снова появляется в Action Group.
+Это соответствует твоему требованию, что user click не должен иметь приоритет над factual reality.
+
+141. Если менеджер поставил DISMISSED
+30 дней:
+Action может быть найден Deep
+но visibility policy его suppress'ит.
+Через 30 дней:
+если основания всё ещё/снова есть:
+new occurrence
+→ visible.
+
+142. Что в результате является «истиной»
+После всех наших решений границы очень чистые:
+UCDM
+=
+истина о фактах
+
+Factual Universe
+=
+какие факты были известны конкретному Run
+
+Deep
+=
+семантический анализ этих фактов
+
+Publication
+=
+immutable результат одной генерации
+
+Action Case
+=
+история конкретного управленческого действия
+
+Current Publication
+=
+последняя опубликованная аналитическая истина
+
+User Action State
+=
+что менеджер сказал о конкретном occurrence
+
+Orchestrator
+=
+только проводит всё это через lifecycle
+и ничего бизнес-семантически не придумывает.
+
+Рекомендуемый нормативный контракт для ТЗ
+Daily Analysis Aivion реализуется как durable, stage-based, resumable state machine. PostgreSQL является единственным source of truth состояния Runs/Stages; Redis/Asynq используется как at-least-once execution transport. Каждый stage обязан быть идемпотентным либо иметь явно определённую bounded retry semantics. Crash/restart не создаёт новый logical Run и не приводит к повторному выполнению уже зафиксированных успешных стадий.
+Scheduler только инициирует readiness evaluation. analysis_date определяется Data Quality/Readiness Resolver как последний допустимый Core-ready business date. Analysis Run создаётся только после выполнения hard eligibility gates. До первой стандартной генерации требуется минимум 14 полных дней Core Sales Demand.
+В начале Run фиксируется base_publication_id, после чего создаётся immutable Factual Universe Manifest с analysis_cutoff_at. Все downstream stages используют исключительно этот sealed universe. После sealing Analysis Run не выполняет live Ozon/provider reads; новая ingestion activity не изменяет текущий Run и может повлиять только на следующий Factual Universe.
+До AI-вызовов выполняется no-op detection по factual universe и effective analysis contract. Повтор scheduler/recovery не является основанием для нового AI result. Policy/model changes могут привести к анализу того же universe только через explicit versioned reanalysis intent.
+Все atomic Actions предыдущей current Publication образуют Mandatory Continuity Revalidation Set и гарантированно переоцениваются в следующем Deep Analysis. Continuity entities не конкурируют с fresh Materiality за один selection budget. Максимальное количество публикуемых Actions обязано быть совместимо с guaranteed continuity capacity.
+Evidence Expansion объединяет DISCOVERY_REQUESTED и CONTINUITY_REQUIRED Evidence, но остаётся AI-free, provider-free и deterministic. Deep является вторым и финальным AI-вызовом и одновременно формирует новый semantic result и выполняет 100% revalidation предыдущих Actions.
+Discovery и Deep используют immutable packs, strict Structured Outputs и bounded full retries. Retry одного AI stage всегда использует тот же Pack/Prompt/Schema/Model Policy, не использует previous_response_id и не выполняет semantic repair. Все attempts сохраняются; только один validated attempt принимается downstream.
+Action reconciliation выполняется после validated Deep как deterministic plan и не мутирует application state до финального publish. FULLY_SUPPORTED reaffirm'ит Case; PARTIALLY_SUPPORTED не переносит старый occurrence; NOT_SUPPORTED системно разрешает Case; UNVERIFIABLE временно скрывает Action, не считая его решённым; SUPERSEDED заменяет его новым action intent. User DONE не suppress'ит последующий objectively supported occurrence; user DISMISSED suppress'ит same business action identity на 30 календарных дней.
+Publication Candidate, Action Reconciliation Plan и required Projections полностью строятся и валидируются до мутации current product state. Publication, Action Case mutations, current-publication pointer, release ledger и outbox intent применяются одной короткой PostgreSQL transaction. Техническая partial publication запрещена.
+После commit downstream cache/UI/notification operations выполняются через idempotent transactional-outbox processing. Их failure не отменяет успешно опубликованную Publication.
+Для одного seller одновременно допускается не более одного active production publishing Run. Evaluation Runs могут существовать отдельно, но не меняют current Publication или Action Cases. Старый Run не может сделать себя current поверх более нового valid Publication; такой candidate завершается как STALE.
+Orchestration layer не рассчитывает business significance, не создаёт Findings/Recommendations/Actions, не меняет AI decisions и не repair'ит semantic output. Его ответственность ограничена последовательностью стадий, frozen inputs, retries, idempotency, completeness, concurrency, publication atomicity и recovery.
+На мой взгляд, продуктовых вопросов в этом блоке больше не осталось: твои предыдущие решения уже позволяют однозначно спроектировать lifecycle. Следующий логичный этап после утверждения этого блока — Dashboard Contracts, где мы уже пройдёмся по Overview / Funnel / Stock / Advertising / Categories / SKU / Actions и для каждого блока определим точный источник, поля, AI/factual ownership, состояния unavailable/partial и поведение Action Groups.

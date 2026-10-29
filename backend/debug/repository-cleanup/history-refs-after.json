@@ -1,0 +1,33 @@
+{
+  "generated_at": "2026-08-03T10:46:18Z",
+  "post_rewrite_main_sha": "d0258291a54c9085f145da353cb527a24a966a7a",
+  "post_rewrite_cleanup_sha": "d9c1b55d652ab22245cdddc26c520ef64091bb74",
+  "refs": [
+    {
+      "ref": "refs/heads/cursor/security-repository-cleanup",
+      "sha": "d9c1b55d652ab22245cdddc26c520ef64091bb74"
+    },
+    {
+      "ref": "refs/heads/main",
+      "sha": "d0258291a54c9085f145da353cb527a24a966a7a"
+    }
+  ],
+  "refs_with_secret": [],
+  "deleted_refs": [
+    {
+      "ref": "refs/heads/cursor/dashboard-demo-readiness",
+      "reason": "fully merged into main; contaminated history purged then branch deleted"
+    },
+    {
+      "ref": "refs/heads/integration/dashboard-acceptance",
+      "reason": "fully merged into main; obsolete feature branch deleted"
+    }
+  ],
+  "rewritten_refs": [
+    "refs/heads/main",
+    "refs/heads/cursor/security-repository-cleanup",
+    "refs/heads/cursor/dashboard-demo-readiness"
+  ],
+  "bak_proxy_history_occurrences": 0,
+  "realish_sk_proj_occurrences": 0
+}

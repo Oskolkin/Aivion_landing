@@ -1,0 +1,9 @@
+﻿{
+    "moved":  [
+                  {
+                      "from":  "backend/scripts/gen_control_webp.mjs",
+                      "to":  "tools/image-fixtures/gen_control_webp.mjs",
+                      "reason":  "reproducible tooling package without committed node_modules"
+                  }
+              ]
+}

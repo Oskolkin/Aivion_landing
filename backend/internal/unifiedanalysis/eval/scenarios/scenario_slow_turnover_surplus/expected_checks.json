@@ -1,0 +1,6 @@
+{
+  "outcome": "material_actions_found",
+  "required_categories": ["slow_turnover"],
+  "required_sku_ids": ["901042000005"],
+  "no_duplicate_sku": true
+}

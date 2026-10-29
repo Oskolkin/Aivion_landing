@@ -1,0 +1,74 @@
+﻿Expanded display is on.
+-[ RECORD 1 ]--------------+------------------------------------------------------------------------------------------------------------------------------------------------------
+id                         | 189
+status                     | failed
+error_code                 | provider_response_incomplete
+error_message              | provider response incomplete
+prompt_version             | unified_analyst_v1_24
+pack_id                    | pack:1:2026-07-08:17e80bbe7eccb4f8
+pack_hash                  | 17e80bbe7eccb4f8cf7740e1d1ada796c22e4dd581b61c76874c38da036be854
+pack_storage_key           | ai-analysis-packs/seller-1/2026-07-08/17e80bbe7eccb4f8cf7740e1d1ada796c22e4dd581b61c76874c38da036be854/analysis_pack.zip
+pack_archive_sha256        | 2c4acd2799c6065f7538fbf52f2003f309284a26e3ecbc757eac1c389ad84eeb
+provider_model             | gpt-4.1
+provider_container_id      | cntr_6a607736212c8191a0c376ce657e001b0dc1fd7edf43bcc3
+provider_container_file_id | cfile_6a6077374cf48191930f02cf4e641c70
+provider_response_id       | resp_0613ceab97e28fd1006a607737a708819cb7204a487a1d4761
+provider_status            | in_progress
+provider_latency_ms        | 
+input_tokens               | 
+output_tokens              | 
+total_tokens               | 
+code_interpreter_calls     | 
+cleanup_status             | completed
+metric_date                | 2026-07-08
+started_at                 | 2026-07-22 07:54:01.328651+00
+completed_at               | 2026-07-22 07:57:19.756345+00
+-[ RECORD 2 ]--------------+------------------------------------------------------------------------------------------------------------------------------------------------------
+id                         | 190
+status                     | publication_blocked
+error_code                 | output_contract_invalid
+error_message              | advertising_bare_drr_for_store_share: cabinet/account ┬л╨Ф╨а╨а┬╗ is not a valid store-revenue share label
+prompt_version             | unified_analyst_v1_24
+pack_id                    | pack:1:2026-07-08:17e80bbe7eccb4f8
+pack_hash                  | 17e80bbe7eccb4f8cf7740e1d1ada796c22e4dd581b61c76874c38da036be854
+pack_storage_key           | ai-analysis-packs/seller-1/2026-07-08/17e80bbe7eccb4f8cf7740e1d1ada796c22e4dd581b61c76874c38da036be854/analysis_pack.zip
+pack_archive_sha256        | 2c4acd2799c6065f7538fbf52f2003f309284a26e3ecbc757eac1c389ad84eeb
+provider_model             | gpt-4.1
+provider_container_id      | cntr_6a607832e4108191848fc9d0abc87fb80acace74fcf658f0
+provider_container_file_id | cfile_6a60783397b48191bd0c980d56fd47be
+provider_response_id       | resp_0d55a7af77c44a9c006a607834019481a1947e6f31cfe2f60b
+provider_status            | completed
+provider_latency_ms        | 81210
+input_tokens               | 14559
+output_tokens              | 10946
+total_tokens               | 25505
+code_interpreter_calls     | 1
+cleanup_status             | completed
+metric_date                | 2026-07-08
+started_at                 | 2026-07-22 07:58:46.435986+00
+completed_at               | 2026-07-22 08:00:11+00
+-[ RECORD 3 ]--------------+------------------------------------------------------------------------------------------------------------------------------------------------------
+id                         | 191
+status                     | publication_blocked
+error_code                 | output_contract_invalid
+error_message              | action_completion_baseline_missing: baseline_fact_id "sku:stock_coverage_days_7d:801000100001:current_7d" does not resolve in the Pack facts registry
+prompt_version             | unified_analyst_v1_24
+pack_id                    | pack:1:2026-07-08:17e80bbe7eccb4f8
+pack_hash                  | 17e80bbe7eccb4f8cf7740e1d1ada796c22e4dd581b61c76874c38da036be854
+pack_storage_key           | ai-analysis-packs/seller-1/2026-07-08/17e80bbe7eccb4f8cf7740e1d1ada796c22e4dd581b61c76874c38da036be854/analysis_pack.zip
+pack_archive_sha256        | 2c4acd2799c6065f7538fbf52f2003f309284a26e3ecbc757eac1c389ad84eeb
+provider_model             | gpt-4.1
+provider_container_id      | cntr_6a6078a4afb481919a23845a090385f70e830869257781d3
+provider_container_file_id | cfile_6a6078a623188191b1f5a85aba110b54
+provider_response_id       | resp_0d99a39410723cc1006a6078a68d9881a28d7a035660d3de13
+provider_status            | completed
+provider_latency_ms        | 103571
+input_tokens               | 19986
+output_tokens              | 12845
+total_tokens               | 32831
+code_interpreter_calls     | 6
+cleanup_status             | completed
+metric_date                | 2026-07-08
+started_at                 | 2026-07-22 08:00:39.944953+00
+completed_at               | 2026-07-22 08:02:28+00
+

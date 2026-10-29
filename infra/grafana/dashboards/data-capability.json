@@ -1,0 +1,22 @@
+{
+  "uid": "aivion-data-capability",
+  "title": "Data & Capability",
+  "schemaVersion": 38,
+  "timezone": "browser",
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Evidence expansions",
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "sum(evidence_requests_total)", "refId": "A" }]
+    },
+    {
+      "type": "stat",
+      "title": "Invariant violations",
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "sum(analysis_invariant_violations_total)", "refId": "A" }]
+    }
+  ]
+}

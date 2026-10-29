@@ -1,0 +1,1963 @@
+
+
+1. Главная задача Temporal Framework
+Он должен однозначно отвечать на вопросы:
+За какой день эта продажа?
+
+На какой момент актуален этот остаток?
+
+Когда произошло событие отмены?
+
+Какой была категория SKU в тот день?
+
+Какие именно 7 дней называются current_7d?
+
+Можно ли сравнить current_7d с previous_7d?
+
+Можно ли считать отсутствующую строку нулём?
+
+Данные за вчера уже завершены или Ozon ещё их обновляет?
+
+Если Ozon сегодня исправил число за позавчера —
+что увидит следующий AI Run?
+
+Какие именно данные использовала уже опубликованная AI-сводка?
+То есть Temporal Framework находится практически между:
+Source ingestion
+      ↓
+Temporal normalization
+      ↓
+Canonical Facts
+      ↓
+AI pipeline
+
+2. Самое важное найденное ограничение Ozon
+У Ozon существуют два принципиально разных типа времени.
+Тип 1. Provider business date
+Например /v1/analytics/data принимает:
+date_from = 2026-08-19
+date_to   = 2026-08-19
+dimension = day
+и возвращает аналитические показатели за определённый день. Для обычного seller базовыми метриками остаются revenue и ordered_units. GitHub
+Тип 2. Timestamp
+Posting API отдаёт:
+created_at
+in_process_at
+...
+как date-time; в опубликованных примерах используются timestamps с Z, то есть UTC. GitHub
+Performance API тоже различает дневные dateFrom/dateTo и служебный createdAt, который явно определяется как UTC. GitHub
+Это приводит к фундаментальному правилу.
+
+3. Мы никогда не конвертируем provider day как timestamp
+Допустим Analytics говорит:
+day = 2026-08-19
+ordered_units = 100
+Aivion сохраняет:
+business_date = 2026-08-19
+И всё.
+Мы не делаем:
+2026-08-19 00:00 UTC
+→ Europe/Moscow
+→ 2026-08-19 03:00
+Это бессмысленно.
+2026-08-19 здесь уже является business-date dimension самого источника.
+
+4. А timestamps обрабатываем иначе
+Допустим Posting сообщает:
+cancelled_at =
+2026-08-19T22:30:00Z
+В Москве это:
+2026-08-20 01:30 MSK
+Следовательно:
+effective_at =
+2026-08-19T22:30:00Z
+
+business_date =
+2026-08-20
+для нашей event-based аналитики.
+Именно здесь нужен timezone conversion.
+
+5. Business timezone Aivion
+Для Ozon RU предлагаю окончательно установить:
+Europe/Moscow
+как business timezone Aivion.
+Но не hardcode UTC+3 по всему приложению.
+В конфигурации:
+marketplace = ozon_ru
+business_timezone = Europe/Moscow
+Почему именно IANA timezone, а не +03:00: архитектурно это правильнее и позволит позднее подключать другие рынки/marketplace без переделки temporal layer.
+На текущем этапе никакой пользовательской настройки timezone не требуется.
+
+6. Важная оговорка по документации Ozon
+Я не нашёл достаточно надёжного текущего обязательства Ozon вида:
+dimension day в /v1/analytics/data всегда рассчитан строго по Europe/Moscow.
+Поэтому мы не должны выдумывать эту семантику.
+Правило проще:
+Если Ozon уже вернул date dimension — принимаем её как provider business date.
+А Europe/Moscow используем для:
+Aivion analysis calendar;
+scheduler;
+event timestamps;
+snapshot freshness;
+наших внутренних D/D-1/7d окон.
+Так мы избегаем потенциального сдвига данных около полуночи.
+
+7. Нужно различать минимум шесть временных понятий
+Это особенно важно для БД.
+provider_date
+Дата, которую Ozon непосредственно сообщил как date dimension:
+2026-08-19
+provider_event_at
+Точное время события от Ozon:
+2026-08-19T22:30:00Z
+observed_at
+Когда Aivion получил данные:
+2026-08-20T03:04:12Z
+business_date
+На какой бизнес-день Aivion относит факт.
+as_of_at
+На какой момент актуален snapshot:
+stock = 45
+as_of_at = ...
+analysis_cutoff_at
+Момент, когда мы заморозили factual universe конкретного AI Run.
+Это разные поля.
+
+8. И ещё одно — analysis_date
+Это центральная дата всей ежедневной аналитики.
+Если сегодня:
+20 августа
+то нормальный candidate:
+analysis_date = 19 августа
+То есть:
+последний завершённый бизнес-день, данные которого достаточно готовы для анализа.
+Но есть очень важное отличие:
+yesterday
+≠
+automatically analysis_date
+
+9. Почему нельзя просто брать today - 1
+Допустим сейчас:
+20 августа 02:00 MSK
+Календарно 19 августа уже завершилось.
+Но Ozon Analytics может ещё не отдать полностью стабилизировавшиеся данные.
+Если просто сделать:
+analysis_date = today - 1
+AI может увидеть:
+orders yesterday = 800
+а через несколько часов Ozon уже покажет:
+orders yesterday = 1 030
+И Aivion ошибочно скажет:
+продажи сильно упали.
+Поэтому календарного завершения дня недостаточно.
+
+10. Нужен принцип completed business day
+Я предлагаю определять:
+analysis_date =
+latest business date
+that passed required readiness
+То есть:
+candidate = yesterday
+      ↓
+проверяем data readiness
+      ↓
+ready?
+   ↙      ↘
+ yes       no
+ ↓          ↓
+D       остаёмся на D-1
+Таким образом, если 19 августа ещё не готово, Dashboard продолжает честно показывать:
+Данные по 18 августа
+а не сырые данные 19-го.
+
+11. Но readiness не должен зависеть от одного времени запуска
+Я не предлагаю зафиксировать:
+запуск всегда в 03:00
+или:
+Ozon точно готов к 05:00
+У нас нет надёжной provider SLA, которая это гарантирует.
+Правильная архитектура:
+scheduler
+↓
+attempt ingestion
+↓
+readiness checks
+↓
+если ready → analysis
+если нет → retry later
+Время первого запуска становится операционной настройкой, а не источником истины.
+
+12. Точное время первого запуска пока не надо решать
+Например можно начать экспериментально:
+04:00–06:00 MSK
+но я бы не фиксировал это сейчас как архитектурный invariant.
+На seller_id=1 и первом непустом кабинете измерим, когда Ozon реально стабилизирует D-1.
+После этого выберем not_before_time.
+
+13. При этом readiness должен быть per-domain
+Не должно существовать единственного:
+data_ready = true
+Потому что возможна ситуация:
+Sales      READY
+Stock      READY
+Advertising FAILED
+Funnel     PREMIUM_UNAVAILABLE
+Ratings    READY
+Это абсолютно нормальное состояние.
+
+14. Я предлагаю такие состояния Domain Readiness
+READY
+PARTIAL
+STALE
+UNAVAILABLE
+FAILED
+NOT_APPLICABLE
+Где:
+READY — всё необходимое получено.
+PARTIAL — есть данные, но покрытие неполное.
+STALE — данные существуют, но слишком старые.
+UNAVAILABLE — capability/source отсутствует.
+FAILED — данные должны были быть доступны, но текущая синхронизация упала.
+NOT_APPLICABLE — домен этому seller не применим.
+
+15. Очень важно различать UNAVAILABLE и FAILED
+Например seller не имеет Premium:
+full_funnel = UNAVAILABLE
+Это нормально.
+А если рекламный API вчера работал, но сегодня вернул 500:
+Advertising = FAILED
+Это уже data-quality problem.
+AI должен понимать разницу.
+
+16. Что обязательно для продвижения analysis_date
+Я бы не требовал, чтобы каждый домен был READY.
+Иначе любой временный сбой рейтингов или Search остановит весь Aivion.
+Hard requirements для базового анализа:
+Canonical SKU identity usable
++
+Sales ordered facts for D complete
++
+account-level Sales reconciliation available
+Category mapping может быть partial:
+UNMAPPED
+мы уже это допускаем.
+Дополнительные domains оцениваются независимо.
+
+17. Что если Stock сегодня упал
+Допустим:
+Sales = READY
+Stock = FAILED
+Ads   = READY
+Я предлагаю не блокировать полностью новую публикацию.
+Но Deep Analysis получает:
+Stock data unavailable for this run.
+И не имеет права заключить:
+проблем с остатками нет.
+То есть:
+absence of data
+≠
+absence of problem
+Это отлично соответствует нашей общей partial-publication архитектуре.
+
+18. Старую Stock Action при этом тоже нельзя считать автоматически решённой
+Например вчера AI говорил:
+Пополнить SKU X.
+Сегодня Stock API упал.
+Нельзя заключить:
+проблема исчезла.
+Правильная семантика:
+status cannot be re-evaluated because current stock evidence is unavailable
+Это позже понадобится History/Action lifecycle.
+
+19. analysis_cutoff_at
+Когда readiness достигнута, создаём immutable boundary:
+analysis_cutoff_at = T
+После этого конкретный Analysis Run имеет право использовать только данные, которые были полностью доступны к T.
+Например:
+cutoff = 20 Aug 05:40
+Stock sync завершился:
+05:35 → используем
+Advertising sync завершился:
+05:45 → НЕ используем
+даже если AI ещё не стартовал.
+
+20. Зачем это нужно
+Без cutoff один Analysis Run может фактически состоять из:
+Sales from 05:00
+
+Stock from 05:10
+
+Advertising from 06:00
+
+Category updated at 06:30
+и невозможно будет воспроизвести, что именно анализировал AI.
+С cutoff:
+Fact Universe
+AS KNOWN AT T
+становится детерминированным.
+
+21. Publication остаётся ещё более сильной заморозкой
+Позже:
+Factual Snapshot
+↓
+Discovery Pack
+↓
+Evidence
+↓
+Deep Pack
+↓
+Publication
+становятся immutable artifacts.
+Если Ozon потом исправит историю, старая публикация не меняется.
+Это продолжает уже реализованный в Aivion принцип immutable опубликованного snapshot. Техническое описание Aivion.docxDOCX
+
+22. Все данные нужно разделить на четыре temporal class
+Это один из важнейших элементов всей архитектуры.
+Temporal class
+Пример
+Period / Flow Fact
+продажи, показы, расход рекламы
+Event Fact
+отмена, возврат, доставка
+Snapshot Fact
+остаток, цена
+Versioned State
+SKU metadata, категория, статус товара
+Нельзя работать со всеми четырьмя одинаково.
+
+23. Class 1 — Period / Flow Facts
+Пример:
+19 августа:
+ordered_units = 100
+ordered_amount = 250 000 ₽
+Факт относится к периоду.
+Для daily data:
+period_from = 2026-08-19
+period_to   = 2026-08-19
+Для aggregated data:
+13–19 августа:
+ordered_amount = 1 600 000 ₽
+
+24. Примеры Flow Facts
+К ним относятся:
+ordered_amount
+ordered_units
+
+ad_spend
+impressions
+clicks
+
+funnel views
+add_to_cart
+
+finance accruals
+если соответствующий source определяет их за период.
+
+25. Flow Facts можно складывать во времени
+Например:
+13 Aug = 100
+14 Aug = 120
+...
+19 Aug = 90
+Получаем:
+current_7d = SUM(13..19)
+Это нормальная temporal aggregation.
+
+26. Class 2 — Event Facts
+Например:
+returned 1 unit
+at 18 Aug 14:32
+или:
+cancelled 2 units
+at 19 Aug 01:15
+Они имеют:
+effective_at
+business_date
+Их можно агрегировать:
+returned_units on D
+но исходная сущность — событие.
+
+27. Event Fact должен хранить качество времени
+Мы уже пришли к этому на Sales Core.
+Предлагаю:
+PROVIDER_EXACT
+PROVIDER_DATE
+OBSERVED_APPROX
+UNKNOWN
+Например Ozon дал точный timestamp:
+time_quality = PROVIDER_EXACT
+Ozon дал только:
+return_date = 2026-08-19
+тогда:
+PROVIDER_DATE
+Aivion только заметил переход:
+delivering → delivered
+между двумя sync:
+OBSERVED_APPROX
+
+28. Approximate event нельзя превращать в exact event
+Допустим:
+08:00 status = delivering
+12:00 status = delivered
+Мы знаем:
+delivery occurred between 08:00 and 12:00
+Но не знаем:
+delivered_at = 12:00
+12:00 — только observed_at.
+Эти понятия нельзя смешивать.
+
+29. Class 3 — Snapshot Facts
+Это принципиально другая сущность.
+Например:
+SKU 417
+stock = 35
+не означает:
+35 units during 19 August
+Это значит:
+в конкретный наблюдаемый момент остаток составлял 35.
+Поэтому:
+stock_snapshot
+as_of_at = ...
+
+30. Stock не должен иметь фиктивный metric_date
+Сейчас многие BI-системы делают:
+stocks
+snapshot_date = today
+и далее выглядят так, будто:
+stock on entire day = 35
+Это ложная семантика.
+Целевая модель:
+stock = 35
+snapshot_started_at
+snapshot_completed_at
+as_of_at
+
+31. Для больших snapshot нужен collection window
+Допустим сбор 2 000 SKU занимает:
+05:00–05:07
+Нельзя сказать, что все данные были получены ровно в 05:07.
+Поэтому snapshot metadata:
+collection_started_at
+collection_completed_at
+collection_span_seconds
+А:
+as_of_at
+может использоваться как операционный anchor завершённого snapshot.
+Но data quality знает, что collection длилась семь минут.
+
+32. Нельзя смешивать страницы разных Stock Sync
+Например:
+page 1 from sync A
+page 2 from sync B
+page 3 from sync A
+не могут составить один snapshot.
+Каждый полный Snapshot имеет:
+snapshot_id
+И только после complete pagination:
+snapshot_status = COMPLETE
+
+33. Для Analysis Run выбираем последний COMPLETE snapshot
+Правило:
+latest complete snapshot
+WHERE completed_at &lt;= analysis_cutoff_at
+и затем проверяем:
+freshness
+
+34. Snapshot freshness
+Например последний Stock Snapshot:
+19 Aug 08:00
+а Analysis Run:
+20 Aug 06:00
+Возраст:
+22 часа
+Такой stock может быть слишком старым для operational recommendation.
+Поэтому у каждого snapshot domain должен быть:
+freshness_policy
+
+35. Но freshness TTL нельзя одинаково сделать для всех
+Например:
+Stock → быстро меняется
+Price → меняется умеренно
+Product metadata → редко
+Category taxonomy → очень редко
+Ratings → умеренно
+Поэтому:
+domain-specific freshness
+а не:
+всё старше 24 часов = stale
+
+36. Точные TTL пока не фиксируем
+Это как раз один из параметров, который лучше установить после реального ingestion.
+Архитектура должна позволять:
+stock.max_age
+price.max_age
+catalog.max_age
+ratings.max_age
+...
+через versioned policy.
+Это не вопрос к тебе — технически определим по source behavior.
+
+37. Class 4 — Versioned State
+Мы уже спроектировали такие сущности:
+Canonical SKU State
+Canonical Category State
+SKU → Category assignment
+Они действуют:
+valid_from_at
+→
+valid_to_at
+
+38. Пример Category
+до 10 августа:
+SKU → Category A
+
+с 11 августа:
+SKU → Category B
+Sales 5 августа:
+Category A
+Sales 15 августа:
+Category B
+Temporal Framework предоставляет единый resolver:
+ResolveStateAsOf(...)
+вместо ручной SQL-логики в каждом domain.
+
+39. Теперь определяем стандартные периоды Aivion
+Пусть:
+analysis_date = D
+Тогда:
+Analysis Day
+D
+Previous Day
+D - 1
+Current 7d
+D-6 ... D
+Previous 7d
+D-13 ... D-7
+Trend 30d
+D-29 ... D
+
+40. Пример
+Если:
+analysis_date = 19 августа
+то:
+analysis_day:
+19 августа
+
+previous_day:
+18 августа
+
+current_7d:
+13–19 августа
+
+previous_7d:
+6–12 августа
+
+trend_30d:
+21 июля – 19 августа
+Все границы inclusive.
+
+41. Почему current_7d и previous_7d именно такие
+Они:
+одинаковой длины
+не пересекаются
+не имеют gap
+Это очень важно для честного WoW comparison.
+
+42. Не использовать термин last 7 days внутри backend
+Он двусмысленен.
+Нужно:
+current_7d.date_from
+current_7d.date_to
+И в Pack всегда явно передавать даты.
+
+43. Calendar week — отдельное понятие
+Например:
+Mon–Sun
+это не то же самое, что rolling 7d.
+Если позже понадобятся:
+current_calendar_week
+previous_calendar_week
+добавим отдельные period definitions.
+Но Dashboard Aivion по умолчанию использует rolling periods.
+
+44. trend_30d — это прежде всего series
+Я бы не определял автоматически:
+current_30d vs previous_30d
+если конкретному analysis это не требуется.
+trend_30d:
+30 daily points
+для:
+направления;
+volatility;
+последовательности;
+контекста AI.
+
+45. Периоды должны быть централизованы
+Нельзя допустить:
+Sales:
+13–19 Aug
+
+Ads:
+12–18 Aug
+
+Funnel:
+13–19 Aug
+и затем рассчитать DRR или cross-domain conclusion.
+Поэтому Analysis Context один раз создаёт:
+{
+  "analysis_date": "2026-08-19",
+  "periods": {
+    "current_7d": {
+      "from": "2026-08-13",
+      "to": "2026-08-19"
+    },
+    "previous_7d": {
+      "from": "2026-08-06",
+      "to": "2026-08-12"
+    }
+  }
+}
+И все domains используют именно эти dates.
+
+46. Но snapshot domains имеют свой as_of_at
+Это означает, что Data Pack не должен ложно говорить:
+everything as of 19 Aug
+Например:
+analysis_date:
+19 Aug
+
+Sales:
+through 19 Aug
+
+Advertising:
+through 19 Aug
+
+Stock:
+as of 20 Aug 05:37 MSK
+
+Price:
+as of 20 Aug 05:29 MSK
+Это правильнее.
+
+47. Почему Stock лучше брать максимально свежий
+Продавцу 20 августа утром нужен ответ:
+что пополнить сейчас?
+Использовать остатки на конец 19-го, если в 05:30 доступен более свежий snapshot, хуже.
+Поэтому:
+period facts
+→ through analysis_date
+
+current-state facts
+→ latest fresh snapshot before cutoff
+
+48. AI должен видеть это явно
+Например:
+{
+  "temporal_context": {
+    "analysis_date": "2026-08-19",
+    "business_timezone": "Europe/Moscow",
+    "sales_through": "2026-08-19",
+    "stock_as_of": "2026-08-20T05:37:12+03:00",
+    "ads_through": "2026-08-19"
+  }
+}
+
+49. UI тоже должен быть честным
+Плохо:
+Данные на сегодня.
+Лучше:
+Продажи по 19 августа включительно.
+И для Stock:
+Остатки обновлены 20 августа в 05:37.
+Необязательно показывать эту информацию огромным текстом, но она должна быть доступна.
+
+50. Теперь самое важное — Missing ≠ Zero
+Это уже наш фундаментальный Stage 1 принцип.
+Но Temporal Framework должен определить его операционно.
+Рассмотрим два случая.
+Case A
+Ozon полностью отдал день и явно:
+ordered_units = 0
+Это:
+0
+Case B
+Ozon Analytics за день не загрузился.
+Это:
+NULL
+Не:
+0
+
+51. Но sparse APIs создают дополнительную проблему
+Некоторые API не возвращают строки там, где значение нулевое.
+Например hypothetically:
+SKU A → row exists
+SKU B → no row
+Отсутствие B может означать:
+0 orders
+а может означать:
+data missing
+Поэтому нужен explicit:
+zero_fill_policy
+для каждой metric/source pair.
+
+52. Нельзя иметь generic COALESCE(value, 0)
+Я бы вообще запретил это как pattern в factual layer.
+Каждая метрика должна иметь семантику:
+missing_row_semantics =
+ZERO
+или
+UNKNOWN
+и только source adapter может это определить.
+
+53. Period completeness
+Для каждого периода сохраняем:
+expected_days
+available_days
+complete_days
+missing_days
+Например:
+current_7d
+
+expected = 7
+complete = 7
+
+status = COMPLETE
+
+54. Новый seller
+Seller подключился три дня назад.
+Есть:
+3 дня Sales
+А current_7d требует:
+7
+Тогда:
+status = PARTIAL
+available_days = 3
+expected_days = 7
+
+55. Я не предлагаю сравнивать partial 3d против previous 7d
+Это создаст ложный вывод:
+продажи упали на 55%.
+Правильно:
+current_7d numeric value may be available
+comparison_status = UNAVAILABLE
+reason = insufficient_history
+
+56. Аналогично если previous_7d неполный
+Даже если current:
+7/7
+а previous:
+5/7
+обычный WoW delta не рассчитываем.
+
+57. Можно ли сравнивать matched days?
+Например 5 дней против предыдущих 5 дней.
+Технически можно.
+Но я не вводил бы такую автоматическую fallback-логику.
+Она слишком усложняет interpretation:
+current_7d
+перестаёт означать 7 дней.
+Если продукт позже захочет partial comparison — создадим отдельный period type.
+
+58. Delta semantics тоже централизуем
+Для amount/unit metrics:
+absolute_delta =
+current - previous
+relative_delta_pct =
+(current - previous) / previous * 100
+только если denominator валиден.
+
+59. Previous = 0
+Если:
+previous = 0
+current = 100
+нельзя показывать:
++∞%
+или искусственные:
++100%
+Правильно:
+absolute_delta = +100
+
+relative_delta_pct = NULL
+
+change_kind = FROM_ZERO
+
+60. Current = 0, previous &gt; 0
+Например:
+previous = 100
+current = 0
+Здесь:
+relative_delta_pct = -100%
+корректен.
+
+61. Percentage metrics требуют percentage points
+Например:
+CTR:
+3% → 4%
+Основная разница:
++1 p.p.
+а не:
++33%
+Хотя математически relative change = +33.3%.
+В модели можно хранить оба:
+delta_pp
+relative_delta_pct
+но UI/AI получает правильную семантику.
+
+62. То же для DRR и conversion
+DRR:
+20% → 25%
+
+delta = +5 p.p.
+Не просто:
++25%
+если специально не указано relative change.
+
+63. Temporal compatibility — очень важный слой
+Не все факты, имеющие даты, можно математически связывать.
+Например:
+ordered_units current_7d
+/
+cancelled_units current_7d
+не даёт корректный cancellation rate.
+Потому что это разные cohorts.
+Мы это уже зафиксировали в Sales Core.
+
+64. Flow × Flow
+Если:
+ad_spend 13–19 Aug
+
+attributed_order_amount 13–19 Aug
+и attribution semantics совпадают, можно считать:
+DRR
+
+65. Snapshot × Flow
+Например:
+current_stock
+/
+average_daily_ordered_units_7d
+можно считать:
+coverage_days
+но только потому, что это явно определённая формула.
+Нельзя generically делить любой snapshot на любой flow.
+
+66. Event × Flow
+Можно сказать:
+за неделю заказано 1 000 единиц
+за неделю отменено 120
+как два независимых факта.
+Но нельзя автоматически сказать:
+12% заказов отменяются
+пока нет cohort link.
+
+67. Snapshot × Snapshot
+Например Stock:
+current snapshot
+vs
+snapshot approximately 7 days ago
+можно сравнивать только если исторический snapshot существует и оба удовлетворяют freshness/alignment policy.
+Нельзя взять:
+сегодня 06:00
+против:
+неделю назад 22:00
+и молча объявить точным 7-day change, если intra-day volatility существенна.
+
+68. Поэтому snapshot comparison должен иметь tolerance
+Например logical anchor:
+D+1 06:00
+и historical snapshot:
+± допустимое окно
+Но точный tolerance установим позже отдельно для Stock.
+Temporal Framework просто поддерживает:
+anchor_at
+alignment_delta
+comparison_quality
+
+69. Data Watermarks
+Для каждого domain Aivion должен знать:
+насколько далеко дошли данные
+Например:
+Sales:
+latest_complete_business_date = 19 Aug
+
+Ads:
+latest_complete_business_date = 19 Aug
+
+Stock:
+latest_complete_snapshot_at = 20 Aug 05:37
+
+Finance:
+latest_complete_business_date = 18 Aug
+
+70. Я бы добавил domain_data_watermarks
+Концептуально:
+seller_account_id
+
+domain
+capability
+
+latest_complete_business_date
+
+latest_complete_snapshot_at
+
+history_available_from
+history_available_to
+
+last_successful_sync_at
+last_attempt_at
+
+readiness_status
+
+source_contract_version
+Это не factual table.
+Это operational temporal index.
+
+71. Зачем watermark
+Чтобы определить:
+готов ли D
+без сканирования миллионов rows.
+И чтобы UI мог показать:
+Реклама отстаёт на 1 день.
+
+72. Temporal Policy должна быть versioned
+Я предлагаю:
+temporal_policy_v1
+и хранить version в каждом Analysis Run.
+Политика определяет:
+business timezone
+period boundaries
+analysis_date resolver
+freshness rules
+comparison rules
+zero/missing policy hooks
+
+73. Почему versioning важно
+Допустим через полгода решим:
+trend_30d → trend_28d
+или изменим Stock freshness.
+Старый Run должен оставаться объяснимым:
+temporal_policy_v1
+Новый:
+v2
+
+74. analysis_temporal_context
+Для каждого Analysis Run нужен immutable object примерно такого вида:
+{
+  "business_timezone": "Europe/Moscow",
+
+  "analysis_date": "2026-08-19",
+
+  "analysis_cutoff_at": "2026-08-20T02:40:00Z",
+
+  "periods": {
+    "analysis_day": {
+      "from": "2026-08-19",
+      "to": "2026-08-19"
+    },
+
+    "previous_day": {
+      "from": "2026-08-18",
+      "to": "2026-08-18"
+    },
+
+    "current_7d": {
+      "from": "2026-08-13",
+      "to": "2026-08-19"
+    },
+
+    "previous_7d": {
+      "from": "2026-08-06",
+      "to": "2026-08-12"
+    },
+
+    "trend_30d": {
+      "from": "2026-07-21",
+      "to": "2026-08-19"
+    }
+  },
+
+  "temporal_policy_version": "v1"
+}
+
+75. Внутри Context также фиксируем domain times
+Например:
+{
+  "domains": {
+    "sales": {
+      "through_date": "2026-08-19",
+      "status": "ready"
+    },
+
+    "stock": {
+      "as_of_at": "2026-08-20T02:37:12Z",
+      "status": "ready"
+    },
+
+    "advertising": {
+      "through_date": "2026-08-19",
+      "status": "ready"
+    }
+  }
+}
+
+76. Factual Pack больше не должен иметь один неопределённый metric_date
+Старый Aivion сильно завязан на:
+metric_date
+что исторически приводило к иллюзии:
+все данные относятся к одной дате.
+В новой архитектуре metric_date надо постепенно заменить семантически на:
+analysis_date
+плюс:
+period
+as_of_at
+effective_at
+конкретного факта.
+
+77. analysis_date ≠ published_at
+Например:
+analysis_date:
+19 Aug
+
+cutoff:
+20 Aug 05:40
+
+published_at:
+20 Aug 05:47
+Это три разные вещи.
+
+78. analysis_date ≠ run_started_at
+Аналогично.
+Run может стартовать:
+20 Aug
+но анализировать:
+19 Aug.
+
+79. Previous publication — ещё одно отдельное временное понятие
+Это особенно важно для блока «Что изменилось».
+Есть два вида сравнения.
+Metric comparison
+current_7d
+vs
+previous_7d
+Publication comparison
+current AI publication
+vs
+previous AI publication
+Их нельзя смешивать.
+
+80. Пример
+Previous publication:
+analysis_date = 17 Aug
+Сегодня после outage:
+analysis_date = 19 Aug
+Между публикациями прошло:
+2 business days
+AI может сравнивать:
+какие ситуации появились/исчезли
+но нельзя называть это:
+изменением за один день.
+
+81. Поэтому History Context получает
+previous_publication_id
+previous_analysis_date
+days_between_analysis_dates
+отдельно от period comparisons.
+
+82. Corrections: данные прошлого могут измениться
+Это неизбежно.
+Ozon может сегодня уточнить:
+18 Aug ordered_units
+100 → 101
+Canonical factual layer должен принять correction.
+
+83. Но нельзя просто silently UPDATE без истории
+Я предлагаю source facts хранить revision-aware.
+Минимально:
+business_date
+entity_id
+
+value
+
+revision_no
+
+observed_at
+
+source_payload_id
+
+superseded_at
+или эквивалентный append-only audit.
+
+84. Current factual view
+Для обычных расчётов:
+latest revision
+
+85. Historical Publication
+Для уже опубликованного Run:
+exact factual snapshot frozen at cutoff
+Поэтому correction не меняет старый AI answer.
+
+86. Следующий Analysis Run
+Получит уже:
+101
+То есть:
+canonical history can improve
+
+published history does not mutate
+Это очень важное разделение.
+
+87. Нужно повторно читать недавнюю историю
+Если каждый день запросить только:
+D-1
+мы никогда не заметим correction D-2.
+Поэтому у каждого domain должен быть:
+revision_window
+
+88. Для Sales
+Я бы на уровне framework поддержал:
+daily refresh window
++
+periodic deeper reconciliation window
+Например архитектурно:
+recent dates → frequently re-read
+older dates → less frequently
+Точные:
+2 дня / 7 дней / 30 дней
+я пока не фиксирую как invariant.
+Мы определим их из поведения Ozon и стоимости/rate limits.
+
+89. /v1/analytics/data особенно требует такой стратегии
+У ручки есть жёсткий rate limit порядка одного запроса в минуту по текущим доступным описаниям API, поэтому бессмысленно ежедневно полностью перечитывать 90 дней для всех SKU. GitHub
+Следовательно:
+initial backfill
+→ глубокий
+
+daily
+→ короткий correction window
+
+scheduled reconciliation
+→ более глубокий
+
+90. Source correction не является новым business event
+Если:
+100 → 101
+это не:
+1 новый заказ появился сегодня.
+Это:
+источник уточнил historical fact 18 августа.
+Temporal Framework обязан сохранять эту разницу.
+
+91. Future timestamps
+Если Ozon внезапно вернул:
+event_at &gt; now + reasonable clock tolerance
+нельзя автоматически положить событие в будущий день.
+Оно должно попасть в:
+TEMPORAL_SOURCE_ANOMALY
+до проверки.
+
+92. Out-of-order lifecycle events
+Например сначала получили:
+delivered
+а позже пришёл запоздавший:
+delivering
+Нельзя перезаписывать current state просто порядком arrival.
+Сравниваем:
+provider effective time
++
+state transition semantics
++
+observed_at
+
+93. observed_at никогда не определяет порядок бизнес-событий при наличии provider time
+Например:
+Event A effective 10:00
+received 12:00
+
+Event B effective 11:00
+received 11:05
+Business order:
+A → B
+несмотря на arrival order.
+
+94. Когда provider time отсутствует
+Тогда только:
+observed_at
+и:
+time_quality = OBSERVED_APPROX
+То есть система честно знает ограничение.
+
+95. Product/SKU state работает аналогично
+Мы уже зафиксировали:
+valid_from_at = observed_at
+по умолчанию, если Ozon не позволяет надёжно восстановить момент фактического изменения.
+Temporal Framework делает это общей policy.
+
+96. Category тоже
+Сегодня впервые увидели:
+SKU → Category B
+Мы не распространяем B назад.
+Именно Temporal Framework предоставляет такой as-of resolution.
+
+97. Initial backfill — не один общий temporal window
+Это очень важная деталь.
+Seller подключился сегодня.
+Sales:
+≈ 90 дней history
+Product/Category reliable history:
+с момента первого observation
+Stock:
+current snapshot
+Advertising:
+своя доступная history
+Returns:
+своя доступная history
+
+98. Поэтому нельзя иметь
+seller history depth = 90
+Нужно:
+sales_history_depth
+
+category_mapping_history_depth
+
+stock_snapshot_history_depth
+
+advertising_history_depth
+
+...
+
+99. Data Pack должен показывать history coverage
+Например:
+Sales current_7d:
+7/7
+
+Sales previous_7d:
+7/7
+
+Category mapping current_7d:
+100%
+
+Category mapping previous_7d:
+43%
+
+Advertising current_7d:
+7/7
+
+Stock:
+current snapshot available
+historical snapshot unavailable
+И AI сможет корректно ограничить выводы.
+
+100. Category example после первого подключения
+Мы уже согласовали:
+Sales history:
+90d
+
+Category reliable since:
+today
+Следовательно:
+historical Category facts:
+UNMAPPED
+до первого factual observation.
+Temporal Framework именно это гарантирует.
+
+101. Data Quality должна иметь temporal dimensions
+Не просто:
+sales_quality = good
+а:
+freshness
+completeness
+history_depth
+revision_status
+time_quality
+reconciliation
+
+102. Например
+{
+  "domain": "sales",
+  "freshness": "ready",
+  "through_date": "2026-08-19",
+  "history_from": "2026-05-22",
+  "current_7d_complete_days": 7,
+  "previous_7d_complete_days": 7,
+  "reconciliation": "pass"
+}
+
+103. Stock
+{
+  "domain": "stock",
+  "status": "ready",
+  "as_of_at": "2026-08-20T05:37:00+03:00",
+  "snapshot_complete": true,
+  "collection_span_seconds": 143
+}
+
+104. Advertising failure
+{
+  "domain": "advertising",
+  "status": "failed",
+  "latest_complete_business_date": "2026-08-18",
+  "expected_business_date": "2026-08-19"
+}
+AI видит:
+реклама не может быть оценена за текущий период.
+Не:
+расход рекламы = 0.
+
+105. Temporal facts должны быть типизированы
+Я бы сделал для любого metric registry metadata:
+temporal_kind
+Например:
+Metric
+Kind
+ordered_amount
+FLOW
+ordered_units
+FLOW
+ad_spend
+FLOW
+clicks
+FLOW
+returned_units
+EVENT_FLOW
+stock_available
+SNAPSHOT
+price
+SNAPSHOT
+SKU category
+VERSIONED_STATE
+Это позволит backend предотвращать абсурдные calculations.
+
+106. Metric registry также знает allowed aggregation
+Например:
+ordered_units:
+SUM
+
+stock_available:
+NO_TIME_SUM
+Это важно.
+Нельзя:
+35 stock Monday
++
+40 Tuesday
++
+30 Wednesday
+=
+105 stock
+
+107. Для Stock допустимы
+Например:
+latest
+min
+max
+avg snapshot
+если конкретная бизнес-метрика явно это определяет.
+Но не generic SUM.
+
+108. Price также нельзя суммировать во времени
+У неё:
+latest
+as_of
+min
+max
+change
+а не SUM.
+
+109. Cross-domain calculations проходят temporal compatibility validation
+Перед расчётом:
+DRR
+coverage_days
+conversion
+...
+calculator должен знать:
+периоды совпадают?
+temporal classes совместимы?
+
+110. Например DRR
+ad_spend:
+13–19 Aug
+
+attributed_order_amount:
+13–19 Aug
+→ разрешено.
+Если:
+ad_spend:
+13–19
+
+revenue:
+12–18
+→ calculation invalid.
+
+111. Coverage Days
+latest stock snapshot:
+20 Aug 05:30
+
+average demand:
+13–19 Aug
+Это intentional mixed-time formula.
+Metric definition прямо содержит:
+stock_anchor = latest
+demand_window = current_7d
+Поэтому разрешено.
+
+112. Central Temporal Resolver
+Не нужно позволять каждому service писать:
+time.Now().AddDate(0,0,-7)
+Я предлагаю отдельный backend component:
+TemporalResolver
+Он отвечает за:
+BusinessDate(timestamp)
+AnalysisDate(...)
+PeriodSet(...)
+StateAsOf(...)
+SnapshotAsOf(...)
+PeriodCoverage(...)
+TemporalCompatibility(...)
+
+113. Никакой бизнес-арифметики дат по всему repository
+Плохо:
+date.Add(-7 * 24 * time.Hour)
+Правильно:
+resolver.Current7D(analysisDate)
+Это особенно важно при будущем multi-marketplace.
+
+114. Где хранить timestamps физически
+Все реальные моменты времени:
+TIMESTAMPTZ
+и физически PostgreSQL нормализует их как absolute instants.
+Business dates:
+DATE
+Нельзя хранить:
+2026-08-19
+как midnight timestamp без необходимости.
+
+115. И наоборот
+Нельзя хранить точный Posting event:
+2026-08-19T22:34:11Z
+только как:
+DATE = 2026-08-20
+Потому что мы потеряем момент события.
+Нужно оба:
+effective_at
+business_date
+
+116. business_date является derived field для timestamp events
+Он вычисляется:
+effective_at
+AT TIME ZONE business_timezone
+→ DATE
+и хранится для быстрых агрегатов.
+Но source timestamp остаётся.
+
+117. Для Provider Date всё наоборот
+Например Analytics:
+2026-08-19
+это уже authoritative date dimension.
+Здесь:
+business_date = provider_date
+без timezone conversion.
+
+118. Нужно хранить provenance этого решения
+Я бы добавил:
+date_semantics
+например:
+PROVIDER_BUSINESS_DATE
+DERIVED_FROM_PROVIDER_TIMESTAMP
+DERIVED_FROM_OBSERVATION
+Это сильно помогает при debug.
+
+119. Analysis Run flow после Temporal Framework
+Полный порядок становится:
+Scheduler
+↓
+Determine candidate D
+↓
+Run source ingestion
+↓
+Update domain watermarks
+↓
+Evaluate readiness
+↓
+Resolve final analysis_date
+↓
+Seal analysis_cutoff_at
+↓
+Build Temporal Context
+↓
+Build factual snapshot
+↓
+Discovery
+↓
+Evidence
+↓
+Deep Analysis
+↓
+Publication
+
+120. Если candidate D не готов
+Например:
+candidate = 19 Aug
+
+Sales through = 18 Aug
+Не создаём fake run за 19-е.
+Остаётся:
+current publication:
+analysis_date = 18 Aug
+UI может показывать:
+Последние доступные данные — по 18 августа.
+
+121. Не нужно каждый retry создавать новый AI Run
+Пока readiness не достигнута:
+source/readiness process
+может повторяться.
+Полноценный expensive AI Run создаём после temporal readiness.
+Это экономит AI tokens.
+
+122. Может существовать несколько factual runs одного analysis_date
+Например вручную запустили:
+analysis_date = 19 Aug
+дважды после source correction.
+Это допустимо.
+Они различаются:
+analysis_cutoff_at
+factual_snapshot_hash
+run_id
+
+123. Но обычный scheduler не должен постоянно перепубликовывать вчера
+Normal behavior:
+one daily publication
+Поздние corrections войдут в следующий анализ.
+Manual/recovery re-publication того же analysis_date остаётся технически возможной.
+
+124. Temporal fields, которые нужны каждому факту
+Не буквально все одновременно, а по temporal class.
+Flow
+business_date
+period_from
+period_to
+observed_at
+revision
+Event
+effective_at
+business_date
+observed_at
+time_quality
+Snapshot
+snapshot_id
+as_of_at
+collection_started_at
+collection_completed_at
+State
+valid_from_at
+valid_to_at
+observed_at
+
+125. Proposed infrastructure tables
+Я бы не создавал десятки temporal-specific tables.
+Достаточно трёх системных constructs.
+temporal_policy_versions
+Хранит версию правил.
+domain_data_watermarks
+Хранит актуальность source domains.
+analysis_temporal_contexts
+Хранит immutable temporal context Analysis Run.
+А temporal provenance самих фактов остаётся в domain tables.
+
+126. temporal_policy_versions
+Концептуально:
+id
+version
+
+marketplace
+market
+
+business_timezone
+
+period_definitions_json
+
+freshness_policy_json
+
+created_at
+
+127. domain_data_watermarks
+seller_account_id
+
+domain
+
+latest_complete_business_date
+
+latest_complete_snapshot_at
+
+history_available_from
+history_available_to
+
+last_success_at
+last_attempt_at
+
+status
+
+source_contract_version
+
+updated_at
+
+128. analysis_temporal_contexts
+id
+analysis_run_id
+seller_account_id
+
+analysis_date
+
+analysis_cutoff_at
+
+business_timezone
+
+periods_json
+
+domain_temporal_state_json
+
+temporal_policy_version
+
+created_at
+После привязки к Run — immutable.
+
+129. Аналогично Factual Snapshot должен ссылаться на Context
+Будущая цепочка:
+Analysis Run
+↓
+Temporal Context
+↓
+Factual Snapshot
+↓
+Pack
+Чтобы невозможно было собрать Pack:
+с одними periods
+из facts:
+другого cutoff.
+
+130. Determinism
+Одинаковые:
+seller
+analysis_date
+cutoff
+source revisions
+temporal policy
+должны давать одинаковый:
+factual snapshot hash
+и дальше одинаковый Discovery Pack hash.
+
+131. Acceptance Criteria — граница полуночи
+Provider event:
+19 Aug 20:59:59Z
+Москва:
+19 Aug 23:59:59
+Expected:
+business_date = 19 Aug
+Event:
+19 Aug 21:00:01Z
+Москва:
+20 Aug 00:00:01
+Expected:
+business_date = 20 Aug
+
+132. Provider day test
+Analytics возвращает:
+day = 19 Aug
+Expected:
+business_date = 19 Aug
+Никакого timezone shift.
+
+133. Day-window test
+For:
+analysis_date = 19 Aug
+обязаны получить:
+current_7d  = 13–19
+previous_7d = 6–12
+trend_30d   = 21 Jul–19 Aug
+
+134. Month boundary
+analysis_date = 2 Sep
+current7 спокойно должен переходить август/сентябрь.
+Никаких month-specific hacks.
+
+135. Year boundary
+analysis_date = 2 Jan
+previous windows переходят в предыдущий год корректно.
+
+136. Leap year
+29 февраля обязательно отдельным deterministic test.
+
+137. Readiness test
+Current date:
+20 Aug
+Sales complete only through:
+18 Aug
+Expected:
+analysis_date = 18 Aug
+а не 19.
+
+138. Delayed domain test
+Sales = READY through 19
+Stock = READY snapshot current
+Ads = FAILED
+Expected:
+analysis_date = 19
+Advertising domain = failed
+AI pack явно содержит limitation.
+
+139. Capability test
+Нет Premium Funnel.
+Expected:
+Funnel full = UNAVAILABLE
+но Analysis Run проходит.
+
+140. Missing vs zero test
+Полный source возвращает zero:
+0
+failed source:
+NULL/unavailable
+Никакой helper не превращает второе в первое.
+
+141. Sparse rows test
+Для endpoint, где absence доказанно означает zero:
+missing row → zero
+Для source без такого contract:
+missing row → unknown
+Это должно быть metric-specific.
+
+142. Incomplete period
+current_7d = 6/7
+Expected:
+period status = PARTIAL
+обычный WoW comparison запрещён.
+
+143. Previous zero test
+previous = 0
+current = 100
+Expected:
+abs_delta = 100
+pct_delta = null
+change_kind = from_zero
+
+144. Percentage test
+CTR 3 → 4%
+Expected:
+delta_pp = 1
+
+145. Snapshot completeness
+Stock pagination:
+page 1 success
+page 2 error
+Expected:
+snapshot incomplete
+и он не может стать current Analysis Snapshot.
+
+146. Snapshot cutoff
+Snapshot completed:
+after analysis_cutoff_at
+Expected:
+not visible to this run
+
+147. Snapshot freshness
+Последний complete Stock Snapshot превышает max_age.
+Expected:
+STALE
+не READY.
+
+148. Correction test
+Сначала:
+18 Aug = 100
+потом:
+18 Aug = 101
+Expected:
+current canonical fact = 101
+revision history preserved
+
+149. Publication correction test
+Publication P1 использовала:
+100
+после correction она всё ещё содержит:
+100
+Новый factual context:
+101
+
+150. Category as-of test
+SKU → A до 10 Aug
+SKU → B после
+Sales:
+5 Aug
+15 Aug
+должны resolve в разные Category.
+
+151. First seller test
+Sales:
+90d
+Category observation:
+today
+Expected historical Category:
+UNMAPPED
+а не today's Category.
+
+152. Out-of-order event test
+Event effective sequence:
+A 10:00
+B 11:00
+но arrival:
+B first
+A second
+Expected business ordering:
+A → B
+
+153. Approximate event test
+Точного provider event timestamp нет.
+Expected:
+time_quality = OBSERVED_APPROX
+и нельзя выдавать observed_at как exact event time.
+
+154. Cross-domain mismatch test
+Sales period:
+13–19
+Ads:
+12–18
+Expected:
+cross-domain DRR calculation rejected
+
+155. Intentional snapshot-flow test
+Stock current snapshot + current_7d demand.
+Expected:
+coverage calculation allowed
+только потому, что metric contract это явно разрешает.
+
+156. Reproducibility test
+Одинаковый:
+Temporal Context
++
+source revision set
+должен давать одинаковые factual outputs и hashes.
+
+157. Что изменится в текущем repository
+Сейчас там уже существует temporal resolver и логика current/previous periods, включая Europe/Moscow, что является хорошей базой.
+Но новый framework должен убрать распределённые допущения вида:
+metric_date
+snapshot_date
+today
+now
+last 7 days
+и заменить их единым contract:
+analysis_date
+business_date
+effective_at
+as_of_at
+observed_at
+analysis_cutoff_at
+period_id
+
+158. Особенно надо убрать ошибочную идею current = today if complete
+Ранее current resolver мог выбирать текущий календарный день при наличии каких-либо данных.
+Я считаю, для основного ежедневного AI Dashboard это неправильно.
+Мы зафиксировали:
+Daily Aivion Analysis использует последний завершённый и готовый бизнес-день. Текущий незавершённый день никогда не становится analysis_date.
+Это важный production invariant.
+
+159. Но current snapshots при этом могут быть сегодняшними
+Это не противоречие.
+Например утром 20 августа:
+Sales through:
+19 Aug
+
+Ads through:
+19 Aug
+
+Stock:
+20 Aug 05:30
+
+Price:
+20 Aug 05:25
+Именно так operational assistant и должен работать.
+
+160. Как это будет восприниматься пользователем
+Пользователь утром открывает Aivion.
+Сервис отвечает:
+За последние завершённые 7 дней заказы снизились на 8%.
+И одновременно:
+Сейчас у 12 значимых SKU осталось менее 7 дней покрытия.
+Первый вывод использует:
+13–19 Aug Sales
+Второй:
+20 Aug current Stock
++
+13–19 Aug demand
+Это логично и фактически корректно.
+
+161. Что получает Discovery
+Discovery Pack должен знать:
+analysis_date
+periods
+domain as-of dates
+freshness
+completeness
+history depth
+limitations
+Тогда AI не должен сам угадывать:
+«последняя неделя» — это какие даты?
+
+162. Что получает Evidence Expansion
+Любой Evidence Request также наследует:
+analysis_run_id
+temporal_context_id
+analysis_cutoff_at
+Иначе Deep Analysis способен получить более свежие данные, чем видел Discovery.
+Это было бы очень опасно.
+
+163. Поэтому Evidence не должна “сходить в текущую БД”
+Если Discovery был заморожен в:
+05:40
+а Evidence Expansion идёт:
+05:45
+нельзя просто выполнить query по latest tables.
+Нужно запросить:
+facts as of factual snapshot / cutoff
+Иначе два AI этапа анализируют разную реальность.
+
+164. Это особенно важно для нового двухэтапного pipeline
+Фактически:
+Temporal Context
+       ↓
+Factual Snapshot
+       ↓
+Discovery Pack
+       ↓
+Discovery
+       ↓
+Evidence Expansion
+       ↓
+Deep Analysis
+вся цепочка должна жить внутри одного временного universe.
+Это одно из важнейших требований Temporal Framework.
+
+165. Что будет с AI Chat
+Позже Chat может иметь два режима.
+Например вопрос:
+Почему вчера упали продажи?
+использует canonical historical periods.
+А:
+Сколько сейчас остатков SKU X?
+может использовать свежий current snapshot.
+Но это уже миграция Chat после Dashboard+Actions, как мы договорились.
+Temporal Framework позволит явно различать эти режимы.
+
+166. Основное архитектурное решение
+Я предлагаю зафиксировать Temporal Framework следующим образом:
+Все факты Aivion получают явную временную семантику: period/flow, event, snapshot или versioned state. Provider date dimensions сохраняются как provider business dates и не подвергаются искусственному timezone conversion; provider timestamps сохраняются как абсолютные моменты времени и при необходимости переводятся в business date через timezone marketplace. Для Ozon RU business timezone Aivion — Europe/Moscow. Основной ежедневный analysis_date никогда не является незавершённым текущим днём: это последний завершённый business day, прошедший readiness checks. Все rolling periods детерминированно строятся от analysis_date: D, D−1, current 7d, previous 7d, trend 30d. Snapshot domains используют последний полный и достаточно свежий snapshot до analysis_cutoff_at и имеют собственный as_of_at. Missing никогда не превращается в zero без явно подтверждённой source semantics. Неполные периоды маркируются как partial и не используются для стандартных period comparisons. Corrections source facts версионируются, но уже опубликованные factual/AI snapshots остаются immutable. Discovery, Evidence и Deep Analysis работают строго внутри одного immutable Temporal Context и одного factual cutoff.
+
+Критический итог
+Эта архитектура решает, на мой взгляд, пять самых опасных классов ошибок Aivion:
+не анализируем сегодняшний неполный день;
+
+не сравниваем разные 7-дневные окна;
+
+не выдаём старый Stock за данные конкретного дня;
+
+не превращаем отсутствие данных в ноль;
+
+не позволяем Discovery и Deep Analysis видеть разные версии реальности.
+И особенно важный результат: “дата AI-сводки” больше не является попыткой притянуть все данные к одному дню. У нас есть единый analysis_date для завершённых period facts и честные as_of_at для текущих state/snapshot facts.
+Вопросов к тебе сейчас не осталось
+Я специально не стал спрашивать тебя про время запуска, допустимую давность Stock Snapshot или глубину automatic correction window. Это не продуктовые решения — их правильнее определить эмпирически на seller_id=1 и первом непустом кабинете, после чего положить в versioned Temporal Policy.
+Если принимаем эту модель, Temporal Framework можно фиксировать как CLOSED, и следующим большим этапом будет Canonical Stock Model — уже поверх корректных Canonical SKU, Sales и Temporal semantics.

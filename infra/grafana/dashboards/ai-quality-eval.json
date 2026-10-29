@@ -1,0 +1,31 @@
+{
+  "uid": "aivion-ai-quality-eval",
+  "title": "AI Quality / Eval",
+  "schemaVersion": 38,
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Eval verdicts",
+      "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "sum by (verdict) (eval_runs_total)", "refId": "A" }]
+    },
+    {
+      "type": "stat",
+      "title": "Critical failures",
+      "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "sum(eval_critical_failures_total)", "refId": "A" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Eval tokens",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "eval_input_tokens_total", "legendFormat": "input", "refId": "A" },
+        { "expr": "eval_output_tokens_total", "legendFormat": "output", "refId": "B" }
+      ]
+    }
+  ]
+}

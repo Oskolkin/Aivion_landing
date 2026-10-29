@@ -1,0 +1,35 @@
+{
+  "schema_version": "aivion_unified_analysis_v1",
+  "analysis_meta": {
+    "pack_id": "pack_eval_failed",
+    "pack_hash": "sha256:eval",
+    "metric_date": "2026-07-08"
+  },
+  "analysis_outcome": "analysis_failed",
+  "dashboard": {
+    "account_summary": {
+      "status": "partial",
+      "headline": "Анализ не завершён",
+      "executive_summary": "Обнаружены противоречия в источниках данных.",
+      "metric_date": "2026-07-08"
+    },
+    "what_changed": { "status": "partial", "groups": [] },
+    "category_summaries": [],
+    "sales_funnel": { "status": "partial" },
+    "funnel_analysis": { "status": "partial", "ai_analysis": { "status": "partial" } },
+    "stock_coverage": { "status": "partial" },
+    "ad_efficiency": { "status": "partial" },
+    "risk_distribution": { "status": "partial" },
+    "seller_pulse": { "kpis": [], "trend_7d": [] },
+    "sku_focus": {
+      "order_drop": [],
+      "stock_risk": [],
+      "no_sales_with_stock": [],
+      "key_skus": []
+    },
+    "top_action_ids": [],
+    "recommended_action_ids": []
+  },
+  "actions": [],
+  "limitations": ["analysis_limited", "partial_data"]
+}

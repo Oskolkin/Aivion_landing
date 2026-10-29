@@ -1,0 +1,16 @@
+DROP TRIGGER IF EXISTS supply_acts_scope ON supply_acceptance_acts;
+DROP TRIGGER IF EXISTS supply_states_scope ON supply_state_observations;
+DROP TRIGGER IF EXISTS supply_bundles_scope ON supply_bundle_versions;
+DROP TRIGGER IF EXISTS supply_versions_scope ON supply_versions;
+DROP TRIGGER IF EXISTS supply_order_versions_scope ON supply_order_versions;
+DROP FUNCTION IF EXISTS enforce_canonical_supply_scope();
+DROP TABLE IF EXISTS supply_acceptance_items;
+DROP TABLE IF EXISTS supply_acceptance_acts;
+DROP TABLE IF EXISTS supply_state_observations;
+DROP TABLE IF EXISTS supply_planned_items;
+DROP TABLE IF EXISTS supply_bundle_versions;
+DROP TABLE IF EXISTS supply_versions;
+DROP TABLE IF EXISTS supplies;
+DROP TABLE IF EXISTS supply_order_versions;
+DROP TABLE IF EXISTS supply_orders;
+DROP TABLE IF EXISTS supply_state_registry_versions;

@@ -1,0 +1,11 @@
+DROP TRIGGER IF EXISTS finance_balance_scope ON finance_balance_snapshots;
+DROP TRIGGER IF EXISTS finance_line_scope ON finance_accrual_lines;
+DROP TRIGGER IF EXISTS finance_record_scope ON finance_accrual_records;
+DROP TRIGGER IF EXISTS finance_day_scope ON finance_accrual_day_revisions;
+DROP FUNCTION IF EXISTS enforce_canonical_finance_scope();
+DROP TABLE IF EXISTS finance_balance_snapshots;
+DROP TABLE IF EXISTS finance_accrual_lines;
+DROP TABLE IF EXISTS finance_accrual_records;
+DROP TABLE IF EXISTS finance_accrual_day_revisions;
+DROP TABLE IF EXISTS finance_provider_type_versions;
+DROP TABLE IF EXISTS finance_provider_types;

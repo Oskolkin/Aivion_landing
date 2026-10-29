@@ -1,0 +1,42 @@
+{
+  "runtime_e2e_gate": "PASS",
+  "provider_mode": "fake",
+  "provider_note": "AI chat used deterministic fake client under AI_PROVIDER_MODE=fake. Real OpenAI not called in this smoke. Real-provider chat was previously confirmed by release-gate AI chat; key rotation remains DEFERRED_BY_OWNER.",
+  "frontend_base": "http://127.0.0.1:3000",
+  "api_base": "http://127.0.0.1:8081",
+  "readiness": {
+    "postgresql": "ready",
+    "redis": "ready",
+    "minio": "ready",
+    "api_health_live": 200,
+    "api_health_ready": 200,
+    "worker": "running",
+    "frontend": 200
+  },
+  "scenarios": {
+    "auth_and_main_flow": "PASS",
+    "dashboard": "PASS",
+    "actions": "PASS",
+    "ask_ai_handoff": "PASS",
+    "streaming": "PASS",
+    "txt_attachment_control": "PASS",
+    "csv_export_attachment": "PASS",
+    "unified_publication_smoke": "PASS",
+    "empty_actions": "PASS",
+    "mobile_390x844": "PASS",
+    "mobile_430x932": "PASS"
+  },
+  "playwright": {
+    "command": "npx playwright test e2e/main-flow.spec.ts e2e/ai-chat-ask-ai-handoff.spec.ts e2e/ai-chat-formats-streaming.spec.ts e2e/unified-publication-smoke.spec.ts e2e/z-empty-actions.spec.ts e2e/actions-redesign.spec.ts --reporter=line",
+    "passed": 15,
+    "failed": 0,
+    "duration_s": 16.2,
+    "exit_code": 0,
+    "log": "/tmp/e2e-required-2.log"
+  },
+  "unexpected_browser_errors": 0,
+  "unexpected_backend_5xx": 0,
+  "request_loops": 0,
+  "duplicate_messages": 0,
+  "permanent_loaders": 0
+}

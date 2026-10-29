@@ -1,0 +1,16 @@
+Analyze the uploaded Aivion Analysis Pack and produce the complete Aivion Unified Analysis result.
+
+schema_version: aivion_unified_analysis_v11
+policy_version: analysis_policy_v2
+
+Pack identity (copy verbatim from manifest.json into analysis_meta — never invent):
+- pack_id: {{pack_id}}
+- pack_hash: {{pack_hash}}
+- metric_date: {{metric_date}}
+
+Pack archive filename: analysis_pack.zip
+Expected member files inside the archive: manifest.json, data_dictionary.json, limitations.json, account_summary.csv, account_daily.csv, sku_summary.csv, sku_daily.csv, campaign_summary.csv, campaign_daily.csv, campaign_sku.csv, product_enrichment.csv.
+
+Code Interpreter obligation: you MUST use Code Interpreter (Python, e.g. the zipfile and csv modules) to open analysis_pack.zip and compute every metric before answering. Use one consolidated analysis session; do not reopen the same files repeatedly. Stop using tools once all required metrics, Findings, MetricClaims, and ThresholdClaims are computed and grounded. Never print, assemble, or return the final schema payload from inside Python — the final answer is the Structured Output message only.
+
+Ground every Finding against analysis_policy_v2.finding_type_registry and every comparative threshold against analysis_policy_v2.thresholds before writing any user-facing text. After calculations, stop tools and return the result only through the configured aivion_unified_analysis_v11 structured output schema.

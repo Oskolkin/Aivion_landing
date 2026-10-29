@@ -1,0 +1,15 @@
+{
+  "path": "/tmp/aivion-main-final",
+  "main_sha": "4d210dcb8ca48823566895646450709531c177ff",
+  "bak_proxy_history_lines": 0,
+  "gitleaks_all_history": "PASS",
+  "trufflehog_verified": 0,
+  "branches": [
+    "cursor/security-repository-cleanup",
+    "* main",
+    "  remotes/origin/HEAD -> origin/main",
+    "  remotes/origin/cursor/security-repository-cleanup",
+    "  remotes/origin/main"
+  ],
+  "result": "PASS"
+}

@@ -1,0 +1,38 @@
+{
+  "history_rewrite_approved": true,
+  "force_push_approved": true,
+  "method": "git filter-repo",
+  "passes": [
+    {
+      "name": "remove-.env.local.bak-proxy",
+      "paths": [
+        ".env.local.bak-proxy"
+      ]
+    },
+    {
+      "name": "remove-local-credential-dumps-and-skuKey-replace",
+      "paths_removed": [
+        "frontend/e2e/helpers/.e2e-credentials.json",
+        "backend/debug/_accept2_current_seller.json",
+        "backend/debug/_accept_current_seller.json",
+        "backend/debug/_e2e_login3.json",
+        "backend/debug/_login3_h.txt",
+        "backend/debug/_login_headers.txt",
+        "backend/debug/_run23_validated_full.json.txt",
+        "backend/debug/login_resp_h.txt",
+        "backend/run23_validated.json"
+      ],
+      "replace_text": [
+        "skuKey==>skuID"
+      ]
+    }
+  ],
+  "pre_rewrite_cleanup_commit_pre_filter": "29147a35f10506ccd540cfd68bfdf45ca20c0882",
+  "post_rewrite_main_sha": "d0258291a54c9085f145da353cb527a24a966a7a",
+  "post_rewrite_cleanup_sha": "d9c1b55d652ab22245cdddc26c520ef64091bb74",
+  "bundles": [
+    "/tmp/aivion-bundles/aivion-final-before-history-rewrite.bundle",
+    "/tmp/aivion-bundles/aivion-cleanup-branch-before-rewrite.bundle"
+  ],
+  "result": "PASS"
+}

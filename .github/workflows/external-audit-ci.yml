@@ -1,0 +1,33 @@
+name: External Audit Tooling
+
+on:
+  pull_request:
+    paths:
+      - "deploy/external-audit/**"
+      - "deploy/scripts/*external-audit*"
+      - "deploy/caddy/**"
+      - "deploy/compose/docker-compose.yml"
+      - "deploy/scripts/compose-validate.sh"
+  push:
+    branches: [main]
+    paths:
+      - "deploy/external-audit/**"
+      - "deploy/scripts/*external-audit*"
+      - "deploy/caddy/**"
+      - "deploy/compose/docker-compose.yml"
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Unit tests
+        working-directory: deploy/external-audit
+        run: |
+          npm ci
+          npm test
+      - name: Compose / Caddy validate
+        run: bash deploy/scripts/compose-validate.sh

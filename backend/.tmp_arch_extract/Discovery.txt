@@ -1,0 +1,1990 @@
+
+Да. Здесь мы уже переходим непосредственно к первому AI-вызову новой архитектуры, поэтому я бы зафиксировал контракт особенно жёстко: Discovery должен получить достаточно фактов, чтобы увидеть значимые бизнес-ситуации, но не получить свободу самостоятельно искать данные, менять factual universe или сразу выдавать финальные Actions.
+Актуальный Responses API хорошо подходит под такой подход: Structured Outputs позволяют жёстко ограничить ответ JSON Schema, причём в отличие от обычного JSON mode гарантируется соответствие поддерживаемой схеме; OpenAI рекомендует использовать Structured Outputs там, где это возможно. Платформа OpenAI
+1. Роль Discovery в новой архитектуре
+После всех принятых нами решений pipeline становится:
+UCDM
+  ↓
+Capabilities / DQ / Readiness
+  ↓
+Factual Universe @ cutoff
+  ↓
+Factual API
+  ↓
+Entity Landscapes
+  ↓
+Materiality Engine
+  ↓
+Selected Material Entities
+  ↓
+Landscape Detail
+  ↓
+DISCOVERY PACK
+  ↓
+AI CALL #1 — DISCOVERY
+  ↓
+Discovery Output
+  ↓
+Evidence Expansion
+  ↓
+DEEP ANALYSIS PACK
+  ↓
+AI CALL #2 — DEEP ANALYSIS
+  ↓
+Final Analysis + Actions
+Discovery отвечает только на два вопроса:
+Какие ситуации действительно заслуживают углублённого анализа?
+И:
+Какие дополнительные факты нужно раскрыть, чтобы качественно разобраться в каждой из этих ситуаций?
+Он не отвечает:
+Что нужно сделать продавцу?
+и не должен окончательно отвечать:
+Почему это произошло?
+
+2. Что именно я предлагаю считать Discovery Thread
+Главным output-объектом первого AI-вызова предлагаю сделать не старый candidate, не signal, не problem, а:
+Analysis Thread
+или технически:
+discovery_thread
+Это принципиально другое понятие.
+Например Landscape показывает:
+SKU 417
+
+Sales:
+100 → 70 units
+
+Price:
+2 000 → 2 300 ₽
+
+Search:
+position 18 → 45
+lag = 2 days
+
+Stock:
+20 units
+coverage = 2 days
+Discovery не должен вернуть:
+PRICE_PROBLEM
+cause = price increase
+action = reduce price
+Правильный результат:
+Thread:
+
+Primary entity:
+SKU 417
+
+Observed pattern:
+Спрос снизился одновременно с изменением цены
+и поисковой видимости.
+
+Investigation focus:
+Проверить более длинную динамику спроса,
+ценовые изменения, поисковые запросы
+и контекст продвижения.
+
+Requested evidence:
+- sales history
+- price history
+- search query detail
+- campaign context
+То есть Thread означает:
+«Вот ситуация, в которую стоит посмотреть глубже».
+
+3. Discovery должен быть stateless one-shot вызовом
+Я рекомендую очень жёсткое правило:
+Discovery:
+1 request
+→
+1 structured response
+Без:
+tools
+file search
+SQL
+Factual API calls
+Ozon calls
+web search
+agent loop
+Модель не получает инструменты вообще.
+Она работает исключительно с уже подготовленным:
+sealed Discovery Pack
+Это принципиально важно.
+
+4. Почему Discovery не должен сам ходить за данными
+Иначе архитектура:
+Factual Universe
+перестаёт быть настоящей границей.
+Например Discovery запустился:
+cutoff = 05:40
+а в 05:50 AI через tool запросил:
+GetCurrentStock()
+и получил более новый snapshot.
+Мы снова нарушили бы фундаментальный invariant:
+Discovery
+Evidence
+Deep
+должны видеть одну factual reality.
+Поэтому AI может только написать:
+Мне нужен Evidence X.
+Но сам Evidence он не получает в этом вызове.
+
+5. Evidence Request — это output, а не tool call
+Это важная архитектурная разница.
+Не:
+AI:
+call GetSKUStockHistory(...)
+а:
+{
+  "evidence_type": "SKU_STOCK_HISTORY",
+  "subject": {
+    "kind": "SKU",
+    "id": "417"
+  }
+}
+Далее уже backend:
+validates request
+↓
+Evidence Catalog
+↓
+Factual API
+↓
+same Factual Universe
+↓
+Evidence Pack
+И только потом происходит второй AI-вызов.
+
+6. Discovery не использует previous_response_id
+Для v1 я рекомендую полностью stateless AI calls.
+То есть Discovery:
+previous_response_id = null
+А позже Deep Analysis тоже получает explicit input:
+Discovery Output
++
+expanded Evidence
++
+required Landscapes
+а не зависит от скрытого состояния предыдущего OpenAI Response.
+Responses API сейчас действительно поддерживает продолжение reasoning/conversation через previous_response_id, в том числе совместно со stateless modes, но для Aivion я считаю явный перенос factual state безопаснее. OpenAI Developers
+Причина — auditability.
+Мы должны уметь взять через месяц:
+Discovery Pack
+Discovery Output
+Evidence
+Deep Pack
+и точно увидеть, что получила модель.
+Без:
+«Ещё часть важного состояния находилась где-то внутри предыдущего OpenAI response».
+
+7. Discovery Pack также не должен быть ZIP
+Это важное отличие от нашего старого подхода.
+ZIP уменьшает:
+размер передачи файла
+но не уменьшает количество информации, которую модель должна декодировать и обработать после распаковки.
+У нас теперь есть:
+Landscapes
++
+Materiality
+именно для того, чтобы не посылать все 2 000 SKU в AI.
+Поэтому Discovery Pack v1 должен быть обычным компактным structured JSON.
+OpenAI Responses API поддерживает file inputs, поэтому при необходимости transport можно позже перевести на file input; это техническая возможность, но не средство уменьшения model context. Платформа OpenAI
+Моя рекомендация:
+Discovery v1
+=
+inline canonical JSON
+
+8. Discovery Pack состоит из двух разных частей
+Я предлагаю физически разделить:
+DiscoveryPackArtifact
+и:
+DiscoveryPayload
+Первый нужен Aivion для audit.
+Второй непосредственно получает AI.
+Это позволяет не тратить токены на техническую metadata.
+
+9. DiscoveryPackArtifact
+В immutable artifact metadata сохраняем примерно:
+Поле
+Значение
+discovery_pack_id
+ID pack
+seller_account_id
+seller
+factual_universe_manifest_id
+exact universe
+factual_universe_hash
+hash
+materiality_selection_id
+выбранные entities
+materiality_selection_hash
+hash selection
+landscape_profile_version
+Detail profile
+discovery_pack_schema_version
+Pack schema
+discovery_prompt_policy_version
+prompt
+discovery_output_schema_version
+output contract
+evidence_catalog_version
+допустимые Evidence
+budget_profile_version
+token/entity budget
+payload_hash
+exact AI input
+fact_handle_map_hash
+grounding map
+input_token_count
+размер
+created_at
+время
+Это не обязательно всё отправлять модели.
+
+10. AI-visible Discovery Payload
+Модель должна видеть только:
+1. Analysis Context
+
+2. Domain Windows
+
+3. Capabilities / Limitations
+
+4. Account Landscape
+
+5. Selected Category Landscapes
+
+6. Selected Campaign Landscapes
+
+7. Selected SKU Landscapes
+
+8. Available Evidence Menu
+То есть примерно:
+{
+  "context": {},
+  "windows": {},
+  "capabilities": {},
+  "account": {},
+  "categories": [],
+  "campaigns": [],
+  "skus": [],
+  "evidence_menu": []
+}
+
+11. Что категорически не передаём
+Discovery не должен видеть:
+Materiality score
+
+RRF score
+
+Materiality lane ranks
+
+"selected because SALES_DECREASE"
+
+diversity penalties
+
+backend priority
+
+raw DQ engineering errors
+
+SQL table names
+
+source payload JSON
+
+Ozon credentials
+
+internal debugging information
+Особенно важно:
+Materiality reasons
+не передавать.
+Иначе модель будет психологически якориться:
+Backend выбрал SKU из-за Sales decrease, значит это наверняка проблема продаж.
+Мы специально проектировали Materiality как невидимый selection mechanism.
+
+12. Analysis Context
+Модель видит:
+{
+  "analysis_date": "2026-08-19",
+  "analysis_cutoff_at": "2026-08-20T05:40:00+03:00",
+  "business_timezone": "Europe/Moscow"
+}
+Можно добавить:
+history_depth
+если это действительно полезно.
+Но внутренние DB IDs не нужны.
+
+13. Domain Windows
+Один раз:
+{
+  "sales_current_7d": {
+    "from": "2026-08-13",
+    "to": "2026-08-19"
+  },
+
+  "sales_previous_7d": {
+    "from": "2026-08-06",
+    "to": "2026-08-12"
+  },
+
+  "search_current": {
+    "from": "2026-08-11",
+    "to": "2026-08-17",
+    "lag_days": 2
+  },
+
+  "finance_current": {
+    "from": "2026-08-12",
+    "to": "2026-08-18",
+    "lag_days": 1
+  }
+}
+
+14. Capabilities / Limitations
+Также один раз.
+Например:
+{
+  "sales": {
+    "readiness": "READY"
+  },
+
+  "stock": {
+    "readiness": "READY"
+  },
+
+  "search": {
+    "readiness": "PARTIAL",
+    "limitations": [
+      "EXPECTED_PROVIDER_LAG",
+      "QUERY_DETAILS_TOP_N_ONLY"
+    ]
+  },
+
+  "funnel": {
+    "readiness": "UNAVAILABLE",
+    "reason": "NO_SUBSCRIPTION"
+  },
+
+  "finance": {
+    "readiness": "PARTIAL",
+    "limitations": [
+      "SKU_MAPPING_PARTIAL"
+    ]
+  }
+}
+AI теперь сразу знает:
+какие выводы можно делать, а какие нет.
+
+15. Engineering DQ noise туда не идёт
+Не нужно писать:
+stock_batch_17_retry_count = 2
+если итоговый Stock:
+READY.
+Discovery интересует аналитическая пригодность, а не внутренние подробности ingestion.
+
+16. Entity Landscapes поступают в уже принятой форме
+Например SKU:
+{
+  "entity": {
+    "kind": "SKU",
+    "id": "417",
+    "name": "Кофемашина X",
+    "category": "Кофемашины"
+  },
+
+  "sales": {},
+
+  "stock": {},
+
+  "price": {},
+
+  "advertising": {},
+
+  "search": {},
+
+  "promotions": {},
+
+  "supply": {}
+}
+Никакой отдельной AI-предобработки между Landscape Detail и Pack делать не нужно.
+
+17. Но нам нужен новый механизм — Fact Handles
+Я считаю его одним из самых важных элементов Discovery architecture.
+Проблема:
+AI написал:
+Продажи упали, цена выросла, Search ухудшился.
+Как backend потом поймёт:
+На какие именно факты модель опиралась?
+Просить AI повторять все цифры опасно: он может ошибиться в копировании.
+Поэтому каждому значимому factual object в Pack присваиваем короткий:
+Fact Handle
+Например:
+f_0017
+f_0018
+f_0019
+
+18. Пример
+В Pack:
+{
+  "ordered_amount": {
+    "current": "161000",
+    "previous": "210000",
+    "delta": "-49000",
+    "pct_delta": "-23.33",
+    "fact_handle": "f_0017"
+  },
+
+  "price": {
+    "current": "2300",
+    "previous_observed": "2000",
+    "pct_delta": "15",
+    "fact_handle": "f_0018"
+  },
+
+  "search_position": {
+    "current": "45",
+    "previous": "18",
+    "fact_handle": "f_0019"
+  }
+}
+
+19. AI Output
+Discovery потом пишет:
+{
+  "basis_fact_handles": [
+    "f_0017",
+    "f_0018",
+    "f_0019"
+  ]
+}
+И backend точно знает:
+Thread построен именно на этих фактах.
+
+20. Fact Handle не является новым Fact ID
+Он pack-local.
+Например:
+f_0017
+внутри Pack X может соответствовать:
+SKU 417 Sales comparison current7/previous7
+Backend отдельно хранит:
+f_0017
+↓
+FactRef(s)
+↓
+Factual API
+↓
+UCDM provenance
+
+21. FactHandleMap
+Рядом с Pack сохраняется immutable:
+discovery-fact-map.json
+Например:
+f_0017
+→ SKU 417 Sales comparison
+→ input FactRefs A/B
+→ temporal policy v1
+
+f_0018
+→ SKU 417 Price observation comparison
+→ Price FactRefs C/D
+AI этот mapping не видит.
+Он видит только:
+f_0017
+рядом с значением.
+
+22. Это даст нам полноценную traceability
+Позднее можно будет построить:
+Final Action
+↓
+Deep Analysis finding
+↓
+Discovery Thread
+↓
+basis Fact Handles
+↓
+Factual API FactRefs
+↓
+Canonical Fact
+↓
+Ozon Source Artifact
+Именно такая lineage нужна серьёзному AI-продукту.
+
+23. Fact Handles должны быть deterministic
+Одинаковые:
+Factual Universe
++
+Landscape Profile
++
+Pack Schema
+дают одинаковое:
+Fact Handle ordering.
+Например canonical traversal:
+Account
+Categories ordered
+Campaigns ordered
+SKUs ordered
+blocks ordered
+metrics ordered
+Не случайные UUID.
+
+24. Discovery Evidence Menu
+Мы ещё не проектируем полный Evidence Catalog — это следующий этап.
+Но Discovery Pack уже должен содержать interface к нему.
+Например:
+[
+  {
+    "key": "SKU_SALES_HISTORY",
+    "subject_kinds": ["SKU"],
+    "description": "Detailed historical Sales Demand for the SKU"
+  },
+  {
+    "key": "SKU_PRICE_HISTORY",
+    "subject_kinds": ["SKU"],
+    "description": "Observed canonical Price history"
+  },
+  {
+    "key": "SKU_SEARCH_QUERIES",
+    "subject_kinds": ["SKU"],
+    "description": "Provider-ranked Search Query details"
+  }
+]
+
+25. В Pack входит не весь Evidence Catalog
+Backend сначала делает:
+Global Evidence Catalog
+∩
+Capabilities
+∩
+Factual Universe
+∩
+selected entity kinds
+И получает:
+Allowed Evidence Menu for this Discovery Run.
+Например Funnel недоступен.
+Тогда Discovery вообще не видит:
+SKU_FUNNEL_HISTORY
+как доступный Evidence.
+
+26. Discovery не может попросить произвольные данные
+Запрещено:
+{
+  "sql": "SELECT ..."
+}
+или:
+{
+  "metric": "whatever",
+  "from": "...",
+  "group_by": "..."
+}
+Он может выбрать только:
+evidence_type_key
+из закрытого catalog.
+
+27. И не может придумывать arbitrary date ranges
+Например не:
+Дай Search с 3 апреля по 17 июня.
+Evidence Type сам определит:
+window semantics
+supported grain
+maximum history
+Например:
+SKU_SALES_HISTORY
+→ standard 30d daily context
+или другой versioned contract.
+Это подробно спроектируем следующим блоком.
+
+28. Discovery Prompt должен быть стабильным отдельным contract
+Предлагаю:
+DiscoveryPromptPolicy
+с version:
+discovery_prompt_v1
+Он должен включать прежде всего правила мышления, а не текущие seller data.
+
+29. Discovery Constitution
+В stable prompt я бы зафиксировал примерно такие правила:
+анализируй только факты, находящиеся в Discovery Pack;
+можешь использовать общие знания marketplace-бизнеса для интерпретации, но не придумывай seller-specific факты;
+не считай отсутствующие данные нулём;
+обязательно учитывай readiness, coverage, lag и temporal windows;
+Sales Demand является владельцем заказанного спроса;
+Advertising attribution и Search attribution не прибавляются к Sales;
+Finance accrual не является Sales revenue/profit;
+Supply inbound не является Stock;
+promotion action price не является current Price;
+Funnel surfaces не образуют автоматически линейную cohort funnel;
+совместные изменения не доказывают causality;
+provider statuses являются provider judgements;
+рассматривай как положительные, так и отрицательные изменения;
+не обязан создавать Thread для каждой Material Entity;
+разрешено вернуть ноль Threads;
+группируй связанные observations, не создавай дублирующие Threads;
+не выдавай финальные причины;
+не выдавай Actions;
+не выдавай рекомендации;
+не выбирай final priority seller actions;
+запрашивай только Evidence из Evidence Menu;
+Evidence запрашивай только если оно действительно помогает разобраться в Thread.
+Это фактически AI constitution Stage 1.
+
+30. Почему stable prompt лучше держать отдельно от Pack
+Во-первых, он versioned.
+Во-вторых, его можно одинаково использовать для всех sellers.
+В-третьих, это хорошо сочетается с prompt caching. В актуальной API документации OpenAI для GPT-5.6+ caching работает по точному совпадению prompt prefix; можно поставить explicit breakpoint после стабильных инструкций, а динамический seller payload передавать после него. Платформа OpenAI
+То есть структура:
+STABLE DISCOVERY INSTRUCTIONS
+[cache breakpoint]
+
+DYNAMIC DISCOVERY PAYLOAD
+Но cache остаётся только оптимизацией.
+Correctness от cache никак не зависит.
+
+31. Discovery Pack должен быть bounded по токенам
+Очень важное правило:
+Мы никогда не рассчитываем на то, что OpenAI сам что-нибудь отрежет.
+Responses API поддерживает truncation, причём текущий API позволяет явно держать truncation disabled; для Aivion я рекомендую всегда использовать именно это поведение. OpenAI Developers
+Если Pack не помещается:
+PACK_TOO_LARGE
+И backend должен перестроить Pack детерминированно.
+Не:
+отрежем последние 30 000 символов JSON.
+
+32. Budget Equation
+Концептуально:
+model_context_limit
+
+-
+stable_prompt_tokens
+-
+output_schema_tokens
+-
+reasoning/output reserve
+-
+safety margin
+
+=
+max_discovery_payload_tokens
+Точная величина — часть:
+DiscoveryBudgetProfile.
+
+33. Если Pack больше бюджета
+Предлагаю deterministic degradation ladder.
+Сначала уменьшается:
+bounded supporting context
+например число:
+Search Queries
+Campaign contexts
+Promotion contexts
+в Landscape Detail.
+Если всё ещё большой:
+используется более compact Detail Profile
+Если всё ещё большой:
+Materiality Budget применяется с меньшим entity budget.
+Но всё это делается через versioned profiles.
+
+34. Никогда не делать arbitrary truncation
+То есть запрещено:
+json[:100000]
+или:
+всё что не влезло — потеряли.
+Иначе:
+same factual universe
+может иметь непредсказуемый AI input.
+
+35. Почему компактность важна даже при большой context window
+Дело не только в стоимости.
+Исследование Lost in the Middle показало, что long-context models не всегда одинаково хорошо используют информацию в разных частях большого контекста; качество может снижаться, когда релевантные сведения теряются внутри длинного входа. arXiv
+Поэтому:
+Materiality + Landscapes
+не просто optimization.
+Это часть качества анализа.
+
+36. Discovery Output Contract
+Теперь главный вопрос:
+Что именно должен вернуть AI?
+Предлагаю очень узкую структуру:
+DiscoveryOutputV1
+с двумя уровнями:
+discovery_state
+threads[]
+
+37. discovery_state
+Только:
+THREADS_FOUND
+
+NO_MEANINGFUL_THREADS
+И всё.
+Я не добавлял бы:
+FAILED
+PARTIAL
+Потому что техническое состояние AI run определяет backend.
+
+38. Очень важно разрешить NO_MEANINGFUL_THREADS
+Materiality говорит:
+Эти entities объективно стоит показать AI.
+Но это не значит:
+В них обязательно есть проблема или возможность.
+Discovery должен иметь право сказать:
+Я не вижу ни одной ситуации,
+которая заслуживает углубления.
+Без этого мы искусственно заставим модель каждый день выдумывать проблемы.
+
+39. Thread Schema
+Концептуально:
+{
+  "primary_entity": {
+    "kind": "SKU",
+    "id": "417"
+  },
+
+  "related_entities": [
+    {
+      "kind": "CAMPAIGN",
+      "id": "58"
+    }
+  ],
+
+  "observation": "...",
+
+  "investigation_focus": "...",
+
+  "basis_fact_handles": [
+    "f_0017",
+    "f_0018",
+    "f_0019"
+  ],
+
+  "evidence_requests": []
+}
+
+40. primary_entity
+Только:
+ACCOUNT
+CATEGORY
+SKU
+CAMPAIGN
+То есть только наши четыре main AI entities.
+Для Category:
+только seller-bearing leaf Category.
+Никаких:
+UNMAPPED
+parent Category.
+
+41. related_entities
+Могут быть:
+ACCOUNT
+CATEGORY
+SKU
+CAMPAIGN
+и supporting entities, если они реально присутствовали в Pack:
+PROMOTION
+SEARCH_QUERY
+SUPPLY
+POSTING
+...
+Но related entity не становится Action Target.
+
+42. Один Thread может объединять несколько entities
+Например:
+Category:
+Кофемашины
+
+SKU:
+417
+522
+816
+
+Campaign:
+58
+если AI увидел одну общую ситуацию.
+Это гораздо лучше, чем четыре дублирующих candidates.
+
+43. Как выбирается Primary Entity
+AI выбирает entity, которая лучше всего выражает scope ситуации.
+Например:
+Массовое движение нескольких SKU одной категории
+primary = CATEGORY
+Локальный отдельный товар
+primary = SKU
+Advertising-specific pattern
+primary = CAMPAIGN
+Account Health / общесистемное изменение
+primary = ACCOUNT
+
+44. observation
+Короткое, factual-grounded описание наблюдаемого паттерна.
+Например:
+Спрос SKU снизился одновременно с ростом наблюдаемой цены и ухудшением поисковой позиции.
+Допустимо.
+Недопустимо:
+Повышение цены вызвало падение продаж.
+Потому что это уже causality.
+
+45. Я бы не заставлял модель повторять цифры в observation
+Цифры уже находятся в:
+basis_fact_handles.
+Так меньше риск:
+161 000
+случайно переписать как:
+116 000.
+Prompt должен просить:
+не дублировать числовые показатели без необходимости; grounding осуществляется Fact Handles.
+
+46. investigation_focus
+Это не hypothesis conclusion.
+Например:
+Проверить, является ли снижение спроса устойчивым и какой дополнительный контекст дают динамика цены, Search Queries, реклама и наличие пополнения.
+То есть:
+что нужно выяснить
+а не:
+что уже произошло.
+
+47. Почему я не предлагаю hypothesis
+Можно было бы:
+{
+  "hypothesis": "Sales fell because price increased"
+}
+Я против.
+Такая гипотеза сильно якорит второй AI-вызов.
+Deep Analysis вместо независимого анализа Evidence начнёт:
+искать подтверждение уже сформулированной гипотезы.
+Это confirmation bias.
+Лучше:
+investigation_focus
+как открытый вопрос.
+
+48. basis_fact_handles
+Обязательны.
+Минимально:
+&gt;= 1
+Каждый Thread обязан иметь factual grounding.
+Thread:
+basis_fact_handles = []
+INVALID.
+
+49. Fact Handles могут ссылаться на PARTIAL данные
+Но с ограничениями.
+Например Search:
+PARTIAL
+EXPECTED_PROVIDER_LAG
+может быть одним из basis facts.
+Но Thread не должен полностью опираться на:
+UNAVAILABLE
+FAILED
+данные.
+Они вообще не должны иметь usable Fact Handle в Pack.
+
+50. STALE facts
+STALE context может присутствовать в Landscape, чтобы AI знал:
+последние известные данные были такие.
+Но я рекомендую техническое правило:
+Thread должен содержать минимум один basis fact с analytical usability READY либо allowed PARTIAL.
+STALE не может быть единственным основанием Thread.
+
+51. Evidence Request
+Предлагаю структуру:
+{
+  "evidence_type": "SKU_PRICE_HISTORY",
+
+  "subject": {
+    "kind": "SKU",
+    "id": "417"
+  },
+
+  "related_entity": null,
+
+  "investigation_question":
+    "Как фактически менялась наблюдаемая цена относительно динамики спроса?"
+}
+
+52. Evidence Request не содержит query parameters
+Не:
+from
+to
+limit
+sort
+metric
+warehouse_id
+SQL
+Именно evidence_type определяет retrieval semantics.
+
+53. Evidence Request может иметь related entity
+Например:
+CAMPAIGN_SKU_CONTEXT
+может требовать:
+subject = Campaign 58
+
+related =
+SKU 417
+Если такой Evidence Contract поддерживается.
+
+54. Evidence Requests могут отсутствовать
+Если AI считает, что Landscape уже содержит достаточно данных:
+"evidence_requests": []
+Это допустимо.
+Deep Analysis всё равно может работать с Landscape + Discovery Thread.
+
+55. Discovery Output намеренно НЕ содержит
+Я бы прямо исключил из JSON Schema:
+recommendations
+
+actions
+
+action_type
+
+priority
+
+severity
+
+root_cause
+
+final_cause
+
+expected_effect
+
+target_value
+
+optimal_price
+
+order_quantity
+
+forecast
+
+confidence_score
+
+problem_type
+
+opportunity_type
+
+56. Почему нет confidence_score
+LLM self-reported:
+confidence = 0.87
+не является надёжным probabilistic measurement.
+Мы уже имеем гораздо более полезные объективные данные:
+basis facts
+capability
+coverage
+evidence sufficiency.
+Нам не нужен красивый псевдоточный процент уверенности.
+
+57. Почему нет Discovery Priority field
+Discovery Threads уже возвращаются в порядке важности для дальнейшего исследования.
+Первый:
+наиболее заслуживающий Deep Analysis.
+Зачем ещё:
+HIGH
+MEDIUM
+LOW
+которые модель будет раздавать произвольно?
+Не нужно.
+
+58. Array Order является Investigation Rank
+То есть:
+threads[0]
+имеет более высокий investigation precedence, чем:
+threads[5].
+Backend фиксирует ordinal:
+1
+2
+3...
+Но этот rank — не:
+Action priority.
+
+59. Thread IDs назначает backend
+Не просим AI генерировать:
+thread_id = "THR-2026-001"
+Backend после validation создаёт:
+discovery_thread_id
+или deterministic ordinal:
+T001
+T002
+...
+Модель не владеет системными IDs.
+
+60. Structured Outputs обязателен
+Я рекомендую использовать:
+Responses API
++
+text.format
++
+json_schema
++
+strict = true
+Structured Outputs в текущей документации OpenAI предназначены именно для schema-constrained responses; также для strict schema необходимо учитывать поддерживаемое подмножество JSON Schema и запрещать неожиданные поля через additionalProperties: false. Платформа OpenAI
+То есть модель физически не сможет добавить:
+{
+  "recommendation": "снизить цену"
+}
+если поля recommendation в schema нет.
+
+61. Schema должна быть довольно узкой
+Например:
+DiscoveryOutputV1
+
+discovery_state
+
+threads[]
+    primary_entity
+    related_entities[]
+    observation
+    investigation_focus
+    basis_fact_handles[]
+    evidence_requests[]
+И всё.
+Не надо создавать schema на 50 полей «на будущее».
+
+62. Output budgets тоже versioned
+Нужен:
+DiscoveryOutputBudgetProfile
+Он задаёт:
+max_threads
+
+max_related_entities_per_thread
+
+max_basis_facts_per_thread
+
+max_evidence_requests_per_thread
+
+max_total_evidence_requests
+Конкретные числа — tuning parameters.
+
+63. Нельзя заставлять AI возвращать ровно N Threads
+Не:
+верни ровно 10.
+Правильно:
+верни не более N.
+Seller сегодня может иметь:
+2 meaningful situations.
+Завтра:
+9.
+А иногда:
+0.
+
+64. Evidence requests тоже не должны заполнять budget искусственно
+Не:
+Thread обязан запросить минимум 3 Evidence.
+Модель может запросить:
+0
+1
+5
+в пределах max budget.
+
+65. Run-specific Evidence Menu
+Backend позже сможет дополнительно сузить JSON schema enum.
+Например глобальный Evidence Catalog:
+100 types
+Для конкретного seller/run доступно:
+27.
+Можно сформировать run-specific:
+enum[27]
+для evidence_type.
+Это ещё сильнее снизит invalid requests.
+Точные технические ограничения schema лучше окончательно проверить при проектировании Evidence Catalog.
+
+66. Discovery Output Validator
+После Structured Output всё равно нужен backend validator.
+Но его роль только техническая.
+Он проверяет:
+Проверка
+Правило
+state ↔ threads
+NO_MEANINGFUL_THREADS → threads=[]
+primary entity
+существует в Discovery Pack
+primary kind
+ACCOUNT/CATEGORY/SKU/CAMPAIGN
+Category
+leaf, не UNMAPPED
+related refs
+существуют в Pack
+Fact Handles
+существуют в Pack
+grounding
+минимум один usable fact
+Evidence key
+есть в allowed Evidence Menu
+Evidence subject
+поддерживается типом Evidence
+Evidence entity
+существует
+limits
+budget не превышен
+exact duplicate request
+запрещён/дедуплицируется технически
+output length
+в пределах policy
+
+67. Backend НЕ проверяет смысл observation
+Например AI написал:
+Рост расходов рекламы сопровождается снижением атрибутированного объёма заказов.
+Backend не должен пытаться решить:
+true semantics?
+bad?
+good?
+cause?
+Он только проверяет:
+Fact Handles существуют.
+И дальше этот Thread идёт в Evidence/Deep.
+
+68. Backend не переписывает observation
+Не:
+AI написал плохо
+↓
+backend исправил wording.
+И не:
+AI request evidence invalid
+↓
+backend заменил на похожий evidence type.
+Наша прежняя архитектурная договорённость сохраняется:
+Backend валидирует, но не semantic-repair'ит AI.
+
+69. Никакого model repair loop v1
+Я бы особенно не возвращал старый pipeline:
+AI output
+↓
+validator
+↓
+repair prompt
+↓
+validator
+↓
+repair prompt
+...
+Это одна из причин прежней сложности.
+Для v1:
+valid
+→ continue
+
+invalid
+→ Discovery attempt invalid
+Можно иметь ограниченный полный rerun с исходным Pack, если operational policy это разрешает.
+Но не:
+«Вот твои 17 ошибок, пожалуйста, поправь JSON».
+
+70. Полный rerun ≠ repair
+Если provider output оказался structurally/semantically invalid:
+same Pack
++
+same Prompt Policy
++
+same Schema
+→ new attempt
+Все attempts сохраняются.
+max_attempts — configurable.
+Но никаких бесконечных циклов.
+
+71. Structured Outputs всё равно требует обработки edge cases
+Даже при schema adherence API нужно обрабатывать refusal и incomplete responses, например когда исчерпан output-token budget. Это прямо оговорено в документации Structured Outputs. Платформа OpenAI
+Поэтому technical statuses:
+COMPLETED_VALID
+
+PROVIDER_FAILED
+
+REFUSED
+
+INCOMPLETE
+
+INVALID_REFERENCES
+
+INVALID_EVIDENCE_REQUEST
+
+VALIDATION_FAILED
+
+72. No automatic truncation при output
+max_output_tokens должен рассчитываться исходя из:
+max threads
+×
+max Evidence Requests
+с нормальным запасом.
+Если output закончился из-за лимита:
+INCOMPLETE
+а не:
+попробуем использовать первые 7 Threads из 10.
+
+73. OpenAI request policy
+Концептуально я бы задавал:
+model = from ModelPolicy
+
+instructions =
+DiscoveryPromptPolicy
+
+input =
+DiscoveryPayload JSON
+
+tools = []
+
+previous_response_id = null
+
+text.format =
+strict DiscoveryOutput JSON Schema
+
+truncation =
+disabled
+Responses API сейчас позволяет явно отключить truncation и вызывать response без tools/previous response state. OpenAI Developers
+
+74. Я бы также использовал store=false
+Aivion всё равно самостоятельно сохраняет:
+exact request artifact
+exact response artifact
+hashes
+usage
+Поэтому внешний provider response history не должен становиться нашим Source of Truth.
+Responses API поддерживает stateless patterns при store:false. OpenAI Developers
+Но это deployment/data-retention policy, а не semantic invariant.
+
+75. Все provider/model настройки — в AIModelPolicy
+Не хардкодить внутри Discovery:
+model name
+reasoning effort
+max output tokens
+service tier
+timeout
+Пример:
+discovery_model_policy_v1
+Старая Publication фиксирует exact:
+model
+policy version.
+
+76. Pack schema и Prompt version — разные вещи
+Нужно отдельно:
+discovery_pack_schema_v1
+что означает:
+какая JSON структура данных.
+И:
+discovery_prompt_policy_v1
+что означает:
+какую задачу выполняет AI.
+И:
+discovery_output_schema_v1
+что означает:
+что AI имеет право вернуть.
+Три независимые версии.
+
+77. Evidence Catalog тоже фиксируется
+Discovery Run хранит:
+evidence_catalog_version
+Потому что:
+модель могла попросить только те Evidence Types, которые существовали в тот момент.
+
+78. Pack hash
+Строим:
+discovery_payload_hash =
+hash(canonical serialized DiscoveryPayload)
+Не включаем:
+created_at
+request latency
+OpenAI response ID.
+
+79. Deterministic Pack Gate
+Одинаковые:
+Factual Universe
+Materiality Selection
+Landscape Profile
+Pack Profile
+Evidence Catalog
+обязаны дать:
+same Discovery Payload
+same hash.
+
+80. Но Discovery Output НЕ обязан быть deterministic
+Это важно честно признать.
+LLM — stochastic reasoning system.
+Один Pack может теоретически дать разные:
+Discovery Threads.
+Мы не должны изображать, что AI output deterministic.
+Поэтому сохраняем:
+exact output
+model
+attempt
+response metadata
+и оцениваем качество через evals.
+
+81. Стабильность измеряется, а не предполагается
+Полезная offline metric:
+Discovery Thread overlap
+across repeated runs
+например:
+Jaccard entity/thread coverage.
+Но это evaluation metric.
+Не runtime invariant.
+
+82. Discovery должен иметь eval suite
+OpenAI в документации Structured Outputs отдельно рекомендует проектировать schema с помощью evals, а не считать удачную JSON-структуру окончательно правильной с первого раза. Платформа OpenAI
+Для нас это особенно важно.
+
+83. Нужны synthetic Discovery scenarios
+Например:
+Спокойный кабинет
+Все показатели стабильны.
+Ожидаем:
+NO_MEANINGFUL_THREADS
+Не 10 искусственных проблем.
+
+Крупный Sales decrease + Price increase
+Ожидаем:
+SKU Thread
+но не:
+причина — цена.
+И Evidence request:
+price history
+sales history
+
+Крупный рост
+Sales +70%
+также должен попасть в Thread.
+Это проверяет, что Discovery не negative-only.
+
+84. Search lag
+Sales:
+13–19
+Search:
+11–17
+Discovery может написать:
+наблюдается изменение Search visibility.
+Но не:
+Search вызвал падение Sales 19 августа.
+
+85. Funnel unavailable
+Discovery не должен писать:
+конверсия карточки ухудшилась.
+Данных нет.
+
+86. Finance partial
+SKU Finance mapping:
+30%.
+Discovery не должен делать полный SKU financial conclusion.
+Может запросить Evidence, если разрешено.
+
+87. Stock stale
+Если SKU выбран по Sales и Landscape содержит:
+Stock STALE
+Discovery не должен утверждать:
+сейчас Stock = 0.
+Можно лишь использовать как ограниченный исторический context.
+
+88. Supply ≠ Stock
+Stock 20
+Inbound 100
+Discovery не должен:
+available inventory = 120.
+
+89. Advertising attribution ≠ Sales
+Sales = 100k
+
+Ads attributed = 40k
+Никакого:
+total sales = 140k.
+
+90. Finance ≠ Sales
+Sales ordered_amount = 100k
+
+Finance accrual = 70k
+Discovery не должен:
+revenue = 170k.
+
+91. Similar selected SKU
+Допустим Materiality передала три похожих SKU одной Category.
+Discovery имеет право объединить:
+SKU A
+SKU B
+SKU C
+в один:
+Category-level Thread
+если видит один общий pattern.
+Это хороший use case AI semantic reasoning.
+
+92. Но AI не обязан группировать
+Если ситуации различаются:
+SKU A:
+Stock
+
+SKU B:
+Advertising
+
+SKU C:
+Price
+может создать три Threads.
+Именно здесь AI приносит ценность, которой backend Materiality не имеет.
+
+93. Discovery не обязана покрыть каждую Material Entity
+Очень важно прямо записать в prompt:
+Material Entity означает “entity worth seeing”, а не “entity that must produce a Thread”.
+Например Materiality передала:
+30 SKU.
+Discovery может создать Threads только по:
+7.
+Это нормально.
+
+94. Что происходит с остальными 23
+Ничего.
+Они просто:
+были рассмотрены AI и не были выбраны для глубокого анализа.
+Не нужно output:
+rejected_entities[23]
+Это лишние токены.
+
+95. Physical persistence
+Я бы добавил следующие новые runtime tables:
+analysis.discovery_runs
+
+analysis.discovery_attempts
+
+analysis.discovery_threads
+
+analysis.discovery_thread_entities
+
+analysis.discovery_thread_fact_basis
+
+analysis.discovery_evidence_requests
+
+96. discovery_runs
+Логический Discovery:
+id
+
+factual_universe_manifest_id
+
+materiality_selection_id
+
+pack_schema_version
+landscape_profile_version
+prompt_policy_version
+output_schema_version
+evidence_catalog_version
+budget_profile_version
+model_policy_version
+
+pack_hash
+pack_artifact_uri
+fact_map_artifact_uri
+
+status
+
+created_at
+completed_at
+
+97. discovery_attempts
+Потому что provider call может быть повторён:
+id
+discovery_run_id
+
+attempt_no
+
+model
+provider_response_id
+
+started_at
+completed_at
+
+input_tokens
+cached_input_tokens
+output_tokens
+reasoning_tokens
+
+status
+failure_code
+
+raw_output_artifact_uri
+raw_output_hash
+
+98. discovery_threads
+Только после validation:
+id
+discovery_run_id
+
+ordinal
+
+primary_entity_kind
+primary_entity_id
+
+observation
+investigation_focus
+UNIQUE:
+(run, ordinal)
+
+99. discovery_thread_entities
+thread_id
+
+entity_kind
+entity_id
+
+relation_role
+Role:
+PRIMARY
+RELATED
+Primary можно даже хранить только в parent table, но relation projection полезна для graph queries.
+
+100. discovery_thread_fact_basis
+thread_id
+fact_handle
+
+ordinal
+Backend через pack FactMap понимает реальные FactRefs.
+
+101. discovery_evidence_requests
+id
+thread_id
+
+ordinal
+
+evidence_type_key
+
+subject_entity_kind
+subject_entity_id
+
+related_entity_kind NULL
+related_entity_id NULL
+
+investigation_question
+
+validation_status
+Никакого:
+SQL
+custom JSON query.
+
+102. Immutable artifacts в MinIO
+Я бы сохранял:
+discovery-pack.json
+
+discovery-fact-map.json
+
+discovery-request-manifest.json
+
+discovery-output-attempt-1.json
+
+discovery-output-validated.json
+Все с hashes.
+
+103. Не сохраняем hidden reasoning как бизнес-контракт
+Мы не просим:
+Покажи chain of thought.
+Нужны только:
+Threads
+Fact Handles
+Evidence Requests.
+Ни один downstream component не должен зависеть от внутреннего reasoning trace модели.
+
+104. Prompt caching и Pack order
+Для cache:
+stable instructions
+идут первыми.
+Dynamic:
+seller payload
+после.
+А внутри Pack рекомендую оставить иерархию:
+Context
+Capabilities
+Account
+Categories
+Campaigns
+SKUs
+Evidence Menu
+
+105. Почему Account раньше SKU
+Модель сначала понимает:
+масштаб seller
+потом:
+структуру Category
+потом:
+Campaign context
+и только потом:
+отдельные SKU.
+Это облегчает business interpretation.
+
+106. Evidence Menu я бы поставил в конце
+Сначала AI видит:
+Что происходит?
+Потом:
+Какие типы дополнительных данных доступны?
+Это логическая последовательность.
+Но стабильность/качество порядка обязательно проверим evals.
+
+107. Discovery Pack Builder Flow
+В итоге:
+Sealed Factual Universe
+        ↓
+Materiality Selection
+        ↓
+Build Landscape Details
+        ↓
+Resolve Allowed Evidence Menu
+        ↓
+Assign Fact Handles
+        ↓
+Build Discovery Payload
+        ↓
+Canonical Serialize
+        ↓
+Token Budget Validation
+        ↓
+Pack Contract Validation
+        ↓
+Hash
+        ↓
+Persist Immutable Artifact
+        ↓
+OpenAI Discovery Call
+
+108. Pack Validator
+До AI проверяет:
+manifest sealed
+
+all landscapes same universe
+
+account exists
+
+all categories leaf
+
+no UNMAPPED selected category
+
+all SKU/Campaign refs valid
+
+no forbidden entity kinds
+
+global windows valid
+
+capability metadata consistent
+
+Fact Handles unique
+
+every Fact Handle mapped
+
+no raw PII
+
+no Materiality score/reason leakage
+
+Evidence Menu version valid
+
+payload inside token budget
+
+109. Если Pack invalid — AI не вызываем
+Например:
+SKU 417 Landscape
+cutoff 05:40
+
+Campaign 58 Landscape
+cutoff 05:50
+Pack:
+INVALID_FACTUAL_UNIVERSE
+Не:
+AI разберётся.
+
+110. Discovery Run idempotency
+Логический key можно строить из:
+factual_universe_hash
++
+materiality_selection_hash
++
+landscape_profile_version
++
+pack_schema_version
++
+prompt_policy_version
++
+output_schema_version
++
+evidence_catalog_version
++
+model_policy_version
+Если exact validated Discovery уже существует:
+повторно OpenAI не вызываем
+если orchestration просто повторно стартовал из-за crash.
+
+111. Но новая AI попытка — явная операция
+Если нужно сознательно повторить Discovery:
+new attempt
+сохраняется отдельно.
+Никаких скрытых overwrite.
+
+112. NO_MEANINGFUL_THREADS не считается ошибкой
+Это полноценный валидный Discovery result.
+Например:
+{
+  "discovery_state": "NO_MEANINGFUL_THREADS",
+  "threads": []
+}
+Run:
+COMPLETED_VALID.
+
+113. И это не значит «данных нет»
+Это значит:
+Core data достаточно для анализа, Materiality entities были рассмотрены, но AI не нашёл ситуации, которую считает достойной отдельного Deep investigation.
+Это принципиально отличается от:
+INSUFFICIENT_ANALYSIS_HISTORY
+которое возникает до AI.
+
+114. Пример полного Discovery
+Pack:
+Account:
+Sales +4%
+
+Category A:
+Sales -18%
+
+SKU 417:
+Sales -30%
+Price +15%
+Search position 18→45
+Stock 2d
+No inbound
+
+SKU 522:
+Sales +80%
+Ads spend +120%
+Search position 50→12
+
+Campaign 58:
+Spend +30%
+CTR -0.4pp
+Attributed amount -13%
+
+Discovery Output:
+{
+  "discovery_state": "THREADS_FOUND",
+
+  "threads": [
+    {
+      "primary_entity": {
+        "kind": "SKU",
+        "id": "417"
+      },
+
+      "related_entities": [],
+
+      "observation":
+        "Снижение спроса сопровождается изменением цены, поисковой видимости и ограниченным текущим покрытием запасом.",
+
+      "investigation_focus":
+        "Проверить устойчивость динамики спроса и дополнительный контекст цены, поиска, рекламы и пополнения.",
+
+      "basis_fact_handles": [
+        "f_021",
+        "f_024",
+        "f_027",
+        "f_031"
+      ],
+
+      "evidence_requests": [
+        {
+          "evidence_type": "SKU_SALES_HISTORY",
+          "subject": {
+            "kind": "SKU",
+            "id": "417"
+          },
+          "related_entity": null,
+          "investigation_question":
+            "Является ли снижение спроса устойчивым на более длинном временном горизонте?"
+        },
+
+        {
+          "evidence_type": "SKU_PRICE_HISTORY",
+          "subject": {
+            "kind": "SKU",
+            "id": "417"
+          },
+          "related_entity": null,
+          "investigation_question":
+            "Как фактически менялась цена относительно изменения спроса?"
+        },
+
+        {
+          "evidence_type": "SKU_SEARCH_QUERIES",
+          "subject": {
+            "kind": "SKU",
+            "id": "417"
+          },
+          "related_entity": null,
+          "investigation_question":
+            "Какие поисковые запросы дали основной контекст изменения видимости?"
+        }
+      ]
+    },
+
+    {
+      "primary_entity": {
+        "kind": "CAMPAIGN",
+        "id": "58"
+      },
+
+      "related_entities": [],
+
+      "observation":
+        "Расход кампании увеличился, при этом изменились показатели вовлечения и атрибутированного результата.",
+
+      "investigation_focus":
+        "Проверить динамику кампании и вклад отдельных продвигаемых SKU.",
+
+      "basis_fact_handles": [
+        "f_081",
+        "f_083",
+        "f_087"
+      ],
+
+      "evidence_requests": [
+        {
+          "evidence_type": "CAMPAIGN_PERFORMANCE_HISTORY",
+          "subject": {
+            "kind": "CAMPAIGN",
+            "id": "58"
+          },
+          "related_entity": null,
+          "investigation_question":
+            "Насколько устойчива текущая динамика кампании?"
+        }
+      ]
+    }
+  ]
+}
+
+115. Обрати внимание, чего здесь НЕТ
+Нет:
+SKU 417 проблемный.
+Нет:
+рост цены вызвал падение.
+Нет:
+снизить цену на 10%.
+Нет:
+увеличить поставку на 100 штук.
+Нет:
+отключить Campaign 58.
+Именно это появится только после Deep Analysis.
+
+116. Discovery Quality Gates
+Я бы добавил обязательные gates:
+Gate
+Что проверяет
+discovery_pack_determinism_gate
+same inputs → same Pack
+discovery_pack_cutoff_gate
+один factual universe
+discovery_pack_budget_gate
+вход помещается без truncation
+discovery_materiality_leakage_gate
+AI не видит Materiality score/reasons
+discovery_fact_handle_gate
+все facts traceable
+discovery_no_pii_gate
+нет PII
+discovery_structured_output_gate
+strict JSON schema
+discovery_entity_reference_gate
+refs существуют
+discovery_fact_basis_gate
+Threads grounded
+discovery_evidence_catalog_gate
+requests закрытые
+discovery_no_action_gate
+Actions отсутствуют
+discovery_no_final_causality_gate
+prompt/schema не требуют cause
+discovery_empty_result_gate
+0 Threads допустим
+discovery_positive_negative_gate
+рост не игнорируется
+discovery_temporal_limitations_gate
+lag/stale учитываются
+discovery_attempt_bounded_gate
+нет repair loop
+
+117. Особенно важный eval: false forcing
+Создаём полностью стабильный synthetic seller.
+Если модель постоянно выдаёт:
+10 Threads
+просто потому что schema допускает 10 —
+prompt плохой.
+Мы должны добиться поведения:
+NO_MEANINGFUL_THREADS
+когда это действительно оправдано.
+
+118. Второй важный eval: causal restraint
+Данные:
+Sales ↓
+Price ↑
+Output:
+Price increase caused Sales decline.
+FAIL.
+Правильно:
+Sales decline occurred alongside Price increase; inspect price history and other context.
+
+119. Третий eval: limitation awareness
+Search:
+lag = 2d.
+Discovery должен удерживать это ограничение.
+
+120. Четвёртый eval: entity grouping
+20 Material SKU из одной Category с похожей динамикой.
+Модель не должна обязательно создавать:
+20 почти одинаковых Threads.
+Она должна иметь возможность создать:
+Category Thread
++
+несколько действительно отличающихся SKU Threads.
+
+121. Пятый eval: no-allocation hallucinations
+Finance account-only fee не должен неожиданно появиться в SKU Thread.
+Supply не должен стать Stock.
+Ad attribution не должен стать Sales.
+
+122. Шестой eval: evidence economy
+Если Landscape уже достаточен, модель не должна просить:
+10 Evidence Types
+«на всякий случай».
+Evidence имеет цену по:
+tokens
+database work
+Deep context.
+Request должен отвечать конкретному investigation question.
+
+123. Почему Discovery + Evidence лучше одного огромного AI-вызова
+У нас получается фактически:
+Call #1:
+breadth
+
+Call #2:
+depth
+Первый видит много сущностей, но компактно.
+Второй видит мало ситуаций, но глубоко.
+Это гораздо логичнее для seller с 2 000 SKU, чем:
+все данные × все SKU × 90 дней
+→ один огромный prompt.
+И соответствует общей идее context engineering: deterministic работу — filtering, aggregation, routing — выгоднее выполнять вне model context, оставляя модели именно judgment/reasoning. В актуальной инженерной рекомендации OpenAI для новых reasoning workflows отдельно подчёркивается перенос deterministic filtering/aggregation из model context в код. OpenAI
+
+124. Что Discovery Stage в итоге действительно делает
+Backend уже решил:
+что существует
+что корректно
+что доступно
+что свежее
+как считать
+что materially enough to show
+Discovery AI решает:
+что из увиденного образует осмысленную бизнес-ситуацию
+и:
+что нужно дополнительно посмотреть.
+Это именно тот уровень, где AI действительно полезнее rule engine.
+
+Архитектурный контракт Discovery
+Я бы зафиксировал его следующим образом:
+Discovery Aivion является первым и единственным breadth-oriented AI stage новой аналитической архитектуры. Его входом является immutable bounded Discovery Pack, детерминированно построенный из одного sealed Factual Universe после Entity Landscapes и Materiality Selection. Discovery не имеет tools, network access, SQL, Factual API access или provider access и не может расширять factual universe самостоятельно.
+Discovery Pack v1 передаётся как canonical structured JSON и содержит только Analysis Context, Domain Windows, analytical Capabilities/Limitations, Account Landscape, Detail Landscapes выбранных leaf Categories/SKUs/Campaigns и run-specific Evidence Menu. Materiality scores, ranking lanes, selection reasons и engineering DQ noise не передаются модели. ZIP/file transport не используется как механизм token compression; если payload превышает budget, Pack детерминированно перестраивается через versioned Detail/Materiality Budget Profiles, а arbitrary truncation запрещён.
+Каждый значимый Landscape fact получает pack-local deterministic Fact Handle, отображаемый модели рядом со значением. Отдельный immutable Fact Handle Map связывает handles с Internal Factual API FactRefs, formulas и source provenance. Discovery Threads обязаны ссылаться на существующие Fact Handles, что создаёт lineage Discovery → Canonical Facts без необходимости модели повторно копировать числовые значения.
+Discovery Output представляет собой упорядоченный набор Analysis Threads. Каждый Thread имеет primary main entity, optional related entities, короткое non-causal observation, investigation focus, factual basis handles и zero-or-more Evidence Requests. Primary Entity допускается только Account, seller-bearing leaf Category, SKU или Campaign. Supporting entities могут использоваться только как related context.
+Discovery не возвращает problem type, opportunity type, severity, root cause, final cause, recommendation, Action, target value, expected effect, forecast или self-reported confidence. Он не обязан создавать Thread для каждой Material Entity и имеет право вернуть NO_MEANINGFUL_THREADS. Positive и negative situations рассматриваются симметрично. Совместная динамика нескольких metrics является поводом для investigation, но не доказательством causality.
+Evidence Request является декларативной ссылкой на versioned closed Evidence Catalog, а не tool call. AI не определяет SQL, metric formula, arbitrary period, sorting или query parameters. Backend технически валидирует Evidence Type и entity applicability и позднее раскрывает Evidence исключительно из того же Factual Universe.
+Discovery выполняется stateless через Responses API без previous_response_id; Structured Outputs со strict JSON Schema являются обязательным output contract. Backend не semantic-repair'ит ответ и не создаёт отсутствующие Threads/Evidence Requests. Invalid outputs фиксируются как failed attempt; допускается только bounded full rerun исходного Pack согласно policy, но не многоступенчатый repair loop. Exact request/output artifacts, hashes, model/prompt/schema/policy versions и token usage сохраняются для audit.
+Discovery Pack является deterministic, Discovery AI output — нет. Поэтому воспроизводимость означает сохранение exact input/output и versions, а качество/стабильность AI оцениваются отдельными offline evals, а не предполагаются архитектурой.
+Один продуктовый вопрос здесь всё-таки появился
+Он касается сценария:
+Discovery = NO_MEANINGFUL_THREADS
+Я рекомендую всё равно выполнять второй Deep Analysis call, но уже без Evidence Expansion либо с пустым Evidence.
+То есть:
+Discovery:
+NO_MEANINGFUL_THREADS
+
+↓
+Evidence:
+none
+
+↓
+Deep Analysis:
+Account + factual context + Discovery result
+
+↓
+Publication:
+нормальный AI-вывод о состоянии кабинета,
+но без искусственно придуманных проблем/Actions
+Почему я это рекомендую: иначе в спокойный день у нас вообще не будет AI, который сформирует нормальное account-level резюме Dashboard. Backend же сам писать семантический текст вроде «существенных изменений нет» не должен — мы уже договорились, что interpretation принадлежит AI.
+Если ты согласен с этим поведением, я бы зафиксировал Discovery Pack + Discovery Output Contract как CLOSED и следующим шагом спроектировал Evidence Catalog + Evidence Expansion — это будет одна из самых важных частей всего pipeline, потому что там нужно определить, какую именно глубину данных AI имеет право запросить по каждому Thread и как не превратить Evidence обратно в огромный Data Pack.

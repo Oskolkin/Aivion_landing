@@ -1,0 +1,31 @@
+{
+  "seller_account_id": 339,
+  "email": "e2e-p15-1788433421964027600@example.test",
+  "password": "e2e-pass-1788433421964027600",
+  "p1_publication_id": 385,
+  "p2_publication_id": 386,
+  "p1_universe_id": "6f07e234-d89f-4544-936f-f7913cbb44f6",
+  "p2_universe_id": "92bbf6b3-6630-4f7f-86fe-fde5fec4ba2b",
+  "current_publication_id": 390,
+  "sku417_canonical_id": 21032,
+  "sku417_ozon_sku": 9105,
+  "group_id": "6dad17fa-d0c3-4afc-9137-581ede252cac",
+  "group_action_view_id": "djEuZy42ZGFkMTdmYS1kMGMzLTRhZmMtOTEzNy01ODFlZGUyNTJjYWM",
+  "group_title": "Пополнить 4 товара",
+  "group_case_ids": [
+    "e8cc2f8f-dcde-45ef-872f-0d9f91957ca9",
+    "d8cf9a8e-4bc6-412c-bcd9-de524987f980",
+    "554d7255-6d3d-40c1-bead-e747a226bf67",
+    "45676058-d3e4-4e99-9285-40eee553d1b8"
+  ],
+  "singleton_case_id": "d78d43bf-1dce-43e4-9bb6-7cba1609dd59",
+  "singleton_action_view_id": "djEuYy5kNzhkNDNiZi0xZGNlLTQzZTQtOWJiNi03Y2JhMTYwOWRkNTk",
+  "singleton_title": "SKU_INCREASE_REPLENISHMENT",
+  "historical_case_id": "20df8bee-1416-4aea-ae97-d3a0814c87b1",
+  "historical_action_view_id": "djEuYy4yMGRmOGJlZS0xNDE2LTRhZWEtYWU5Ny1kM2EwODE0Yzg3YjE",
+  "historical_title": "SKU_ADJUST_PRICE",
+  "historical_origin_publication_id": 385,
+  "historical_current_publication_id": 390,
+  "active_action_count": 2,
+  "completed_action_count": 1
+}

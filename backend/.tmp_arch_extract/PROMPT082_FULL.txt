@@ -1,0 +1,2348 @@
+AIVION — PROMPT №8.2
+FACTUAL UNIVERSE / SEALED CONTEXT
+FINAL SOURCE-BINDING & TEMPORAL CORRECTNESS HARDENING
+
+RUN AFTER PROMPT №9.1
+WITHOUT ROLLING BACK LANDSCAPE / MATERIALITY
+
+==================================================
+0. PURPOSE
+==================================================
+
+Prompt №8.1 реализовал:
+
+- RESOLVE_CONTEXT;
+- SEAL_UNIVERSE;
+- Factual Universe;
+- SEALED_UNIVERSE;
+- source/capability/DQ/entity-set freeze;
+- immutability/integrity;
+- analysis runtime;
+- Worker/Asynq wiring.
+
+Prompt №9/9.1 затем строит:
+
+SEALED_UNIVERSE
+→ Landscape
+→ Materiality
+→ Detail.
+
+Независимый source-level аудит
+актуального repository обнаружил
+несколько оставшихся фундаментальных defects
+в Prompt №8 layer.
+
+Prompt №8.2 должен исправить их
+БЕЗ переделки уже корректной части runtime
+и БЕЗ реализации новых analytical features.
+
+Основные дефекты:
+
+1. несколько fact families одного Domain
+   схлопываются в FactualReadContext
+   до одной DomainBinding;
+
+2. domain_watermarks являются mutable projection
+   без исторических revisions,
+   поэтому состояние AS KNOWN AT cutoff
+   может исчезнуть до RESOLVE_CONTEXT;
+
+3. source contract provenance
+   freeze-ится неточно / частично synthetic;
+
+4. fact-family ↔ capability matching
+   использует prefix heuristic;
+
+5. DQ resolver работает fail-open
+   при реальных PostgreSQL errors;
+
+6. Universe entity-set computation
+   напрямую читает canonical business tables
+   из analysis layer;
+
+7. Category/entity-set hashes
+   используют internal DB IDs;
+
+8. SEALED binding не всегда сохраняет
+   source/watermark semantics 1:1;
+
+9. production token signer использует
+   hard-coded HMAC secret;
+
+10. существующий Factual API boundary gate
+    не ловит direct canonical SQL
+    из internal/analysis.
+
+После Prompt №8.2 должно быть доказано:
+
+Captured Analysis Cutoff
+        ↓
+historical source/readiness revisions
+        ↓
+RESOLVE_CONTEXT
+        ↓
+exact fact-family bindings
+        ↓
+SEAL_UNIVERSE
+        ↓
+immutable semantic Universe
+        ↓
+SEALED FactualReadContext
+        ↓
+exact same fact-family/capability/DQ/entity reality
+
+и поздний ingestion/readiness update
+не может изменить или стереть эту reality.
+
+==================================================
+1. IMPORTANT EXECUTION ORDER
+==================================================
+
+Prompt №8.2 запускается ПОСЛЕ
+текущего Prompt №9.1.
+
+Перед изменениями:
+
+- дождаться завершения Prompt №9.1;
+- проверить actual HEAD;
+- проверить actual latest migration;
+- не предполагать номер следующей migration;
+- сохранить все корректные изменения №9.1.
+
+НЕ:
+
+- reset к старому Prompt №8;
+- удалять Prompt №9/9.1;
+- создавать новую branch;
+- переписывать Landscape/Materiality
+  без необходимости compatibility adaptation.
+
+==================================================
+2. REQUIRED REGRESSION PRINCIPLE
+==================================================
+
+Поскольку Prompt №8.2 меняет foundation,
+после исправлений обязательно повторно доказать:
+
+stages 1–6:
+
+RESOLVE_CONTEXT
+→ SEAL_UNIVERSE
+→ PREPARE_CONTINUITY
+→ BUILD_LANDSCAPE_CORE
+→ RUN_MATERIALITY
+→ BUILD_LANDSCAPE_DETAIL
+
+по production path.
+
+Prompt №9.1 acceptance
+должен остаться PASS.
+
+Если FactualReadContext API
+требует минимальной adaptation
+Landscape/Materiality:
+
+разрешены только необходимые
+compatibility changes.
+
+Не использовать №8.2
+для redesign Materiality.
+
+==================================================
+3. DOCUMENTATION-FIRST HARD GATE
+==================================================
+
+ПЕРЕД КОДОМ рекурсивно прочитать:
+
+C:\Users\oskol\marketplace-ai-mvp-stabilization\docs\architecture\v1
+
+Обязательно:
+
+Physical Implementation Plan.docx
+
+Pipeline Orchestration  Run Lifecycle.docx
+
+Temporal Framework.docx
+
+Internal Canonical Factual API..docx
+
+Business Data Capabilities Model.docx
+
+Data Quality Readiness Model.docx
+
+Unified Canonical Data Model v1.docx
+
+Entity Landscapes.docx
+
+Evals  Acceptance  Observability Contract.docx.
+
+docs/architecture/v1
+= normative authority.
+
+==================================================
+4. TRACEABILITY MATRIX
+==================================================
+
+До кодирования создать:
+
+ARCHITECTURE REQUIREMENT
+→ CURRENT CODE
+→ DEFECT
+→ FIX
+→ ACCEPTANCE TEST.
+
+Обязательно включить
+все десять defect classes
+из section 0.
+
+==================================================
+PART A — FACT-FAMILY-AWARE READ CONTEXT
+==================================================
+
+5. CONFIRMED DEFECT
+==================================================
+
+Current FactualReadContext
+conceptually stores:
+
+domains map[string]DomainBinding
+
+with key:
+
+Domain.
+
+But Universe may contain:
+
+ADVERTISING.TRAFFIC
+ADVERTISING.ATTRIBUTION
+ADVERTISING.CPO
+
+SEARCH.SELLER_SUMMARY
+SEARCH.QUERY_DETAILS
+SEARCH.MARKET_SEARCH
+
+SUPPLY.STATE
+SUPPLY.BUNDLE
+SUPPLY.ACCEPTANCE
+
+and other independent fact families.
+
+When multiple bindings share one Domain,
+later binding can overwrite previous one.
+
+This is unacceptable.
+
+==================================================
+6. BINDING IDENTITY
+==================================================
+
+Factual binding identity must be:
+
+Domain
++
+FactFamily.
+
+Introduce an explicit type, e.g.:
+
+FactFamilyKey {
+    Domain
+    FactFamily
+}
+
+or equivalent strongly typed key.
+
+Do NOT encode identity through
+fragile concatenated strings
+if a typed key is practical.
+
+==================================================
+7. CONTEXT STORAGE
+==================================================
+
+FactualReadContext must preserve
+ALL frozen bindings.
+
+Conceptually:
+
+bindings[
+    (ADVERTISING, TRAFFIC)
+]
+
+bindings[
+    (ADVERTISING, ATTRIBUTION)
+]
+
+etc.
+
+No overwrite.
+
+==================================================
+8. REQUIRED API
+==================================================
+
+Provide explicit semantic access:
+
+Binding(domain, factFamily)
+
+BindingsForDomain(domain)
+
+HasBinding(domain, factFamily)
+
+or repository-equivalent typed methods.
+
+==================================================
+9. DOMAIN-ONLY LOOKUP
+==================================================
+
+A convenience:
+
+BindingForDomain(domain)
+
+may exist ONLY if:
+
+- Domain contract explicitly has one family;
+  OR
+- an approved deterministic default family exists.
+
+If Domain has multiple ambiguous families:
+
+return explicit ambiguity/error.
+
+Never silently return:
+"last one inserted".
+
+==================================================
+10. FACTUAL DOMAIN READS
+==================================================
+
+Audit every Factual API vertical:
+
+Catalog
+Sales
+Lifecycle
+Stock
+Price
+Advertising
+Funnel
+Finance
+Search
+Promotions
+Health
+Supply.
+
+Each read must bind to
+the correct fact family/families.
+
+Examples:
+
+Search Summary read
+must not accidentally use
+SEARCH.MARKET_SEARCH binding.
+
+Supply Acceptance read
+must not use SUPPLY.STATE binding.
+
+==================================================
+11. CONTEXT HASH
+==================================================
+
+ContextHash must include:
+
+ALL fact-family bindings
+
+in deterministic order.
+
+Adding/removing/changing one family:
+
+ContextHash changes.
+
+==================================================
+12. PAGINATION / FACTREF
+==================================================
+
+PageToken and FactRef binding
+must preserve full fact-family-aware
+ContextHash semantics.
+
+==================================================
+PART B — HISTORICAL DOMAIN WATERMARKS
+==================================================
+
+13. CONFIRMED DEFECT
+==================================================
+
+Current domain_watermarks behaves
+as mutable latest projection:
+
+PRIMARY KEY:
+seller + domain + fact_family
+
+and writes use:
+
+ON CONFLICT DO UPDATE.
+
+This can destroy the exact state
+that existed at Analysis cutoff.
+
+==================================================
+14. REQUIRED TEMPORAL MODEL
+==================================================
+
+Watermark/readiness evidence needed by
+RESOLVE_CONTEXT must be historical.
+
+A later update must never erase
+the previous AS-KNOWN-AT state.
+
+==================================================
+15. PHYSICAL DESIGN
+==================================================
+
+Implement append-only revision history.
+
+Preferred architecture:
+
+domain_watermark_revisions
+
+append-only authoritative history
+
+plus optionally:
+
+domain_watermarks
+
+as current/latest projection
+for fast operational reads.
+
+Or an equivalent normalized design.
+
+==================================================
+16. REVISION GRAIN
+==================================================
+
+Revision semantic grain:
+
+seller
+
+domain
+
+fact_family
+
+plus revision/observed knowledge state.
+
+Store all current semantic watermark fields:
+
+coverage
+
+latest observed
+
+latest complete date
+
+latest mature date
+
+latest complete snapshot
+
+source state
+
+contract/provenance references
+
+assessed_at / observed_at
+
+semantic hash.
+
+==================================================
+17. A→A / A→B / A→B→A
+==================================================
+
+Same semantics:
+
+A → A
+
+no unnecessary semantic revision
+if latest state identical.
+
+A → B
+
+new append-only revision.
+
+A → B → A
+
+new revision.
+
+Historical A never blocks later A.
+
+==================================================
+18. AS-KNOWN-AT QUERY
+==================================================
+
+For each:
+
+seller
+domain
+fact_family
+cutoff
+
+select latest revision:
+
+knowledge_time <= cutoff
+
+with deterministic tie-break.
+
+==================================================
+19. CAPTURED CUTOFF RACE TEST
+==================================================
+
+Mandatory:
+
+10:00
+create Analysis Run
+cutoff = 10:00.
+
+10:01
+new watermark revision written.
+
+10:02
+RESOLVE_CONTEXT executes.
+
+Expected:
+
+Resolver sees exact
+watermark revision known at 10:00.
+
+Not:
+new 10:01 revision.
+
+Not:
+missing binding.
+
+==================================================
+20. OLD PROJECTION COMPATIBILITY
+==================================================
+
+If current `domain_watermarks`
+remains as latest projection:
+
+do not use it for
+historical RESOLVE_CONTEXT.
+
+LATEST_STABLE operational paths
+may use projection where safe.
+
+==================================================
+PART C — SOURCE CONTRACT / MAPPING PROVENANCE
+==================================================
+
+21. CONFIRMED DEFECT
+==================================================
+
+Current resolver may set synthetic:
+
+SourceContractKey = Domain
+SourceContractVersion = "v1"
+
+instead of actual source contract.
+
+This is forbidden.
+
+==================================================
+22. SOURCE RUN IS AUTHORITY
+==================================================
+
+Use actual persisted provenance
+from accepted Collection Domain Run
+and related source metadata.
+
+Audit current fields such as:
+
+source_contract_key
+
+source_contract_version
+
+source_endpoint_family
+
+semantic_mapping_version
+
+source_revision_hash
+
+source payload / contract metadata
+
+and use exact current physical names.
+
+==================================================
+23. KEEP SEMANTICS SEPARATE
+==================================================
+
+Do NOT conflate:
+
+Source Contract
+
+Semantic Mapping
+
+Source Revision
+
+Watermark State.
+
+They are separate semantic concepts.
+
+==================================================
+24. SOURCE CONTRACT KEY
+==================================================
+
+Freeze actual provider/source contract key.
+
+Example conceptually:
+
+OZON_ANALYTICS_PRODUCT_QUERIES
+
+not generic:
+SEARCH.
+
+==================================================
+25. SOURCE CONTRACT VERSION
+==================================================
+
+Freeze actual contract version.
+
+Never default:
+"v1"
+
+unless that is actually persisted
+authoritative version.
+
+==================================================
+26. ENDPOINT FAMILY
+==================================================
+
+Persist/freeze endpoint/source family
+if it participates in semantic contract.
+
+==================================================
+27. SEMANTIC MAPPING
+==================================================
+
+Freeze separately:
+
+semantic_mapping_version
+
+semantic_mapping_hash/revision
+as approved by existing Collection contract.
+
+==================================================
+28. SOURCE REVISION
+==================================================
+
+Do not mislabel:
+
+source_revision_hash
+
+as:
+
+source_contract_hash.
+
+==================================================
+29. CONTRACT HASH
+==================================================
+
+If an explicit source_contract_hash
+does not already exist:
+
+derive deterministic hash from
+exact normalized source-contract fields.
+
+Do NOT mix semantic mapping state
+into this hash unless architecture explicitly says so.
+
+==================================================
+30. RESOLVED MANIFEST
+==================================================
+
+Resolved Context Manifest
+must expose these fields separately.
+
+==================================================
+PART D — EXPLICIT FACT FAMILY ↔ CAPABILITY MAPPING
+==================================================
+
+31. CONFIRMED DEFECT
+==================================================
+
+Current matching may use:
+
+strings.HasPrefix(
+    capabilityKey,
+    domain + "."
+)
+
+and choose first match.
+
+This is not semantic mapping.
+
+==================================================
+32. NO PREFIX GUESSING
+==================================================
+
+Remove prefix/fuzzy matching.
+
+==================================================
+33. EXPLICIT REGISTRY
+==================================================
+
+Create a versioned typed registry:
+
+FactFamilyCapabilityContract
+
+or equivalent.
+
+It defines, for each:
+
+Domain
+FactFamily
+
+the relevant capability semantics.
+
+==================================================
+34. POSSIBLY MULTIPLE CAPABILITIES
+==================================================
+
+One fact family may relate
+to multiple capabilities.
+
+Example conceptually:
+
+ADVERTISING.TRAFFIC
+may support:
+
+campaign traffic
+SKU traffic
+Account spend
+
+at different grains.
+
+Do not force one arbitrary capability
+to represent whole family.
+
+==================================================
+35. SOURCE STATE ≠ CAPABILITY STATE
+==================================================
+
+Critical:
+
+SourceState of a fact-family binding
+comes from source/readiness evidence.
+
+It must NOT be derived
+by picking a random capability.
+
+Capabilities remain independent
+frozen semantic availability dimensions.
+
+==================================================
+36. FACT FAMILY READINESS
+==================================================
+
+If a fact-family needs
+an aggregate usability state:
+
+derive it through explicit versioned policy.
+
+Not "first matching capability".
+
+==================================================
+37. REGISTRY VERSION
+==================================================
+
+Fact-family capability registry
+must have version/hash
+and enter Contract Bundle
+if it can affect factual interpretation.
+
+==================================================
+38. TEST
+==================================================
+
+Stock fixture:
+
+STOCK.SNAPSHOT
+
+with capabilities:
+
+STOCK.SKU_CURRENT = READY
+
+STOCK.LOCATION_BREAKDOWN = PARTIAL
+
+STOCK.PROVIDER_TURNOVER = UNAVAILABLE.
+
+Resolver must preserve
+all capability facts
+
+and must not randomly choose one
+as the sole meaning of SNAPSHOT.
+
+==================================================
+PART E — DQ MUST FAIL CLOSED
+==================================================
+
+39. CONFIRMED DEFECT
+==================================================
+
+Current DQ resolver contains behavior equivalent to:
+
+database error
+→ return nil, nil
+
+or:
+
+issues query error
+→ DQ severity NONE.
+
+This is forbidden.
+
+==================================================
+40. NO DQ RUN
+==================================================
+
+`pgx.ErrNoRows`
+for an optional DQ evaluation
+may legitimately mean:
+
+NOT_EVALUATED / NO_DQ_RUN
+
+according to approved contract.
+
+It does NOT mean:
+database succeeded with clean DQ.
+
+==================================================
+41. REAL DB ERROR
+==================================================
+
+Any unexpected PostgreSQL error:
+
+return error.
+
+RESOLVE_CONTEXT:
+
+FAILED_RETRYABLE
+or FAILED_TERMINAL
+
+according to runtime failure policy.
+
+Never continue with fake clean DQ.
+
+==================================================
+42. DQ ISSUE QUERY ERROR
+==================================================
+
+If DQ run exists
+but issues cannot be loaded:
+
+fail Resolver.
+
+Do not freeze:
+
+HighestSeverity = NONE.
+
+==================================================
+43. DQ HASH FAILURE
+==================================================
+
+If issue-set/hash cannot be reproduced:
+
+fail closed.
+
+==================================================
+44. TESTS
+==================================================
+
+Mandatory:
+
+no DQ run
+→ honest NOT_EVALUATED representation.
+
+clean DQ run
+→ clean state.
+
+DQ with limitation
+→ limitation frozen.
+
+Postgres query error
+→ RESOLVE_CONTEXT fails.
+
+Issues query error
+→ fails.
+
+==================================================
+PART F — ENTITY SETS THROUGH FACTUAL API
+==================================================
+
+45. CONFIRMED BOUNDARY DEFECT
+==================================================
+
+Current analysis/postgres
+ComputeEntitySetMembers()
+directly reads canonical business tables.
+
+This violates:
+
+Internal Factual API
+as sole business read boundary
+above canonical UCDM.
+
+==================================================
+46. REMOVE DIRECT BUSINESS SQL
+==================================================
+
+`internal/analysis/**`
+must not query canonical business tables
+for Universe semantic content.
+
+Analysis metadata SQL remains allowed.
+
+==================================================
+47. ENTITY SET BUILDER
+==================================================
+
+Build entity sets through
+the approved Factual API
+under the exact resolved cutoff/context.
+
+==================================================
+48. BEFORE SEAL
+==================================================
+
+SEAL_UNIVERSE does not yet have
+a persisted SEALED context.
+
+Use the exact resolved factual context
+produced by RESOLVE_CONTEXT
+with its explicit cutoff/bindings.
+
+Do NOT ask "latest".
+
+==================================================
+49. SKU SET
+==================================================
+
+Enumerate SKU through typed Factual API.
+
+Member semantic identity:
+
+stable Ozon SKU / approved EntityRef semantic key.
+
+Never canonical_skus.id.
+
+==================================================
+50. CAMPAIGN SET
+==================================================
+
+Use stable seller-scoped provider Campaign identity
+or approved Campaign EntityRef semantic key.
+
+Never advertising_campaigns.id.
+
+==================================================
+51. CATEGORY MAPPING CONTEXT
+==================================================
+
+This is not merely current Category list.
+
+Freeze/hash the Category assignment context
+required by analysis over relevant temporal windows.
+
+Use semantic:
+
+SKU business identity
+
+seller-bearing leaf Category semantic identity
+
+effective temporal mapping state
+
+as required by normative Category/Temporal contract.
+
+==================================================
+52. NO DB IDS
+==================================================
+
+Forbidden in entity-set semantic member hashes:
+
+canonical_sku_id
+
+seller_category_id
+
+campaign DB PK
+
+other random surrogate IDs.
+
+==================================================
+53. MEMBER COUNT
+==================================================
+
+Real count.
+
+==================================================
+54. SORT
+==================================================
+
+Deterministic semantic order.
+
+==================================================
+55. ENTITY SET HASH TEST
+==================================================
+
+Create semantically identical data
+with different DB primary keys.
+
+Expected:
+
+same entity-set hashes
+same Universe hash.
+
+==================================================
+PART G — STRENGTHEN FACTUAL API BOUNDARY GATE
+==================================================
+
+56. CURRENT GATE IS INSUFFICIENT
+==================================================
+
+A test that only checks:
+
+no Ozon imports
+
+is not enough.
+
+==================================================
+57. ANALYSIS SQL DENYLIST
+==================================================
+
+Add architecture gate
+that detects direct canonical business SQL
+inside:
+
+internal/analysis/**
+
+except explicitly approved analysis metadata tables.
+
+==================================================
+58. APPROVED DIRECT TABLES
+==================================================
+
+Analysis persistence may directly access:
+
+analysis_runs
+
+analysis_run_stages
+
+analysis_stage_attempts
+
+analysis_ai_attempts
+
+analysis_artifacts
+
+analysis_run_events
+
+analysis_contract_bundles
+
+factual_universe_*
+
+materiality_*
+
+and other explicit analysis metadata tables.
+
+==================================================
+59. FORBIDDEN EXAMPLES
+==================================================
+
+Direct analysis SQL must fail gate
+if it reads tables such as:
+
+canonical_skus
+
+sku_category_assignments
+
+sales_demand_*
+
+stock_*
+
+advertising_campaigns
+
+finance_*
+
+search_*
+
+promotion_*
+
+supply_*
+
+and other canonical business SoT tables.
+
+Use actual repository table inventory,
+not only this example list.
+
+==================================================
+60. IMPLEMENTATION
+==================================================
+
+Use robust package/query architecture test:
+
+AST/import checks
++
+SQL/resource inspection where necessary.
+
+Do not rely only on substring
+if a safer repository mechanism exists.
+
+==================================================
+PART H — SEALED CONTEXT SEMANTIC EQUIVALENCE
+==================================================
+
+61. NO SYNTHETIC FINALIZED TIME
+==================================================
+
+Current behavior equivalent to:
+
+FinalizedAt = Universe.CutoffAt
+
+must be removed
+if actual selected source run finalized time exists.
+
+==================================================
+62. FREEZE REAL SOURCE TIME
+==================================================
+
+Persist exact source/run:
+
+finalized_at
+
+observed/accepted timestamps
+
+where required by DomainBinding contract.
+
+==================================================
+63. WATERMARK HASH ≠ SOURCE HASH
+==================================================
+
+Do not assign:
+
+WatermarkHash = SourceHash
+
+unless they are literally same semantic artifact.
+
+==================================================
+64. EXPLICIT HASHES
+==================================================
+
+Keep separate fields:
+
+source_binding_hash
+
+watermark_hash
+
+source_contract_hash
+
+semantic_mapping_hash
+
+source revision hash
+
+where approved model distinguishes them.
+
+==================================================
+65. RESOLVED → SEALED EQUALITY
+==================================================
+
+Test normalized semantic representation:
+
+Resolved Context binding set
+
+==
+
+SEALED Context binding set.
+
+Exactly.
+
+No:
+
+missing family
+
+overwritten family
+
+synthetic ID
+
+synthetic timestamps
+
+relabelled hash.
+
+==================================================
+66. BINDING COUNT
+==================================================
+
+Example:
+
+Resolved SEARCH has 3 families.
+
+SEALED SEARCH:
+still exactly 3 families.
+
+==================================================
+PART I — HISTORICAL CAPABILITY / DQ / WATERMARK ALIGNMENT
+==================================================
+
+67. SAME CUTOFF
+==================================================
+
+Source bindings
+
+Capabilities
+
+DQ
+
+Watermarks
+
+Entity-set computation
+
+must all resolve under
+the SAME analysis_cutoff_at.
+
+==================================================
+68. NO MIXED KNOWLEDGE TIME
+==================================================
+
+Forbidden:
+
+source run from <= cutoff
+
+capability from latest after cutoff
+
+DQ from current latest
+
+entity set from current tables.
+
+==================================================
+69. COHERENCE TEST
+==================================================
+
+Create old state A.
+
+Capture cutoff.
+
+Then create:
+
+new watermark
+
+new capability
+
+new DQ
+
+new category assignment
+
+new Campaign
+
+after cutoff.
+
+RESOLVE+SEAL after updates.
+
+Expected Universe:
+only state A.
+
+==================================================
+PART J — HMAC SECRET CONFIGURATION
+==================================================
+
+70. CONFIRMED SECURITY DEFECT
+==================================================
+
+Production runtime currently contains
+a literal secret equivalent to:
+
+"analysis-runtime-factual-token-v1!!!!"
+
+for Factual token signing.
+
+Remove.
+
+==================================================
+71. CONFIG
+==================================================
+
+Use secure runtime configuration.
+
+Introduce/reuse:
+
+FACTUAL_TOKEN_HMAC_SECRET
+
+or project-consistent secret name.
+
+==================================================
+72. MINIMUM QUALITY
+==================================================
+
+Validate:
+
+non-empty
+
+sufficient entropy/length
+e.g. >=32 bytes
+
+unless repository has stronger policy.
+
+==================================================
+73. NO DEFAULT PRODUCTION SECRET
+==================================================
+
+Production code must not fall back
+to a known literal.
+
+==================================================
+74. TESTS
+==================================================
+
+Tests inject deterministic test secret.
+
+Dev environment may use
+explicit dev-only configuration.
+
+==================================================
+75. STARTUP FAILURE
+==================================================
+
+If a runtime component requiring signer
+starts without valid secret:
+
+fail configuration validation clearly.
+
+Do not silently generate ephemeral secret
+that breaks token validation between processes.
+
+==================================================
+76. SECRET NEVER IN ARTIFACT
+==================================================
+
+Do not serialize signer secret
+into:
+
+Universe
+
+Contract Bundle
+
+events
+
+artifacts
+
+logs.
+
+==================================================
+PART K — WATERMARK REVISION MIGRATION
+==================================================
+
+77. FORWARD MIGRATION
+==================================================
+
+Audit latest migration AFTER Prompt №9.1.
+
+Do not assume number.
+
+Create next free migration(s).
+
+==================================================
+78. DO NOT REWRITE HISTORY
+==================================================
+
+Existing current watermark rows
+may seed initial revision history
+as observed current starting state.
+
+Do NOT fabricate historical revisions
+that were never stored.
+
+==================================================
+79. EXISTING UNIVERSES
+==================================================
+
+Do NOT mutate
+already sealed Factual Universes.
+
+==================================================
+80. NEW UNIVERSE CONTRACT VERSION
+==================================================
+
+If fact-family Context semantics
+or manifest semantics change materially:
+
+bump:
+
+Factual API context version
+
+Universe policy/schema version
+
+Resolved Context schema version
+
+Contract Bundle version/hash
+
+as appropriate.
+
+==================================================
+81. LEGACY UNIVERSE V1
+==================================================
+
+Existing Universes remain immutable.
+
+Choose explicit safe policy:
+
+- legacy reader for inspection only;
+- or supported versioned read path.
+
+Do NOT reinterpret old bytes
+under new semantics.
+
+==================================================
+82. NEW ANALYSIS RUNS
+==================================================
+
+After Prompt №8.2,
+new runs must seal
+using the corrected Universe/context version.
+
+==================================================
+PART L — CONTRACT BUNDLE
+==================================================
+
+83. INCLUDE NEW SEMANTIC CONTRACTS
+==================================================
+
+Update Contract Bundle with:
+
+fact-family binding contract version/hash
+
+historical watermark policy version/hash
+
+fact-family capability mapping registry/hash
+
+resolved-context schema version
+
+Universe schema/policy version
+
+FactualReadContext version.
+
+==================================================
+84. HMAC SECRET EXCLUDED
+==================================================
+
+Secret value is configuration/security material.
+
+Never enters deterministic Contract Bundle hash.
+
+Signing algorithm/version/key-id
+may be represented
+if architecture needs it.
+
+==================================================
+85. NO_OP SENSITIVITY
+==================================================
+
+Corrected Universe/context semantics
+must invalidate unsafe reuse
+of old semantic contract where appropriate.
+
+==================================================
+PART M — REGRESSION WITH PROMPT №9.1
+==================================================
+
+86. CRITICAL REQUIREMENT
+==================================================
+
+Because №8.2 executes after №9.1,
+all accepted Landscape/Materiality behavior
+must be regression-tested again.
+
+==================================================
+87. DO NOT USE MEMORY SOURCE
+==================================================
+
+Use the substantive production fixture
+created/strengthened by Prompt №9.1.
+
+==================================================
+88. FULL PATH
+==================================================
+
+Run:
+
+canonical/factual fixture
+→ readiness/watermark history
+→ RESOLVE_CONTEXT
+→ SEAL_UNIVERSE
+→ PREPARE_CONTINUITY
+→ BUILD_LANDSCAPE_CORE
+→ RUN_MATERIALITY
+→ BUILD_LANDSCAPE_DETAIL.
+
+==================================================
+89. CONTENT ASSERTIONS
+==================================================
+
+Reassert:
+
+real capabilities propagated
+
+real fact-family-specific reads
+
+DomainWindows correct
+
+Materiality production lanes active
+
+non-anchor selections exist
+
+Detail supporting context populated
+
+Stage 7 not executed.
+
+==================================================
+90. FACT-FAMILY REGRESSION
+==================================================
+
+Fixture must include at minimum
+a Domain with 2+ independent families:
+
+Advertising
+and/or Search
+and/or Supply.
+
+Assert downstream Landscape
+reads correct family-specific facts.
+
+==================================================
+91. NO PROMPT 9 REGRESSION
+==================================================
+
+Output:
+
+PROMPT_09_REGRESSION_AFTER_8_2 =
+PASS / FAIL.
+
+Prompt №10 remains blocked
+if regression fails.
+
+==================================================
+PART N — POSTGRESQL ACCEPTANCE
+==================================================
+
+92. REAL POSTGRES REQUIRED
+==================================================
+
+Prompt №8.2 cannot close
+on unit tests only.
+
+Use safe TEST_DATABASE_URL.
+
+==================================================
+93. WATERMARK HISTORY TEST
+==================================================
+
+A→B→A
+watermark states.
+
+Cutoffs recover:
+A / B / A correctly.
+
+==================================================
+94. CUTOFF RACE TEST
+==================================================
+
+Captured cutoff before watermark B,
+Resolver after B.
+
+Expected A.
+
+==================================================
+95. SOURCE CONTRACT TEST
+==================================================
+
+Accepted collection run has:
+
+contract key K
+version V
+endpoint E
+mapping M.
+
+Resolved/Universe/SEALED:
+exact K/V/E/M.
+
+No Domain/"v1" substitution.
+
+==================================================
+96. MULTI-FAMILY TEST
+==================================================
+
+One Domain:
+three fact families.
+
+All survive:
+Resolve
+→ DB Universe
+→ MinIO manifest
+→ SEALED Context.
+
+==================================================
+97. DQ FAIL-CLOSED TEST
+==================================================
+
+Injected query failure:
+Resolver fails.
+
+==================================================
+98. ENTITY ID INDEPENDENCE TEST
+==================================================
+
+Same semantic seller data
+with different surrogate IDs.
+
+Entity-set hashes equal.
+
+==================================================
+99. BOUNDARY TEST
+==================================================
+
+Deliberately add test fixture/query
+representing forbidden canonical table access
+and prove architecture gate detects it.
+
+==================================================
+PART O — REDIS / ASYNQ ACCEPTANCE
+==================================================
+
+100. REAL REDIS PATH
+==================================================
+
+Run corrected Context through
+actual production runtime.
+
+==================================================
+101. STAGES 1–2
+==================================================
+
+Especially verify:
+
+RESOLVE_CONTEXT
+→ immutable resolved artifact
+→ SEAL_UNIVERSE
+
+with multi-family binding fixture.
+
+==================================================
+102. STAGES 3–6
+==================================================
+
+Then execute Prompt №9.1 path
+and prove regression PASS.
+
+==================================================
+103. DUPLICATE / RECOVERY
+==================================================
+
+Existing Prompt №8.1 guarantees
+must remain green:
+
+duplicate delivery
+
+lease fencing
+
+recovery
+
+artifact-before-state
+
+cancellation.
+
+==================================================
+PART P — STATIC / SECURITY ACCEPTANCE
+==================================================
+
+104. SECRET SCAN
+==================================================
+
+Search repository
+for old hard-coded signer secret
+and equivalent literals.
+
+Expected:
+none in production code.
+
+Test fixtures may contain
+clearly named test-only secrets.
+
+==================================================
+105. GITLEAKS
+==================================================
+
+PASS.
+
+==================================================
+106. IMPORT / SQL BOUNDARY
+==================================================
+
+PASS.
+
+==================================================
+PART Q — DOCUMENTATION
+==================================================
+
+107. UPDATE
+==================================================
+
+docs/current/factual-universe.md
+
+docs/current/factual-api.md
+
+docs/current/temporal-read-context.md
+
+docs/current/analysis-runtime.md
+
+docs/current/analysis-contract-bundle.md
+
+docs/current/data-quality-readiness.md
+
+architecture implementation status.
+
+==================================================
+108. DOCUMENT WATERMARK HISTORY
+==================================================
+
+Explain:
+
+latest projection
+vs
+historical revisions
+
+and why Analysis cutoff
+reads revision history.
+
+==================================================
+109. DOCUMENT FACT FAMILY BINDINGS
+==================================================
+
+Show explicit examples:
+
+ADVERTISING.TRAFFIC
+ADVERTISING.ATTRIBUTION
+
+SEARCH.SELLER_SUMMARY
+SEARCH.QUERY_DETAILS
+
+and how Context stores both.
+
+==================================================
+110. DOCUMENT PROVENANCE
+==================================================
+
+Distinguish:
+
+source contract
+
+endpoint family
+
+source revision
+
+semantic mapping
+
+watermark
+
+capability
+
+DQ.
+
+==================================================
+111. DO NOT MODIFY NORMATIVE INTENT
+==================================================
+
+docs/architecture/v1
+not rewritten to justify shortcuts.
+
+==================================================
+PART R — VERIFICATION
+==================================================
+
+112. RUN
+==================================================
+
+gofmt
+
+go test ./...
+
+go vet ./...
+
+PostgreSQL integration
+
+Redis/Asynq integration
+
+Prompt 8.2 dedicated suite
+
+Prompt 9.1 regression suite
+
+sqlc generate/check
+
+migration chain:
+1 → latest
+
+new migration down/up where safe
+
+build:
+api
+worker
+devtools
+
+git diff --check
+
+gitleaks.
+
+==================================================
+113. RACE
+==================================================
+
+If supported:
+
+go test -race
+changed concurrency/context packages.
+
+If Windows/CGO prevents:
+
+RACE = NOT_RUN
+with exact reason.
+
+Not standalone blocker
+if PG concurrency and Redis E2E PASS.
+
+==================================================
+PART S — DEFINITION OF DONE
+==================================================
+
+114. FACT-FAMILY CONTEXT CLOSED ONLY IF
+==================================================
+
+- Domain+FactFamily is binding identity;
+- no binding overwrite;
+- every Factual API read uses correct family;
+- ContextHash includes all families;
+- pagination/FactRef remain context-bound.
+
+==================================================
+115. WATERMARK TEMPORALITY CLOSED ONLY IF
+==================================================
+
+- watermark semantic history append-only;
+- later update does not erase old state;
+- AS KNOWN AT cutoff resolves exact revision;
+- A→B→A works;
+- captured-cutoff race test passes.
+
+==================================================
+116. PROVENANCE CLOSED ONLY IF
+==================================================
+
+- real source contract key/version frozen;
+- no generic Domain/v1 fallback;
+- endpoint family preserved;
+- semantic mapping preserved separately;
+- source revision preserved separately;
+- hashes are correctly named/typed.
+
+==================================================
+117. CAPABILITY MAPPING CLOSED ONLY IF
+==================================================
+
+- no prefix guessing;
+- explicit fact-family mapping registry;
+- source state separate from capability state;
+- registry version/hash frozen.
+
+==================================================
+118. DQ CLOSED ONLY IF
+==================================================
+
+- no DB error becomes clean DQ;
+- no issue-query error becomes NONE;
+- fail-closed tests pass.
+
+==================================================
+119. ENTITY SET CLOSED ONLY IF
+==================================================
+
+- built via Factual API;
+- no canonical business SQL in analysis;
+- no DB PK in semantic members/hashes;
+- Category mapping temporal context correct;
+- DB-ID independence proven.
+
+==================================================
+120. SEALED CONTEXT CLOSED ONLY IF
+==================================================
+
+- Resolved and SEALED semantic bindings equal;
+- actual source times preserved;
+- watermark/source hashes distinct;
+- all fact families preserved.
+
+==================================================
+121. SECURITY CLOSED ONLY IF
+==================================================
+
+- hard-coded HMAC secret removed;
+- runtime secret configurable;
+- missing invalid config fails safely;
+- no secret serialized/logged.
+
+==================================================
+122. PROMPT 9 COMPATIBILITY
+==================================================
+
+Prompt №8.2 cannot close
+if Prompt №9.1 production chain
+regresses.
+
+==================================================
+PART T — FINAL REPORT
+==================================================
+
+123. GENERAL
+==================================================
+
+Return:
+
+1. baseline SHA after Prompt №9.1;
+2. branch;
+3. files changed;
+4. migrations added;
+5. docs read;
+6. traceability summary;
+7. architecture conflicts.
+
+==================================================
+124. FACT FAMILY
+==================================================
+
+8. old DomainBinding model;
+9. new binding identity;
+10. API changes;
+11. multi-family test;
+12. Factual API adaptations.
+
+==================================================
+125. WATERMARKS
+==================================================
+
+13. old mutable model;
+14. new revision model;
+15. current projection if retained;
+16. AS-KNOWN-AT SQL;
+17. A→B→A result;
+18. cutoff-race result.
+
+==================================================
+126. PROVENANCE
+==================================================
+
+19. source contract fields;
+20. endpoint family;
+21. source revision;
+22. semantic mapping;
+23. hash definitions.
+
+==================================================
+127. CAPABILITY / DQ
+==================================================
+
+24. fact-family mapping registry;
+25. prefix heuristic removal;
+26. DQ fail-closed behavior;
+27. DQ error tests.
+
+==================================================
+128. ENTITY SETS
+==================================================
+
+28. removed direct canonical SQL;
+29. Factual API methods used;
+30. SKU semantic members;
+31. Category mapping semantic members;
+32. Campaign semantic members;
+33. DB-ID independence result.
+
+==================================================
+129. SEALED
+==================================================
+
+34. actual source finalized times;
+35. watermark hashes;
+36. resolved/sealed equality;
+37. context hash result.
+
+==================================================
+130. SECURITY
+==================================================
+
+38. secret config;
+39. validation;
+40. removal of literal.
+
+==================================================
+131. REGRESSION
+==================================================
+
+41. Prompt 9.1 stages 1–6 result;
+42. production materiality lanes;
+43. Landscape/Detail content;
+44. Stage7 status.
+
+==================================================
+132. VERIFY
+==================================================
+
+45. PostgreSQL;
+46. Redis/Asynq;
+47. migrations;
+48. full tests;
+49. vet;
+50. builds;
+51. boundary gate;
+52. gitleaks;
+53. race;
+54. remaining blockers.
+
+==================================================
+PART U — MACHINE-READABLE STATUS
+==================================================
+
+133. OUTPUT EXACTLY
+==================================================
+
+PROMPT_08_2_STATUS =
+CODE_COMPLETE / BLOCKED
+
+ARCHITECTURE_DOCS_READ =
+PASS / FAIL
+
+ARCHITECTURE_TRACEABILITY_MATRIX =
+PASS / FAIL
+
+FACT_FAMILY_BINDING_IDENTITY =
+PASS / FAIL
+
+FACT_FAMILY_MULTI_BINDING =
+PASS / FAIL
+
+FACT_FAMILY_CONTEXT_HASH =
+PASS / FAIL
+
+FACT_FAMILY_FACTUAL_API_ROUTING =
+PASS / FAIL
+
+WATERMARK_REVISION_HISTORY =
+PASS / FAIL
+
+WATERMARK_A_B_A =
+PASS / FAIL
+
+WATERMARK_AS_KNOWN_AT =
+PASS / FAIL
+
+WATERMARK_CUTOFF_RACE =
+PASS / FAIL
+
+SOURCE_CONTRACT_PROVENANCE =
+PASS / FAIL
+
+SOURCE_CONTRACT_NO_SYNTHETIC_DEFAULTS =
+PASS / FAIL
+
+SOURCE_ENDPOINT_FAMILY_FREEZE =
+PASS / FAIL
+
+SEMANTIC_MAPPING_PROVENANCE =
+PASS / FAIL
+
+SOURCE_REVISION_PROVENANCE =
+PASS / FAIL
+
+PROVENANCE_HASH_SEPARATION =
+PASS / FAIL
+
+FACT_FAMILY_CAPABILITY_REGISTRY =
+PASS / FAIL
+
+CAPABILITY_PREFIX_GUESSING_REMOVED =
+PASS / FAIL
+
+SOURCE_STATE_CAPABILITY_SEPARATION =
+PASS / FAIL
+
+DQ_FAIL_CLOSED =
+PASS / FAIL
+
+DQ_DB_ERROR_PROPAGATION =
+PASS / FAIL
+
+DQ_ISSUE_ERROR_PROPAGATION =
+PASS / FAIL
+
+ENTITY_SETS_FACTUAL_API_ONLY =
+PASS / FAIL
+
+ENTITY_SET_SKU_SEMANTIC_IDENTITY =
+PASS / FAIL
+
+ENTITY_SET_CATEGORY_SEMANTIC_IDENTITY =
+PASS / FAIL
+
+ENTITY_SET_CAMPAIGN_SEMANTIC_IDENTITY =
+PASS / FAIL
+
+ENTITY_SET_DB_ID_INDEPENDENCE =
+PASS / FAIL
+
+ANALYSIS_CANONICAL_SQL_BOUNDARY_GATE =
+PASS / FAIL
+
+SEALED_BINDING_SEMANTIC_EQUIVALENCE =
+PASS / FAIL
+
+SEALED_SOURCE_TIME_PRESERVATION =
+PASS / FAIL
+
+SEALED_HASH_SEMANTIC_SEPARATION =
+PASS / FAIL
+
+AS_KNOWN_AT_COHERENCE =
+PASS / FAIL
+
+FACTUAL_TOKEN_SECRET_EXTERNALIZED =
+PASS / FAIL
+
+FACTUAL_TOKEN_SECRET_VALIDATION =
+PASS / FAIL
+
+NO_HARDCODED_FACTUAL_SECRET =
+PASS / FAIL
+
+CONTRACT_BUNDLE_FACT_FAMILY =
+PASS / FAIL
+
+CONTRACT_BUNDLE_WATERMARK_POLICY =
+PASS / FAIL
+
+CONTRACT_BUNDLE_CAPABILITY_MAPPING =
+PASS / FAIL
+
+POSTGRESQL_ACCEPTANCE =
+PASS / FAIL
+
+REDIS_ASYNQ_INTEGRATION =
+PASS / FAIL
+
+DUPLICATE_TASK_IDEMPOTENCY =
+PASS / FAIL
+
+RECOVERY_E2E =
+PASS / FAIL
+
+FACTUAL_API_BOUNDARY_GATE =
+PASS / FAIL
+
+SELLER_ISOLATION =
+PASS / FAIL
+
+AS_KNOWN_AT_FUTURE_LEAK_AUDIT =
+PASS / FAIL
+
+PROMPT_09_REGRESSION_AFTER_8_2 =
+PASS / FAIL
+
+STAGES_1_TO_6_AFTER_8_2 =
+PASS / FAIL
+
+STAGE_7_NOT_EXECUTED =
+PASS / FAIL
+
+AUTOMATED_ACCEPTANCE =
+PASS / FAIL
+
+RACE =
+PASS / NOT_RUN / FAIL
+
+PROMPT_08_STATUS =
+CLOSED / BLOCKED
+
+PROMPT_09_STATUS_AFTER_8_2 =
+CLOSED / BLOCKED
+
+PROMPT_10_READINESS =
+PASS / BLOCKED
+
+==================================================
+134. FINAL HARD GATE
+==================================================
+
+PROMPT_08_STATUS = CLOSED
+
+ONLY IF:
+
+FACT_FAMILY_BINDING_IDENTITY = PASS
+
+FACT_FAMILY_MULTI_BINDING = PASS
+
+FACT_FAMILY_CONTEXT_HASH = PASS
+
+FACT_FAMILY_FACTUAL_API_ROUTING = PASS
+
+WATERMARK_REVISION_HISTORY = PASS
+
+WATERMARK_A_B_A = PASS
+
+WATERMARK_AS_KNOWN_AT = PASS
+
+WATERMARK_CUTOFF_RACE = PASS
+
+SOURCE_CONTRACT_PROVENANCE = PASS
+
+SOURCE_CONTRACT_NO_SYNTHETIC_DEFAULTS = PASS
+
+SOURCE_ENDPOINT_FAMILY_FREEZE = PASS
+
+SEMANTIC_MAPPING_PROVENANCE = PASS
+
+SOURCE_REVISION_PROVENANCE = PASS
+
+PROVENANCE_HASH_SEPARATION = PASS
+
+FACT_FAMILY_CAPABILITY_REGISTRY = PASS
+
+CAPABILITY_PREFIX_GUESSING_REMOVED = PASS
+
+SOURCE_STATE_CAPABILITY_SEPARATION = PASS
+
+DQ_FAIL_CLOSED = PASS
+
+ENTITY_SETS_FACTUAL_API_ONLY = PASS
+
+ENTITY_SET_DB_ID_INDEPENDENCE = PASS
+
+ANALYSIS_CANONICAL_SQL_BOUNDARY_GATE = PASS
+
+SEALED_BINDING_SEMANTIC_EQUIVALENCE = PASS
+
+SEALED_SOURCE_TIME_PRESERVATION = PASS
+
+SEALED_HASH_SEMANTIC_SEPARATION = PASS
+
+AS_KNOWN_AT_COHERENCE = PASS
+
+FACTUAL_TOKEN_SECRET_EXTERNALIZED = PASS
+
+NO_HARDCODED_FACTUAL_SECRET = PASS
+
+POSTGRESQL_ACCEPTANCE = PASS
+
+REDIS_ASYNQ_INTEGRATION = PASS
+
+FACTUAL_API_BOUNDARY_GATE = PASS
+
+SELLER_ISOLATION = PASS
+
+AS_KNOWN_AT_FUTURE_LEAK_AUDIT = PASS
+
+and ZERO known Prompt №8
+correctness/security blockers remain.
+
+==================================================
+135. PROMPT 9 REGRESSION GATE
+==================================================
+
+Because Prompt №8.2 runs AFTER Prompt №9.1:
+
+PROMPT_09_STATUS_AFTER_8_2 = CLOSED
+
+ONLY IF:
+
+PROMPT_09_REGRESSION_AFTER_8_2 = PASS
+
+STAGES_1_TO_6_AFTER_8_2 = PASS
+
+and Prompt №9.1 hard gates
+remain substantively valid.
+
+If №8.2 exposes a real Prompt №9.1 defect:
+
+do not hide it.
+
+Set:
+
+PROMPT_09_STATUS_AFTER_8_2 = BLOCKED
+
+and report the concrete defect.
+
+==================================================
+136. PROMPT №10 READINESS
+==================================================
+
+PROMPT_10_READINESS = PASS
+
+ONLY IF:
+
+PROMPT_08_STATUS = CLOSED
+
+AND
+
+PROMPT_09_STATUS_AFTER_8_2 = CLOSED
+
+AND the real production chain is:
+
+historical factual/readiness state
+        ↓
+captured cutoff
+        ↓
+fact-family-aware RESOLVE_CONTEXT
+        ↓
+exact immutable Universe
+        ↓
+fact-family-aware SEALED Context
+        ↓
+complete production Landscape
+        ↓
+production Materiality
+        ↓
+production Detail
+
+with no:
+
+- mutable historical watermark loss;
+- overwritten fact families;
+- synthetic provenance;
+- capability prefix guessing;
+- fail-open DQ;
+- canonical SQL bypass from analysis;
+- DB-ID-dependent Universe hashes;
+- hard-coded signing secret.
+
+==================================================
+137. FINAL PRINCIPLE
+==================================================
+
+The exact invariant to prove is:
+
+Aivion captures analysis_cutoff_at = T.
+
+Anything learned after T may physically exist
+before RESOLVE_CONTEXT executes,
+
+but the resulting Universe must still describe
+ONLY what Aivion knew at T.
+
+That must hold independently for:
+
+source revisions
+fact families
+watermarks
+capabilities
+DQ
+entity membership
+Category mappings
+
+and the same sealed representation
+must be consumed unchanged by
+Landscape / Materiality / future Discovery.
+</user_query>

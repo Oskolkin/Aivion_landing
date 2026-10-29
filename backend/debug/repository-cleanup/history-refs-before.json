@@ -1,0 +1,79 @@
+{
+  "generated_at": "2026-08-03T10:30:00Z",
+  "pre_rewrite_cleanup_commit": "b8be0ed10ea88d61a76ca65ecf84e5f733dbead5",
+  "refs_with_secret": [
+    {
+      "ref": "refs/heads/cursor/security-repository-cleanup",
+      "sha": "b8be0ed10ea88d61a76ca65ecf84e5f733dbead5"
+    },
+    {
+      "ref": "refs/heads/main",
+      "sha": "212e9762569c41846dfcfa4e7cb4853acf66c7b2"
+    },
+    {
+      "ref": "refs/remotes/origin/HEAD",
+      "sha": "212e9762569c41846dfcfa4e7cb4853acf66c7b2"
+    },
+    {
+      "ref": "refs/remotes/origin/cursor/dashboard-demo-readiness",
+      "sha": "7f275c299b14674cb93f7beaa73656711755335f"
+    },
+    {
+      "ref": "refs/remotes/origin/cursor/security-repository-cleanup",
+      "sha": "b8be0ed10ea88d61a76ca65ecf84e5f733dbead5"
+    },
+    {
+      "ref": "refs/remotes/origin/main",
+      "sha": "212e9762569c41846dfcfa4e7cb4853acf66c7b2"
+    },
+    {
+      "ref": "refs/heads/cursor/dashboard-demo-readiness",
+      "sha": "7f275c299b14674cb93f7beaa73656711755335f"
+    }
+  ],
+  "refs_without_secret": [
+    {
+      "ref": "refs/remotes/origin/integration/dashboard-acceptance",
+      "sha": "dd6918a3deebb71780f5269a965f9566330e952c"
+    },
+    {
+      "ref": "refs/heads/integration/dashboard-acceptance",
+      "sha": "dd6918a3deebb71780f5269a965f9566330e952c"
+    }
+  ],
+  "refs_to_rewrite": [
+    "refs/heads/cursor/dashboard-demo-readiness",
+    "refs/heads/cursor/security-repository-cleanup",
+    "refs/heads/main",
+    "refs/remotes/origin/HEAD",
+    "refs/remotes/origin/cursor/dashboard-demo-readiness",
+    "refs/remotes/origin/cursor/security-repository-cleanup",
+    "refs/remotes/origin/main"
+  ],
+  "refs_to_delete": [
+    {
+      "ref": "refs/heads/cursor/dashboard-demo-readiness",
+      "reason": "fully merged into main; contains contaminated history; delete after rewrite evidence",
+      "fully_merged_into_main": true,
+      "unique_commits": 0
+    }
+  ],
+  "tags_to_rewrite": [],
+  "dashboard_demo_readiness": {
+    "merge_base": "7f275c299b14674cb93f7beaa73656711755335f",
+    "commits_not_in_main": 0,
+    "commits_on_main_not_in_demo": 1,
+    "fully_merged_into_main": true
+  },
+  "integration_dashboard_acceptance": {
+    "merge_base": "dd6918a3deebb71780f5269a965f9566330e952c",
+    "commits_not_in_main": 0,
+    "fully_merged_into_main": true,
+    "contains_secret_file": false
+  },
+  "owner_approvals": {
+    "history_rewrite_approved": true,
+    "force_push_approved": true,
+    "key_rotation_status": "DEFERRED_BY_OWNER"
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "baseline_tip": "4bb80a57f0b2210754952229a13f9866ff77bfb2",
+  "tests": [
+    {
+      "name": "TestStaleOlderMetricDate",
+      "package": "backend/internal/unifiedanalysis/publication",
+      "root_cause": "Test fixtures built SKUFactsIndex from AI key_skus with Revenue only and without Revenue7d/KeySKUCohort. Production KeySKU projection is cohort-owned, so sku_focus became empty while the index was non-empty → unified_dashboard_sku_focus_missing → bundle_validation_failed / publication_failed. Stale pointer assertions never reached a healthy newer publication.",
+      "fix": "Export dashboardfacts.BuildKeySKUCohortFacts; seed Revenue7d/Orders7d + KeySKUCohort + SKUMetricsDays in buildTestDashboardFacts / buildFixtureDashboardFacts; assert newer/healthy OutcomePublished before stale checks.",
+      "product_bug": false,
+      "repeat_x5": "PASS"
+    },
+    {
+      "name": "TestSameSellerOutcomeSequence",
+      "package": "backend/internal/unifiedanalysis/publication",
+      "root_cause": "Same KeySKU cohort seeding gap caused intermediate publications to fail validation, breaking deterministic same-seller outcome sequencing assertions.",
+      "fix": "Same KeySKU cohort fixture seeding as above.",
+      "product_bug": false,
+      "repeat_x5": "PASS"
+    },
+    {
+      "name": "TestAsynqPublishE2E",
+      "package": "backend/internal/unifiedanalysis",
+      "root_cause": "Same KeySKU cohort seeding gap caused worker publish handler to fail bundle validation; task appeared unsuccessful under E2E polling.",
+      "fix": "Same KeySKU cohort fixture seeding; keep full enqueue→worker→DB lifecycle (no direct handler substitution).",
+      "product_bug": false,
+      "repeat_x5": "PASS"
+    },
+    {
+      "name": "TestOzonEnrichmentSeedIntegration_RichIdempotent",
+      "package": "backend/internal/devseed",
+      "root_cause": "Uniform MVP metrics made deriveStockScenarioFromFacts emit only ACTUAL. An earlier reshape invented available_stock counts and broke stocks-aggregate consistency.",
+      "fix": "prepareRichStockScenarios clears stocks for WAITING indexes and seeds positive stocks when missing; reshapeEnrichmentItemForScenario only adjusts DaysOfCover/OrdersCount; AvailableStockCount always mirrors stocks aggregate; sort SKUs for stable index assignment; test asserts against live aggregate.",
+      "product_bug": false,
+      "status": "PASS"
+    },
+    {
+      "name": "TestAIDataPackIntegration_AfterOzonEnrichmentSeed",
+      "package": "backend/internal/aidatapack",
+      "root_cause": "Seller fixture had products/metrics but no stocks rows, so availableStock=0 forced every grade to WAITING_FOR_SUPPLY.",
+      "fix": "prepareRichStockScenarios seeds positive WH-A stock for non-WAITING rich indexes when aggregate is missing.",
+      "product_bug": false,
+      "status": "PASS"
+    }
+  ],
+  "ci_unit_fixes": [
+    {
+      "name": "TestExtractZIPSecurityControls/absolute_paths",
+      "fix": "Portable drive-letter and UNC detection in chatextract/zip.go unsafeZipPath for Linux CI."
+    },
+    {
+      "name": "TestLoadEnvFileDoesNotOverrideProcessEnv",
+      "fix": "Unset DATABASE_URL in test when inherited from process env."
+    },
+    {
+      "name": "backend-ci ENCRYPTION_KEY/JWT_SECRET",
+      "fix": "Use 32-byte ENCRYPTION_KEY and longer JWT_SECRET; start pinned MinIO for integration."
+    },
+    {
+      "name": "frontend-ci.yml",
+      "fix": "Remove duplicate CORS_ALLOWED_ORIGINS key that invalidated workflow YAML."
+    }
+  ]
+}

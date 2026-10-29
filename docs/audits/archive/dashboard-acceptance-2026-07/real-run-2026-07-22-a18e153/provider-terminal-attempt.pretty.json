@@ -1,0 +1,27 @@
+﻿{
+    "model":  "gpt-4.1-2025-04-14",
+    "status":  "completed",
+    "attempt":  1,
+    "raw_bytes":  194824,
+    "latency_ms":  90376,
+    "request_id":  "req_7235fa068ef94f48a7bc064f222a5ba2",
+    "response_id":  "resp_0818f37096ed3b4e006a60acce0dd081a18d6e74fd422adc7b",
+    "input_tokens":  23883,
+    "total_tokens":  36346,
+    "output_tokens":  12463,
+    "refusal_present":  false,
+    "incomplete_reason":  "",
+    "output_item_types":  [
+                              "code_interpreter_call",
+                              "code_interpreter_call",
+                              "code_interpreter_call",
+                              "code_interpreter_call",
+                              "message"
+                          ],
+    "output_text_bytes":  47631,
+    "provider_error_code":  "",
+    "retrieve_request_id":  "req_47482c35e9284c58bf751613a1958588",
+    "code_interpreter_calls":  4,
+    "provider_error_message":  "",
+    "assistant_message_count":  1
+}

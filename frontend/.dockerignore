@@ -1,0 +1,22 @@
+# Build context hygiene for frontend image
+.git
+.github
+.env
+.env.*
+!.env.example
+
+node_modules
+.next
+coverage
+playwright-report
+test-results
+e2e-results
+blob-report
+debug-pulse-accept
+*.log
+*.tmp
+*.bak
+
+Dockerfile*
+docker-compose*.yml
+README.md

@@ -1,0 +1,10 @@
+{
+  "facts": [
+    {
+      "fact_id": "sku:801000100001:stock_coverage_days_7d",
+      "metric_code": "stock_coverage_days_7d",
+      "scope_type": "sku",
+      "entity_id": "801000100001"
+    }
+  ]
+}

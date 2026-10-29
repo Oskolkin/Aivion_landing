@@ -1,0 +1,1616 @@
+
+После анализа всего нашего контекста я предлагаю строить Materiality Engine не как “backend определяет проблемы” и даже не как один универсальный materiality_score, а как прозрачный детерминированный механизм отбора сущностей через несколько независимых factual ranking-каналов, объединение рейтингов и последующую борьбу с дублированием.
+Это хорошо согласуется и с исследованиями long-context: даже если модель технически принимает большой контекст, способность использовать все релевантные элементы ухудшается при росте объёма и неудачном расположении информации. arXiv Современные работы по отбору контекста также показывают пользу разнообразия: простой top-k часто выбирает несколько почти одинаковых элементов, тогда как diversity-aware selection повышает полноту полезного контекста. arXiv
+1. Что такое Materiality в Aivion
+Предлагаю такое определение:
+Material Entity — это Account, leaf Category, SKU или Campaign, обладающая достаточной фактической бизнес-экспозицией, величиной изменения либо provider-explicit operational relevance, чтобы её было рационально показать Discovery AI в ограниченном контексте.
+Ключевое слово — показать.
+Materiality ничего не говорит о том, что сущность:
+плохая;
+хорошая;
+проблемная;
+перспективная;
+требует действия;
+имеет высокий риск.
+Он только решает:
+Среди 2 000 SKU какие 30–40 разумнее всего показать AI, чтобы он сам решил, что происходит?
+
+2. Materiality находится строго после Landscapes
+Архитектура:
+Factual Universe
+      ↓
+Factual API
+      ↓
+Entity Landscape Core
+      ↓
+MATERIALITY ENGINE
+      ↓
+Selected Material Entities
+      ↓
+Entity Landscape Detail
+      ↓
+Discovery Pack
+      ↓
+Discovery AI
+То есть Materiality работает только с Landscape Core.
+Он:
+не читает PostgreSQL;
+не обращается к Ozon;
+не вызывает OpenAI;
+не запрашивает Evidence;
+не строит собственные бизнес-факты.
+
+3. Account вообще не участвует в конкурсе
+Это первое простое правило.
+Account
+=
+ALWAYS INCLUDED
+У seller всегда один Account Landscape, и он всегда передаётся Discovery.
+Нам не нужен:
+account_materiality_score.
+Account задаёт масштаб всего бизнеса.
+Materiality выбирает только:
+leaf Categories
+SKU
+Campaigns
+
+4. Supporting entities всё ещё не выбираются
+Не участвуют в Materiality Ranking:
+Promotion
+Search Query
+Posting
+Order
+Return
+Supply
+Supply Order
+Acceptance Act
+Warehouse
+Cluster
+Product Type
+Pricing Strategy
+Они приходят позднее как Detail/Evidence конкретного:
+Account
+Category
+SKU
+Campaign.
+
+5. UNMAPPED Category тоже не Material Entity
+Это важное уточнение из уже принятого правила:
+Category Action Target = seller-bearing leaf Category.
+UNMAPPED является нашей технической системной Category, но не реальной бизнес-категорией seller.
+Поэтому:
+UNMAPPED
+участвует в:
+Account reconciliation
+DQ coverage
+limitations
+но не становится:
+Material Category
+Action Target.
+Если 20% продаж лежит в UNMAPPED, это Data Quality context Aivion, а не бизнес-проблема seller.
+
+6. Почему я не рекомендую один weighted score
+Самый простой вариант был бы:
+score =
+0.4 × sales_change
++
+0.2 × stock
++
+0.2 × ads
++
+0.1 × search
++
+0.1 × finance
+Я считаю это плохой архитектурой.
+Проблемы сразу:
+Почему Sales весит 0.4?
+
+Почему Stock 0.2?
+
+Что значит Search 0.1?
+
+Как сравнивать рубли, проценты,
+дни покрытия и позиции?
+
+Что делать seller без Search?
+
+Что делать SKU без рекламы?
+И главное: score быстро станет скрытым backend-определением:
+что мы считаем проблемой.
+А этого мы специально избегаем.
+
+7. Вместо одного score — Materiality Lanes
+Каждый Entity участвует в нескольких независимых ranking lists.
+Например SKU может оказаться:
+№2 по текущей доле продаж
+
+№7 по абсолютному изменению продаж
+
+№4 по рекламному расходу
+
+№1 среди SKU с нулевым stock
+и недавним спросом
+Мы не пытаемся сначала превратить это в четыре сопоставимых физических величины.
+Каждый показатель создаёт свой рейтинг.
+Я буду называть их:
+Materiality Lanes
+
+8. Пример SKU lanes
+Например:
+SALES_CURRENT_EXPOSURE
+
+SALES_30D_EXPOSURE
+
+SALES_ABSOLUTE_INCREASE
+
+SALES_ABSOLUTE_DECREASE
+
+SALES_RELATIVE_CHANGE
+
+SALES_FROM_ZERO
+
+SALES_TO_ZERO
+
+ZERO_SELLABLE_WITH_RECENT_DEMAND
+
+STOCK_COVERAGE_ASC
+
+AD_PAID_SPEND_EXPOSURE
+
+AD_PAID_SPEND_INCREASE
+
+AD_PAID_SPEND_DECREASE
+
+PRICE_ABSOLUTE_CHANGE
+
+SEARCH_POSITION_CHANGE
+
+SUPPLY_OVERDUE_EXPOSURE
+Это не типы проблем.
+Например:
+SALES_ABSOLUTE_DECREASE
+означает буквально:
+ranking SKU по абсолютному отрицательному delta ordered_amount.
+Не:
+проблема продаж.
+
+9. Materiality симметрична
+Это принципиально.
+Мы не выбираем только:
+падения
+ухудшения
+негатив.
+Например:
+SKU A
+500k → 1.2m
+
+SKU B
+1m → 300k
+Оба потенциально material.
+Первое AI может интерпретировать как:
+рост;
+возможность;
+эффект продвижения;
+всплеск;
+сезонность;
+необходимость следить за stock.
+Второе — совершенно иначе.
+Backend не решает.
+
+10. Поэтому increase и decrease лучше физически разделять
+Если сделать один рейтинг:
+ABS(sales_delta)
+может случайно оказаться, что top-20 весь состоит только из падений.
+Поэтому лучше:
+SALES_ABSOLUTE_INCREASE
+SALES_ABSOLUTE_DECREASE
+как два независимых lanes.
+То же потенциально применимо к некоторым другим метрикам.
+Это обеспечивает informational diversity без semantic judgment.
+
+11. Самый важный Materiality concept — Business Exposure
+Огромное относительное изменение маленького SKU не должно автоматически вытеснять крупный SKU.
+Например:
+SKU A
+100 ₽ → 1 000 ₽
++900%
+SKU B
+1 000 000 ₽ → 800 000 ₽
+-20%
+По одному pct_delta:
+A &gt;&gt;&gt; B
+что абсурдно для seller-level Discovery.
+Поэтому relative-change lanes работают только при достаточной business exposure.
+
+12. Business exposure определяется относительно правильного owner total
+Например SKU Sales:
+sku ordered_amount
+/
+account ordered_amount
+Campaign spend:
+campaign paid_spend
+/
+account paid_spend
+Campaign attribution:
+campaign attributed_amount
+/
+account ad_attributed_amount
+Не нужно складывать:
+Sales ₽
++
+Advertising ₽
++
+Finance ₽.
+Они остаются разными factual universes.
+
+13. Exposure Floor
+Для relative-change lane:
+SKU +900%
+не допускается только потому, что 900% огромно.
+Сначала:
+business_exposure &gt;= configured floor
+или entity входит в significant exposure universe.
+Точные thresholds я не стал бы сейчас фиксировать архитектурно.
+Это versioned Materiality Policy.
+Например:
+sku_relative_change_exposure_floor
+category_relative_change_exposure_floor
+campaign_relative_change_spend_floor
+и после пилота на реальном seller мы их откалибруем.
+
+14. Ещё лучше — adaptive exposure universe
+Вместо исключительно:
+share &gt;= 0.1%
+можно использовать:
+SKU, которые совместно покрывают, например, основную массу бизнеса.
+Алгоритм:
+sort SKU by max(current7, previous7)
+DESC
+
+accumulate account share
+получаем Exposure Universe.
+Тогда relative-change ranking применяется прежде всего к сущностям, которые реально участвуют в существенной части бизнеса.
+Exact coverage target — тоже versioned policy.
+
+15. Абсолютное изменение не нуждается в таком жёстком floor
+Потому что:
+absolute_delta = 300 000 ₽
+уже само по себе отражает масштаб.
+Поэтому absolute lanes являются хорошей защитой от проблем relative percentages.
+
+16. Transition FROM ZERO
+Temporal Framework уже запретил рассчитывать:
+0 → 100
+= +∞%.
+Materiality сохраняет это.
+Отдельный lane:
+SALES_FROM_ZERO
+и ranking key:
+current ordered_amount DESC.
+То есть важнее entity, которая:
+0 → 500k
+чем:
+0 → 200 ₽.
+
+17. Transition TO ZERO
+Отдельно:
+SALES_TO_ZERO
+Ranking:
+previous ordered_amount DESC.
+Это позволяет не потерять SKU:
+previous7 = 700k
+current7 = 0
+из-за того, что его current exposure теперь равна нулю.
+Очень важный edge case.
+
+18. SKU Materiality Profile
+Я бы включил такие основные группы.
+Business scale
+current7 ordered_amount share
+30d ordered_amount share
+Sales movement
+absolute increase
+absolute decrease
+relative change with exposure floor
+FROM_ZERO
+TO_ZERO
+Stock state
+zero sellable with recent demand
+coverage_days ascending
+Advertising
+paid spend exposure
+paid spend increase/decrease
+Price
+absolute observed price change
+при достаточной Sales exposure.
+Search
+provider position movement
+при достаточной Search/Sales exposure и usable Search capability.
+Supply
+SKU affected by provider OVERDUE Supply
+ranked по business exposure.
+
+19. Что означает ZERO_SELLABLE_WITH_RECENT_DEMAND
+Очень осторожная формулировка:
+sellable_stock = 0
+
+AND
+
+current7 or previous7 ordered_units &gt; 0
+Это математический факт.
+Не:
+stockout crisis.
+Ranking внутри такого lane:
+max(current7, previous7) ordered_amount DESC
+То есть сначала наиболее экономически заметные SKU.
+
+20. Coverage lane
+Можно:
+coverage_days ASC
+но только для:
+demand-positive SKU
++
+business exposure floor.
+Иначе первые места займут сотни маленьких SKU с:
+coverage = 0.1 days
+но с продажами на 300 ₽.
+
+21. Не вводим Stock bands обратно
+Не:
+CRITICAL &lt; 3
+LOW 3–7
+HEALTHY 7–30
+Мы это уже запретили.
+Lane просто сортирует:
+coverage_days ASC.
+Materiality Policy определяет:
+сколько верхних кандидатов рассмотреть.
+AI сам интерпретирует.
+
+22. Price Materiality
+Цена сама по себе может сильно измениться на несущественном SKU.
+Поэтому:
+abs(price_pct_delta)
+доступен как lane только при sufficient Sales exposure/history.
+Например:
+2000 → 2300
++15%
+может вывести SKU в candidate pool.
+Но backend не говорит:
+рост цены плохой.
+
+23. Search Materiality
+Например:
+position 10 → 70
+или:
+70 → 10.
+Оба направления интересны.
+Ranking можно строить по:
+ABS(position_delta)
+но только:
+при usable Search capability;
+внутри сопоставимых Search windows;
+при meaningful source exposure;
+без Category temporal ambiguity для Category lanes.
+Search lag остаётся Landscape limitation.
+
+24. Supply OVERDUE
+Это допустимый особый lane, потому что:
+OVERDUE
+— не наша оценка.
+Это provider-explicit lifecycle state.
+Materiality может ранжировать SKU, затронутые overdue supply, по:
+recent Sales exposure.
+Но не говорит:
+supply problem.
+
+25. Promotions я бы не использовал как Materiality lane v1
+Например:
+candidate for promotion
+не означает material opportunity.
+participating in promotion
+тоже само по себе ничего не говорит.
+Promotion остаётся Detail/Evidence context.
+Это помогает не вернуть candidate architecture под новым названием.
+
+26. Finance как SKU lane — осторожно
+Finance на SKU может иметь:
+mapping coverage = 72%.
+Поэтому SKU Finance Materiality допускается только если grain readiness policy разрешает.
+В v1 я бы Finance использовал скорее:
+в Category Detail;
+SKU Detail;
+Account Landscape;
+а не как основной SKU selection lane, пока мы не увидим реальную mapping coverage.
+Это уменьшит риск переоценки неполных финансовых facts.
+
+27. Category Materiality
+Leaf Category profile проще.
+Основные lanes:
+CURRENT_SALES_EXPOSURE
+
+SALES_ABSOLUTE_INCREASE
+SALES_ABSOLUTE_DECREASE
+
+SALES_RELATIVE_CHANGE
+
+ZERO_STOCK_SALES_EXPOSURE
+
+AD_PAID_SPEND_EXPOSURE
+
+AD_PAID_SPEND_CHANGE
+
+SUPPLY_OVERDUE_SALES_EXPOSURE
+Optional при достаточной semantics:
+SEARCH_POSITION_DISTRIBUTION_CHANGE
+FINANCE_DIRECT_EXPOSURE
+
+28. Category Scale почти всегда важна
+Если одна Category:
+45% продаж Account
+она должна иметь очень высокий шанс попасть в Discovery даже при почти неизменных показателях.
+Почему?
+Потому что Discovery должен видеть ядро бизнеса, а не только изменения.
+Это приводит к отдельному концепту:
+29. Anchor Selection
+Materiality не должен быть только change detector.
+В каждом Entity Kind есть Anchor Set — самые масштабные сущности текущего бизнеса.
+Например:
+Categories:
+top business exposure
+
+SKU:
+top business exposure
+
+Campaigns:
+top paid spend exposure
+Это гарантирует, что AI не получит только необычные long-tail entities.
+
+30. Anchor Set лучше делать через cumulative coverage
+Например не:
+всегда top 10 SKU
+а:
+выбираем крупнейшие SKU,
+пока не покрыли target share бизнеса
+или не достигли max anchor count.
+Если seller очень концентрирован:
+SKU 1 = 60%
+SKU 2 = 20%
+нам может хватить нескольких anchor entities.
+Если ассортимент равномерный — потребуется больше.
+
+31. Anchor Selection всё равно ограничен
+Иначе seller с равномерными 2 000 SKU может потребовать 1 500 anchors.
+Есть:
+anchor_coverage_target
+anchor_max_count
+оба versioned.
+
+32. Campaign Materiality
+Campaign имеет другую economic basis.
+Основные lanes:
+PAID_SPEND_EXPOSURE
+
+PAID_SPEND_INCREASE
+PAID_SPEND_DECREASE
+
+ATTRIBUTED_AMOUNT_EXPOSURE
+
+ATTRIBUTED_AMOUNT_INCREASE
+ATTRIBUTED_AMOUNT_DECREASE
+
+DRR_ABSOLUTE_PP_CHANGE
+
+CTR_ABSOLUTE_PP_CHANGE
+последние два — только при достаточной базе.
+
+33. Campaign FROM_ZERO / TO_ZERO
+Полезны:
+spend:
+0 → 200k
+или:
+200k → 0.
+Но в первом случае ranking:
+current paid_spend
+во втором:
+previous paid_spend.
+
+34. Campaign DRR lane
+Например:
+20% → 35%
+или:
+35% → 20%.
+Materiality смотрит:
+ABS(delta_pp)
+при minimum spend exposure.
+Не говорит:
+DRR worsened.
+Даже если человечески очевидно направление.
+
+35. Почему campaign spend намного важнее CTR как anchor
+Campaign с:
+CTR изменился на 2 pp
+spend = 1 000 ₽
+не должна вытеснить Campaign:
+spend = 800 000 ₽.
+Поэтому CTR/DRR являются exploration/change lanes, а Scale Anchors строятся на:
+paid spend
+attributed amount
+
+36. Account operational facts не требуют Materiality
+Account уже всегда входит.
+Поэтому именно туда можно гарантированно положить bounded context по provider-explicit operational состояниям:
+Health CRITICAL/WARNING
+Supply overdue count
+pending acceptance acts
+deadlines
+Это решает важную проблему.
+Нам не нужно искусственно выбирать маленький SKU только потому, что его Supply имеет deadline.
+Discovery всё равно увидит account-level operational context и сможет запросить Evidence.
+
+37. Если operational event относится к очень крупному SKU
+Он и так, скорее всего, попадёт через:
+Sales exposure
+Stock
+Supply overdue lane
+То есть нужная детализация не потеряется.
+
+38. Candidate Pool
+После всех lanes мы ещё не выбираем финальные entities.
+Получается, например:
+2 000 SKU total
+
+Anchor candidates       50
+Sales change candidates 60
+Stock candidates        40
+Advertising candidates  30
+Price candidates        20
+Search candidates       20
+Supply candidates       10
+После union:
+~150–200 unique candidates
+Теперь нужно выбрать, например, несколько десятков.
+
+39. Как объединять разные rankings
+Здесь я рекомендую использовать идею Reciprocal Rank Fusion, а не нормализовать рубли, проценты, позиции и дни в одно физическое число.
+RRF был предложен как простой способ объединения нескольких независимых rankings без необходимости калибровать их исходные scores; в классической работе комбинация нескольких rankings показывала более устойчивый результат, чем отдельные входные rankings. Google Research
+Для Aivion можно использовать weighted variant:
+fusion(entity)
+=
+Σ lane_weight /
+  (rrf_k + lane_rank(entity))
+
+40. Но fusion_score — только внутренний ranking utility
+Он:
+не бизнес KPI;
+не problem severity;
+не materiality %;
+не показывается пользователю;
+не передаётся AI.
+Используется только:
+в каком порядке рассматривать кандидатов.
+
+41. rrf_k и lane weights versioned
+Не фиксируем навечно:
+rrf_k = 60
+только потому, что оригинальная работа использовала такое значение.
+У нас:
+MaterialityPolicyVersion
+хранит:
+rrf_k
+lane_weights
+candidate_lane_limits
+exposure floors
+и они калибруются на наших evals.
+
+42. Можно начать с почти равных weights
+Я бы не вводил огромную матрицу:
+Sales = 0.37
+Stock = 0.243
+Search = 0.071...
+На этапе без pilot data это будет псевдоточность.
+Ключевые бизнес-сущности гарантируются через:
+Anchor Selection
+а остальные lanes можно начать с близких весов.
+
+43. Но одного fusion всё равно недостаточно
+Представим:
+Category A
+имеет 20 крупных SKU
+
+Category B
+имеет 1 крупный SKU.
+Простой top-rank может выбрать:
+18 SKU Category A
+2 SKU Category B
+и Discovery получит почти 20 вариантов одной и той же картины.
+Это redundancy.
+
+44. Поэтому второй этап — Diversity Selection
+После fusion ranking делаем greedy diversified ranking.
+Исследования retrieval/top-k систем показывают общую проблему: простой top-k часто содержит избыточные похожие результаты, поэтому relevance обычно балансируют с diversity; MMR является классическим примером такой стратегии. arXiv Более свежая работа 2025 года также показала, что diversity-aware selection может повысить recall релевантного контекста для RAG и long-context задач. arXiv
+
+45. Но нам не нужны embeddings
+Я не рекомендую:
+embed SKU names
+calculate cosine similarity
+и на основании этого решать diversity.
+Почему?
+semantic similarity названий
+≠ similarity business situations.
+Две одинаковые кофемашины могут вести себя совершенно по-разному.
+
+46. Structured Similarity
+Для SKU можно определить audit-friendly similarity:
+same leaf category
+
+selection lane overlap
+
+direction overlap
+Например:
+SKU A:
+Category = Кофемашины
+
+lanes:
+SALES_DECREASE
+ZERO_STOCK
+SKU B:
+Category = Кофемашины
+
+lanes:
+SALES_DECREASE
+ZERO_STOCK
+очень похожи для Discovery selection.
+SKU C:
+Category = Кофемашины
+
+lanes:
+SALES_INCREASE
+PRICE_CHANGE
+меньше redundancy.
+
+47. Lane Fingerprint
+Каждая candidate entity получает:
+materiality_lane_fingerprint
+Например:
+[
+  SALES_ABSOLUTE_DECREASE,
+  CURRENT_SALES_EXPOSURE,
+  ZERO_SELLABLE_WITH_RECENT_DEMAND
+]
+Это audit metadata.
+Не AI context.
+
+48. Diversity penalty — мягкий
+Я не предлагаю:
+max 3 SKU per Category,
+остальных всегда запрещать.
+Потому что иногда:
+80% бизнеса находится в одной Category.
+Тогда 3 SKU — слишком мало.
+Лучше:
+same_category_penalty
+lane_overlap_penalty
+которые снижают приоритет следующего похожего SKU, но не делают его невозможным.
+
+49. MMR-like selection
+Концептуально:
+adjusted_utility =
+base_rank_utility
+-
+category_redundancy_penalty
+-
+lane_redundancy_penalty
+После выбора каждого нового SKU penalty пересчитывается.
+Это deterministic.
+Никаких AI embeddings.
+
+50. Category diversity бонус
+Можно ещё проще:
+candidate from category
+not yet represented
+получает небольшой:
+diversity_bonus.
+Это лучше жёсткого minimum quota.
+Если Category не имеет material candidates, мы не выбираем её искусственно.
+
+51. Lane diversity
+Аналогично:
+если selection уже содержит:
+15 Sales decrease SKU
+но ещё ни одного:
+Advertising material SKU
+следующий strong advertising candidate получает diversity advantage.
+Это повышает информационное покрытие Discovery.
+
+52. Но diversity не должна победить business relevance полностью
+Если:
+SKU A
+20% Account Sales
+а:
+SKU Z
+0.001%
+мы не выбираем Z только ради новой Category.
+Поэтому diversity применяется после candidate qualification и поверх base utility.
+Это важный invariant.
+
+53. Category и SKU не дедуплицируются друг против друга
+Например:
+Category Кофемашины
+и:
+SKU 417 внутри Кофемашин
+могут одновременно попасть в Discovery.
+Это не обязательно redundancy.
+Category отвечает:
+что происходит с группой.
+SKU:
+что происходит с конкретным товаром.
+Они дополняют друг друга.
+
+54. Но слишком много SKU одной selected Category ограничивает soft diversity
+То есть hierarchical redundancy учитывается именно внутри SKU set.
+
+55. Campaign имеет отдельный diversity budget
+Campaign не конкурирует напрямую с SKU.
+Нельзя делать один рейтинг:
+SKU 417 vs Campaign 58
+У них разные управленческие роли.
+Поэтому selection budgets независимы:
+Category Budget
+
+SKU Budget
+
+Campaign Budget.
+Account всегда 1.
+
+56. Materiality Budget Profile
+Я бы ввёл:
+MaterialityBudgetProfile
+Например:
+max_categories
+max_skus
+max_campaigns
+
+anchor_max_categories
+anchor_max_skus
+anchor_max_campaigns
+
+candidate_limit_per_lane
+
+diversity parameters
+Exact numbers — versioned configuration.
+
+57. Я бы пока не зашивал фиксированные 40 SKU в архитектуру
+Контекст модели и плотность Landscape Detail могут измениться.
+Лучше:
+DISCOVERY_COMPACT_V1
+DISCOVERY_STANDARD_V1
+с budget profiles.
+На пилоте измерим:
+token count;
+Discovery quality;
+omitted-important-entity rate;
+latency/cost.
+
+58. Materiality ranking можно отделить от budget
+Это ещё лучше архитектурно.
+Phase A:
+BuildMaterialityRanking()
+выдаёт детерминированный diversified ordering:
+Category ranking
+SKU ranking
+Campaign ranking
+Phase B:
+SelectMaterialEntities(
+    ranking,
+    budgetProfile
+)
+выбирает prefix/selection.
+
+59. Зачем разделять
+Если через месяц:
+Discovery model context
+стал больше или дешевле, мы меняем только:
+Budget Profile.
+Не пересматриваем всё понимание materiality.
+
+60. Selection Reasons обязательны для audit
+Для каждого selected SKU backend должен уметь объяснить:
+Почему он попал?
+Например:
+SKU 417
+
+selected because:
+
+SALES_ABSOLUTE_DECREASE
+  rank = 2
+  delta = -320 000 ₽
+
+CURRENT_SALES_EXPOSURE
+  rank = 5
+  account_share = 7.4%
+
+ZERO_SELLABLE_WITH_RECENT_DEMAND
+  rank = 1
+
+fused_rank = 2
+Это чрезвычайно полезно для debugging.
+
+61. Но Discovery AI этого explanation НЕ получает
+Это ещё один важный принцип.
+Не надо писать в prompt:
+SKU 417 был выбран,
+потому что продажи упали
+и stock низкий.
+Иначе Backend уже подсказывает AI:
+на что обратить внимание.
+Discovery получает только сам Landscape:
+Sales...
+Stock...
+Price...
+и решает сам.
+
+62. AI также не получает fusion score
+Не:
+materiality = 0.94
+Иначе модель почти наверняка будет воспринимать его как severity/priority.
+Materiality metadata — operational/audit only.
+
+63. Order выбранных entities тоже может создавать bias
+Это тонкий момент.
+Если первым поставить:
+самый высокий fusion score
+AI может сильнее уделить ему внимание просто из-за позиции.
+Исследования long-context действительно показывали positional bias и эффект положения релевантной информации. arXiv
+Поэтому я бы не сериализовывал Materiality score и дополнительно не делал слишком агрессивную semantics из порядка.
+
+64. Discovery ordering
+Я предлагаю:
+Account first
+
+Categories:
+business exposure order
+
+Campaigns:
+paid-spend exposure order
+
+Selected SKUs:
+stable diversified materiality order
+То есть порядок deterministic, но понятный.
+Не:
+score 0.994
+score 0.993
+...
+
+65. Readiness Rules для lanes
+Каждый Materiality Lane имеет:
+required capability
+allowed readiness
+minimum coverage
+temporal requirement
+Например:
+Sales exposure
+SALES.DEMAND
+READY
+или accepted PARTIAL only if coverage semantics allow.
+
+Search movement
+SEARCH.SELLER_SUMMARY
+READY or allowed PARTIAL
+
+same Search-compatible comparison windows
+
+Current Stock
+STOCK.CURRENT_SELLABLE
+READY
+Я бы не использовал STALE Stock для Materiality ranking текущего operational состояния.
+Но если SKU выбран через Sales, его Detail может показать:
+Stock STALE.
+
+66. Почему STALE нельзя использовать для selection
+Представим:
+Stock = 0
+snapshot 4 days ago.
+Если поставить SKU в materiality lane:
+ZERO_STOCK
+мы фактически используем старое состояние как current prioritization.
+Это плохо.
+Правильно:
+Stock lane ignores entity because STALE.
+Но Landscape сохраняет stale context.
+
+67. PARTIAL capability рассматривается lane-specific
+Например Search:
+PARTIAL
+reason = EXPECTED_PROVIDER_LAG
+может использоваться для:
+Search current window
+vs Search previous window
+потому что сравнение внутри собственного source window корректно.
+Но нельзя сопоставить Search delta с Sales delta как один joint materiality feature.
+
+68. Finance PARTIAL
+SKU Finance lane может потребовать:
+mapping_coverage &gt;= policy floor.
+Если нет:
+lane inactive.
+Но Finance facts остаются Detail с limitation.
+
+69. Не заменяем missing нулём
+Если SKU:
+Advertising unavailable
+он просто:
+не участвует в Advertising lanes.
+Не:
+paid_spend = 0.
+
+70. Materiality Lane Registry
+Я предлагаю versioned registry:
+analysis.materiality_lane_definitions
+analysis.materiality_lane_versions
+Stable:
+lane_key
+entity_kind
+domain
+Version:
+ranking_metric
+direction
+eligibility rules
+capability requirements
+exposure requirement
+candidate limit
+weight
+policy version
+
+71. Но metric calculation остаётся typed
+Не делать generic:
+SQL expression =
+"(a/b)*0.8"
+в БД.
+Lane definition registry описывает policy.
+Implementation всё равно typed Go functions.
+Иначе снова получим metric-EAV scripting engine.
+
+72. Materiality Policy
+Отдельная:
+analysis.materiality_policy_versions
+содержит:
+active lane versions
+
+rank fusion parameters
+
+anchor policies
+
+diversity policies
+
+eligibility policies
+
+relative-change exposure policies
+
+73. Budget отдельно
+analysis.materiality_budget_profiles
+Потому что:
+что materially
+и:
+сколько помещается Discovery
+— разные понятия.
+Это хорошее разделение.
+
+74. Landscape Profile тоже фиксируется
+Materiality run должен знать:
+landscape_core_profile_version
+потому что ranking зависит от того, какие fields были доступны.
+
+75. Materiality Run
+Физически я бы добавил:
+analysis.materiality_runs
+Поля:
+id
+
+factual_universe_manifest_id
+
+materiality_policy_version
+landscape_profile_version
+
+input_landscape_set_hash
+
+started_at
+completed_at
+
+ranking_hash
+selection_hash
+
+status
+
+76. analysis.materiality_selections
+Храним только final selected entities:
+materiality_run_id
+
+entity_kind
+entity_id
+
+selection_rank
+
+selected_as_anchor BOOLEAN
+
+selection_reason_codes
+
+audit_summary_json
+PK:
+(run, entity_kind, entity_id)
+
+77. Full ranking лучше хранить artifact
+Не нужно загружать PostgreSQL миллионами:
+lane × entity × rank
+Можно сохранить immutable:
+materiality-ranking.json
+в MinIO.
+В DB:
+artifact_uri
+hash.
+Так audit полностью воспроизводим, но DB не засоряется.
+
+78. Materiality не становится Source of Truth
+Это analytical selection artifact.
+Всегда:
+Factual Universe
++
+Landscape Profile
++
+Materiality Policy
+=
+Materiality Ranking.
+Его можно пересобрать.
+Старая Publication всё равно сохраняет exact original artifact/hash.
+
+79. Materiality Selection Flow целиком
+SEALED FACTUAL UNIVERSE
+          ↓
+Build eligible Landscape Core
+          ↓
+Extract typed materiality features
+          ↓
+Build Anchor Sets
+          ↓
+Run independent Materiality Lanes
+          ↓
+Take top candidates per lane
+          ↓
+Union candidate pool
+          ↓
+Weighted Reciprocal Rank Fusion
+          ↓
+Structured Diversity Reranking
+          ↓
+Diversified Entity Rankings
+          ↓
+Apply Budget Profile
+          ↓
+Selected Material Entities
+          ↓
+Build Landscape Detail
+          ↓
+Discovery Pack
+
+80. Почему сначала top candidates per lane
+При 2 000 SKU всё равно недорого ранжировать все.
+Но candidate trimming полезен conceptually.
+Например Price lane не должен внести:
+1 800 сущностей
+в fusion только потому, что у каждой была микроскопическая price movement.
+Берём:
+top L eligible per lane.
+L configurable и должен быть существенно выше final K.
+
+81. Почему candidate limit &gt; final selection budget
+Если:
+final SKU = 30
+а каждый lane отдаёт только top 3:
+мы можем потерять diverse candidate pool.
+Например candidate pool должен быть, условно:
+несколько раз больше final set.
+Exact multiplier — tuning parameter.
+
+82. Deterministic tie-breaking
+Если два SKU имеют одинаковую metric:
+rank key 1 = factual metric
+rank key 2 = exposure
+rank key 3 = canonical_sku_id
+Всегда stable.
+Иначе:
+same universe
+→ different selection
+из-за SQL ordering.
+
+83. Positive/negative symmetry test
+Если два synthetic sellers отличаются только знаком change:
+Seller A:
++500k
+
+Seller B:
+-500k
+при прочих равных обе entities должны иметь сопоставимый шанс material selection.
+Direction не является backend priority.
+
+84. Tiny-relative-change protection test
+SKU A:
+10 → 100
++900%
+sales share 0.001%
+
+SKU B:
+1m → 800k
+-20%
+sales share 10%
+Expected:
+SKU A не получает преимущество только из-за 900%.
+
+85. FROM_ZERO test
+SKU A:
+0 → 500k
+
+SKU B:
+0 → 500
+A ранжируется выше.
+
+86. TO_ZERO test
+SKU:
+700k → 0
+не исчезает из Materiality только потому, что current sales = 0.
+
+87. Stable Core Business test
+Seller:
+топ SKU почти без изменений.
+Они всё равно представлены через Anchor Set.
+То есть Discovery может понять общую структуру бизнеса даже в спокойную неделю.
+
+88. Category concentration test
+Если:
+Category A = 80% account sales
+Materiality Diversity не должна искусственно ограничить её представление настолько, что AI увидит только long tail.
+Diversity — soft.
+
+89. Opposite case
+Если десять Categories имеют близкую materiality:
+SKU selection не должна забиться десятью SKU только из первой Category.
+
+90. Missing capability test
+Search unavailable.
+Expected:
+zero Search lanes
+а не:
+all Search scores = 0.
+
+91. STALE Stock test
+Stock stale.
+SKU не входит через Stock lane.
+Но если входит через Sales:
+Detail:
+Stock readiness = STALE.
+
+92. Partial Search test
+Search expected provider lag 2d.
+Internal Search movement ranking допустим только:
+Search current compatible period
+vs
+Search previous compatible period.
+Не cross-domain period.
+
+93. Supply test
+SKU находится в provider OVERDUE supply.
+Lane может учитывать этот factual state.
+Но Materiality output reason:
+SUPPLY_OVERDUE_EXPOSURE
+остается audit-only.
+AI получает:
+Supply state = OVERDUE
+из Landscape Detail.
+
+94. Provider states не становятся weights автоматически
+Например:
+Health = CRITICAL
+не означает:
+materiality_weight = +100.
+Account всё равно включён.
+Health используется в Account context.
+Это убирает ненужное scoring rule.
+
+95. Materiality и old candidate architecture — окончательная граница
+Старый подход:
+Backend:
+sales dropped
++
+price increased
+→
+PRICE_PROBLEM candidate
+Новый:
+Materiality:
+
+SKU ranks high in:
+sales absolute change
+sales exposure
+price movement
+и всё.
+Discovery видит факты и сам решает:
+связаны ли эти события вообще.
+
+96. Materiality Engine ничего не знает про Actions
+Он не создаёт:
+action_type
+priority
+recommendation
+target
+Он лишь выбирает EntityRef.
+Хотя selected Entity может позднее стать Action Target.
+
+97. Materiality также ничего не знает про final Dashboard blocks
+Не:
+выбрать 5 SKU для блока Stock Problems.
+А:
+выбрать material SKU для Discovery.
+Dashboard будет строиться уже из Deep Analysis/Publication.
+
+98. Audit explanation
+Для разработчика можно получить:
+ExplainMaterialSelection(SKU 417)
+например:
+Eligible: yes
+
+Anchor:
+no
+
+Lanes:
+Sales decrease rank 2
+Sales exposure rank 4
+Stock zero rank 1
+Ads spend rank 33
+
+Fusion rank:
+2
+
+Diversity adjustment:
+same category as 2 previously selected SKUs
+rank adjusted 2 → 4
+
+Final:
+selected rank 4
+Это очень сильный debugging tool.
+
+99. Но никакой explainability prose генерировать AI не должен
+Все explanations deterministic.
+
+100. Materiality Observability
+Нужны metrics:
+materiality_eligible_entities
+
+materiality_candidates_per_lane
+
+materiality_selected_entities
+
+materiality_selected_sales_coverage
+
+materiality_selected_ad_spend_coverage
+
+materiality_unique_categories_in_sku_selection
+
+materiality_lane_coverage
+
+materiality_redundancy_rate
+
+materiality_build_duration
+
+materiality_artifact_size
+
+101. Особенно важна Selected Sales Coverage
+Например 30 selected SKU покрывают:
+75% current7 ordered_amount.
+Это useful diagnostic.
+Но:
+75% не означает automatically quality PASS.
+Discovery должен также видеть change/diversity tail.
+
+102. Campaign Spend Coverage
+Например:
+10 selected Campaign
+cover 92% paid spend.
+Отличная информация для tuning.
+
+103. Lane Coverage
+Например финальный SKU set:
+Sales exposure       20
+Sales changes        18
+Stock                7
+Advertising           9
+Price                 4
+Search                4
+Supply                2
+Один SKU может покрывать несколько lanes.
+Это помогает видеть, не стал ли engine фактически:
+Sales-only selector.
+
+104. Diversity metrics
+Можно измерять:
+unique leaf categories among selected SKU
+
+max SKU count from one Category
+
+lane fingerprint diversity
+Не нужно для runtime semantic selection, но полезно для eval.
+
+105. Offline evaluation важнее ручного выбора weights
+На текущем этапе нет real seller labels.
+Поэтому не стоит «на глаз» идеально настраивать 30 coefficients.
+До pilot:
+synthetic scenario suite.
+После pilot:
+real replay dataset.
+
+106. Offline reference test
+Для нескольких реальных seller snapshots позже можно выполнить дорогой контрольный анализ:
+Reference:
+large/full factual context
++
+human review
+
+versus
+
+Materiality-selected context
+И измерить:
+какие действительно существенные сущности Materiality пропустил?
+Это offline evaluation.
+Runtime Materiality всё равно остаётся deterministic и без AI.
+
+107. Это позволяет tune policy безопасно
+Например выяснилось:
+Search material entities почти никогда
+не попадают в полезные conclusions.
+Можно уменьшить Search lane weight/candidate count.
+Или наоборот:
+stock-related SKU регулярно пропускаются.
+Усиливаем соответствующий lane.
+Materiality Policy v2.
+
+108. Старые Publications остаются воспроизводимыми
+Потому что:
+materiality_policy_version
+budget_profile_version
+landscape_profile_version
+ranking artifact hash
+selection hash
+сохранены.
+
+109. Никакого online learning v1
+Я категорически не рекомендую сейчас:
+ML model predicts materiality
+Почему:
+у нас нет labels;
+нет real seller history;
+трудно объяснять selection;
+difficult reproducibility;
+opaque model начнёт фактически определять business importance.
+V1:
+deterministic ranking
++
+rank fusion
++
+diversity.
+После большого объёма pilot feedback ML можно исследовать offline.
+
+110. И даже позже ML не должен создавать business semantics
+Он максимум может стать:
+selection ranker
+а не:
+problem classifier.
+
+111. Дополнение к Physical Schema Blueprint
+Я бы добавил:
+analysis.materiality_lane_definitions
+analysis.materiality_lane_versions
+
+analysis.materiality_policy_versions
+
+analysis.materiality_budget_profiles
+
+analysis.materiality_runs
+
+analysis.materiality_selections
+А full lane rankings:
+MinIO immutable materiality artifact.
+
+112. materiality_runs
+Пример:
+id
+
+factual_universe_manifest_id
+
+landscape_core_profile_version
+
+materiality_policy_version
+
+input_hash
+
+ranking_artifact_uri
+ranking_hash
+
+completed_at
+status
+
+113. Selection отдельной операцией
+Например:
+materiality_selection_id
+
+materiality_run_id
+
+budget_profile_version
+
+selection_hash
+Это позволяет один ranking применить к двум будущим Discovery profiles.
+
+114. materiality_selections
+selection_id
+
+entity_kind
+entity_id
+
+selection_rank
+
+is_anchor
+
+audit_reason_json
+Unique:
+(selection, entity_kind, entity_id)
+
+115. Exact AI artifact позднее всё равно важнее
+Когда Discovery Pack создан:
+точный Landscape Detail
+для выбранных entities сохраняется внутри immutable pack.
+Materiality selection сам по себе ещё не AI input.
+
+116. Полный пример
+Пусть seller:
+2000 SKU
+24 Categories
+30 Campaigns
+
+SKU A
+Sales:
+1.5m → 1.3m
+-200k
+
+Account share:
+13%
+
+Stock:
+100 days
+
+Price:
+unchanged
+Ranking:
+Sales exposure #1
+Sales decrease #5
+
+SKU B
+Sales:
+200k → 0
+
+Stock:
+0
+
+Previous account share:
+2%
+
+Open Supply:
+none
+Ranking:
+TO_ZERO #1
+Sales decrease #3
+Zero stock with recent demand #2
+
+SKU C
+Sales:
+100 ₽ → 1000 ₽
++900%
+
+Stock:
+3
+Ranking:
+relative change:
+not eligible due exposure floor
+
+absolute increase:
+very low rank
+
+SKU D
+Sales:
+500k → 800k
++300k
+
+Ads:
+100k → 250k
+
+Search:
+position 60 → 12
+Ranking:
+Sales increase #1
+Sales exposure #4
+Ad spend increase #1
+Search movement #2
+
+117. Candidate pool
+Получается:
+A
+B
+D
+...
+SKU C не занимает ценное место только из-за +900%.
+
+118. Diversity
+Допустим A, B, D принадлежат Category X.
+Но есть SKU E из Category Y:
+Sales -250k
+Account share 4%
+Он тоже high utility.
+После diversity rerank:
+A
+D
+E
+B
+...
+может оказаться полезнее:
+A
+D
+B
+...
+потому что E добавляет новую Category perspective.
+Но если B имеет чрезвычайно высокую base utility, diversity его не выбрасывает.
+
+119. Что получает Discovery
+Он НЕ получает:
+A score 0.89
+B score 0.84
+D score 0.91
+Он получает Landscapes:
+SKU A
+facts...
+
+SKU B
+facts...
+
+SKU D
+facts...
+
+SKU E
+facts...
+И сам решает:
+где проблема, где возможность, какие факты связаны и что требует действия.
+
+120. Самая важная граница
+Materiality отвечает:
+«Стоит ли AI вообще увидеть эту сущность?»
+Discovery отвечает:
+«Что означает происходящее с этой сущностью?»
+Deep Analysis отвечает:
+«Что именно произошло, почему это важно и что seller должен сделать?»
+Это три совершенно разных вопроса.
+
+Архитектурный контракт Materiality Engine
+Я предлагаю зафиксировать его следующим образом:
+Materiality Engine Aivion является deterministic, AI-free selection layer между Entity Landscape Core и Discovery. Он выбирает ограниченный набор Account/leaf Category/SKU/Campaign entities на основании исключительно canonical factual scale, business exposure, magnitude/direction of observed changes и explicit provider operational states. Materiality никогда не определяет problem, opportunity, severity, cause, priority или recommendation. Account всегда включается; supporting entities и system UNMAPPED Category самостоятельными Material Entities не являются.
+Materiality v1 не использует единый business-semantic weighted score и не пытается нормализовать физически несопоставимые значения вроде рублей, процентов, дней покрытия и Search positions в одну “важность”. Вместо этого Entity участвуют в нескольких независимых typed Materiality Lanes. Каждый lane имеет versioned eligibility, capability/readiness requirements, business exposure rules, direction, candidate limit и ranking semantics. Relative changes допускаются только при достаточной business exposure; transitions FROM_ZERO и TO_ZERO обрабатываются отдельными lanes.
+Stable core business entities сохраняются через Anchor Selection, основанный на economic exposure/cumulative coverage, поэтому Discovery видит не только изменения, но и структуру основного бизнеса seller. Positive и negative changes рассматриваются симметрично. Backend не трактует направление change как good/bad.
+Independent lane rankings объединяются rank-fusion методом без необходимости калибровать физически несопоставимые raw scores; fusion utility является внутренним selection artifact и никогда не передаётся AI или пользователю. После fusion применяется deterministic structured diversity reranking, учитывающий leaf Category representation и overlap Materiality Lane fingerprints. Diversity является soft constraint: она уменьшает redundancy, но не способна вытеснить явно более сильную factual business exposure ради искусственного разнообразия.
+Category, SKU и Campaign имеют отдельные selection rankings и budgets; разные Entity Kinds не конкурируют в одном score. Category Materiality применяется только к seller-bearing leaf Categories. SKU selection использует soft category/lane diversity. Campaign selection имеет собственную economic basis — Advertising paid spend/attribution, а не Sales SKU metrics.
+Materiality использует только данные, разрешённые Capability/DQ policies. FAILED/UNAVAILABLE факты не превращаются в нули; STALE current-state facts не участвуют в current operational lanes; PARTIAL данные используются только там, где конкретная lane policy явно разрешает их semantic scope. Source-native lagging metrics сравниваются только внутри совместимых provider periods.
+Materiality Ranking и Selection Budget разделяются: сначала строится versioned deterministic diversified ranking, затем к нему применяется versioned Budget Profile. Это позволяет менять модель/контекст Discovery без изменения factual definition materiality. Full rankings сохраняются как immutable audit artifacts, final selected EntityRefs и policy/profile hashes — в analysis metadata. Selected entities затем получают Landscape Detail и только после этого попадают в Discovery Pack.
+Materiality explanations существуют исключительно для audit/debugging и содержат lanes, ranks, raw factual measurements, fusion/diversity adjustments и selection reason codes. Эти scores/reasons не передаются Discovery AI, чтобы backend selection heuristic не якорила semantic analysis модели.
+Продуктовых вопросов, которые сейчас требуют твоего решения, у меня не осталось
+Точные:
+сколько Category;
+сколько SKU;
+сколько Campaign;
+какой cumulative coverage target;
+какие exposure floors;
+какой rrf_k;
+какие diversity penalties;
+я считаю не продуктовыми инвариантами, а versioned tuning parameters. Фиксировать их «на глаз» сейчас было бы хуже, чем подобрать на synthetic suite и затем откалибровать на первых реальных seller data.
+Следующий этап по архитектуре теперь — Discovery Pack + Discovery Output Contract. Именно там мы определим, что конкретно получает первый AI-вызов, какую задачу ему ставим и какой строго структурированный результат он обязан вернуть, не давая ему сразу формировать финальные рекомендации.

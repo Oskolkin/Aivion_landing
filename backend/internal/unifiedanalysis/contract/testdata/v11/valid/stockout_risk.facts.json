@@ -1,0 +1,10 @@
+{
+  "facts": [
+    {
+      "fact_id": "sku:801000100003:available_stock_units",
+      "metric_code": "available_stock_units",
+      "scope_type": "sku",
+      "entity_id": "801000100003"
+    }
+  ]
+}

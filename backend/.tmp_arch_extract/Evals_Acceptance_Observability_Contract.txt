@@ -1,0 +1,2093 @@
+
+Да. Ниже я бы уже фиксировал Aivion Evals / Acceptance / Observability Contract v1 как обязательный слой новой архитектуры. Его задача — не просто «поставить мониторинг», а дать нам формальный ответ на три вопроса:
+Правильно ли Aivion считает факты?Качественно ли AI понимает эти факты и предлагает действия?Работает ли вся система стабильно в production и не деградировала ли после очередной доработки?
+Современная практика evals как раз рекомендует оценивать не модель в вакууме, а весь конкретный workflow — с тем же контекстом, tools, budgets, retry policy и harness, которые используются продуктом. Для бизнес-сценариев OpenAI рекомендует использовать реальные кейсы и редкие, но дорогие ошибки, а LLM-graders регулярно сверять с экспертной оценкой. OpenAI
+Aivion Evals / Acceptance / Observability Contract
+1. Главный принцип
+У Aivion не должно существовать одного абстрактного AI Quality Score.
+Мы разделяем качество на четыре независимых контура:
+Контур
+Что проверяет
+Factual Correctness
+правильно ли собраны и рассчитаны данные
+AI Semantic Quality
+правильно ли AI понял ситуацию
+Product Consistency
+согласованы ли Dashboard / Actions / Chat / Publication
+Operational Reliability
+стабильно ли всё запускается, восстанавливается и работает
+Это принципиально.
+Например AI может написать очень разумный текст, но использовать неправильную сумму заказов.
+Результат всё равно:
+FAIL
+И наоборот: все цифры могут быть идеально правильными, но AI может не заметить главный риск seller.
+Тогда factual layer:
+PASS
+а AI quality:
+FAIL.
+
+2. Что может блокировать Publication
+Очень важное разделение.
+В production pipeline Publication блокируют только детерминированные проверки, которые можно однозначно вычислить программно.
+Например:
+FactRef не существует                   → BLOCK
+
+Action target недопустим               → BLOCK
+
+SKU относится другому seller           → BLOCK
+
+previous Action не revalidated          → BLOCK
+
+Deep schema invalid                     → BLOCK
+
+Action параметр нарушает schema         → BLOCK
+
+projection содержит другую Publication  → BLOCK
+Но не:
+LLM judge считает insight недостаточно хорошим
+→ BLOCK
+Никакого третьего AI-вызова:
+Discovery AI
+Deep AI
+Judge AI
+в production generation не появляется.
+Сохраняем утверждённые:
+Discovery
+↓
+Evidence
+↓
+Deep
+LLM-graders работают offline, используя уже сохранённые immutable artifacts.
+OpenAI Evals сейчас поддерживает deterministic graders, model graders и комбинированные graders; это хорошо подходит для offline harness, но человеческая экспертиза всё равно необходима для проверки самого grader.  HYPERLINK "https://platform.openai.com/docs/api-reference/evals/deleteRun?lang=python&amp;utm_source=chatgpt.com" Платформа OpenAI
+
+3. Четыре уровня проверки
+Итоговая система:
+LEVEL 1
+Deterministic Runtime Validation
+        ↓
+может блокировать Publication
+
+LEVEL 2
+Offline Regression Evals
+        ↓
+может блокировать новую версию кода/model/prompt
+
+LEVEL 3
+Production Quality Sampling
+        ↓
+выявляет деградацию на реальных данных
+
+LEVEL 4
+Human Expert Review
+        ↓
+калибрует rubrics/graders и оценивает сложные случаи
+Это разные механизмы.
+
+4. Eval не должен запускаться на живом Ozon
+Любой regression test воспроизводится на замороженном:
+Factual Universe
++
+contract versions
++
+Landscape
++
+AI Pack
++
+previous Publication
+То есть:
+Eval
+↓
+immutable test fixture
+а не:
+Eval
+↓
+сходили сегодня в Ozon
+↓
+получили уже другие данные
+Иначе результат нельзя воспроизвести.
+
+5. Eval Case
+Основная единица:
+EvalCase
+Он должен уметь содержать:
+case_id
+
+seller fixture
+
+Factual Universe
+
+analysis_date
+analysis_cutoff
+
+Capability state
+
+previous Publication — optional
+
+expected factual invariants
+
+expected material entities
+
+expected mandatory themes
+
+forbidden conclusions
+
+expected Action constraints
+
+Chat script — optional
+
+attachments — optional
+
+6. Версионирование
+Каждый Eval Run фиксирует:
+code SHA
+
+UCDM version
+Factual API version
+
+Temporal policy version
+Capability policy version
+
+Materiality policy version
+
+Discovery prompt version
+Discovery schema version
+
+Evidence Catalog version
+
+Deep prompt version
+Deep schema version
+
+Action Catalog version
+Action continuity policy
+
+Projection version
+
+Chat prompt/tool policy
+
+model
+reasoning configuration
+Без этого результат:
+«eval score 92%»
+почти бесполезен.
+Мы должны знать, какую именно систему проверяли.
+Это соответствует современной практике agent evaluation: инструменты, harness, budgets, retries и конфигурация являются частью тестируемой системы, а не второстепенной технической деталью. OpenAI
+
+7. Наборы Eval Dataset
+Я предлагаю не один огромный dataset, а несколько специализированных.
+FACTUAL_GOLDEN
+Маленькие полностью контролируемые наборы данных.
+Например:
+SKU1
+7d orders = 70
+previous7 = 50
+
+stock = 5
+price = 1 000
+ads = 2 000
+Мы точно знаем правильный ответ.
+Используется для проверки:
+formulas;
+periods;
+aggregations;
+NULL;
+zero;
+FROM_ZERO;
+p.p.;
+attribution;
+stock coverage.
+
+CAPABILITY_MATRIX
+Кейсы:
+Premium есть
+
+Premium нет
+
+Advertising нет
+
+Search delayed
+
+Funnel partial
+
+Funnel unavailable
+
+Finance failed
+
+empty catalog
+
+empty advertising
+
+no sales history
+
+3 дня истории
+
+90 дней истории
+
+AI_GOLDEN
+Содержательные seller scenarios, вручную размеченные человеком.
+Например:
+SKU с сильным спросом закончился на складе.
+Реклама выросла, Sales при этом снизились.
+Цена выросла, но Stock закончился одновременно — нельзя уверенно утверждать causal effect цены.
+
+LONGITUDINAL
+Последовательности:
+P108
+↓
+P109
+↓
+P110
+Для Action continuity.
+
+CHAT_GOLDEN
+Настоящие последовательности сообщений:
+Что с SKU417?
+
+А реклама по нему?
+
+А цену меняли?
+
+Сравни теперь с SKU522.
+
+ATTACHMENT_GOLDEN
+Файл + cabinet data.
+
+REAL_SELLER_REPLAY
+Обезличенные реальные production universes.
+Именно они должны со временем стать наиболее ценным eval dataset.
+
+8. Dataset обязательно делим на Development и Holdout
+Нельзя бесконечно править prompt именно под все известные eval cases.
+Иначе мы получим:
+eval 99%
+но только потому, что prompt фактически натренировали на тест.
+Поэтому:
+DEV
+→ видим результаты
+→ используем для итераций
+
+HOLDOUT
+→ не используем при ежедневном prompt tuning
+→ запускаем как release gate
+Отдельно добавляем свежие real-world production cases.
+OpenAI отдельно указывает contamination и возможность «подогнать» систему под eval harness как угрозы валидности оценки. OpenAI
+
+9. Factual correctness — абсолютный hard gate
+Здесь никаких LLM-graders.
+Только программы.
+Для Canonical Facts все acceptance cases должны проходить:
+100%
+
+10. Sales Evals
+Например задаём fixture:
+Day1:
+ordered_amount = 100
+ordered_units = 2
+
+Day2:
+ordered_amount = 200
+ordered_units = 3
+Ожидаем:
+period ordered_amount = 300
+ordered_units = 5
+И тестируем:
+current7;
+previous7;
+30d;
+Category totals;
+Account totals;
+unknown SKU;
+corrections;
+NULL;
+zero.
+
+11. Advertising DRR — отдельный critical test
+Поскольку здесь уже была продуктовая путаница, это должен быть отдельный release gate.
+Например:
+Yesterday:
+
+paid_spend = 100 ₽
+Canonical ordered_amount = 500 ₽
+
+Expected:
+DRR yesterday = 20%
+И:
+7d:
+
+SUM paid_spend = 700
+SUM ordered_amount = 3 500
+
+Expected:
+20%
+Отдельный отрицательный test:
+AVG(daily DRR) != expected
+чтобы реализация случайно не перешла на среднее дневных процентов.
+Ещё test:
+attributed_ordered_amount = 250
+
+700 / attributed_amount
+не должен влиять на account DRR.
+
+12. Stock Evals
+Обязательно проверяем:
+stock = 0
+demand &gt; 0
+→ coverage = 0
+demand = 0
+→ coverage = NULL / NO_DEMAND
+stock unavailable
+→ coverage = NULL
+inbound &gt; 0
+→ stock НЕ увеличивается
+И нейтральные buckets:
+OOS
+0–3
+4–7
+8–14
+
+13. Funnel Evals
+Это после redesign становится critical domain.
+Для каждого fixture backend заранее задаёт:
+compatible stages
+compatible transitions
+Frontend / Projection обязаны показать только их.
+Критические тесты:
+missing stage
+→ frontend не invent stage
+
+incompatible metrics
+→ NO_COMPATIBLE_CHAIN
+
+Premium unavailable
+→ UNAVAILABLE
+
+valid partial chain
+→ PARTIAL
+
+zero activity
+→ READY_EMPTY
+И conversion:
+previous = 24.9%
+current = 22.1%
+
+expected delta =
+−2.8 п.п.
+
+14. Category / Account reconciliation
+Для additive metrics:
+SUM leaf Categories
+=
+Account
+в пределах documented unknown/unmapped bucket.
+То есть потерянный SKU не должен тихо исчезнуть.
+
+15. Materiality Engine Eval
+Здесь начинается самая важная часть AI pipeline.
+Materiality — deterministic, но его правила нужно проверять с точки зрения selection quality.
+У каждого AI Golden Case эксперт размечает:
+MUST_INCLUDE
+
+SHOULD_INCLUDE
+
+OPTIONAL
+
+SHOULD_NOT_INCLUDE
+для:
+Category
+SKU
+Campaign
+
+16. Materiality важнее recall, чем precision
+Если Materiality взял лишние 5 SKU:
+немного увеличили pack.
+Если Materiality не взял главный SKU, Discovery уже физически не сможет его обнаружить.
+Поэтому оптимизируем:
+Recall &gt; Precision.
+
+17. Materiality metrics
+Основные:
+Critical Entity Recall
+General Material Entity Recall
+
+Selection Size
+Selection Diversity
+
+Lane Coverage
+
+Anchor Coverage
+
+18. Я предлагаю такой initial acceptance target
+Для expert-labelled MUST_INCLUDE:
+Critical recall = 100%
+То есть ни один критичный entity в golden suite нельзя потерять.
+Для остальных material entities первоначальный target:
+≥95% recall
+Это versioned eval threshold, а не навечно зашитая формула.
+После реальных данных сможем откалибровать.
+
+19. Проверяем diversity
+Materiality не должен вернуть условно:
+50 SKU
+из одной категории только потому, что там большой оборот, пропустив существенные кампании и другие категории.
+Тестируются:
+lane diversity
+domain exposure
+category concentration
+campaign presence
+при наличии соответствующих фактов.
+
+20. Проверяем symmetry
+В dataset обязательно должны быть:
+сильное ухудшение;
+
+сильное улучшение.
+Positive changes также должны попадать в Materiality.
+Иначе AI будет системно видеть только проблемы.
+
+21. Discovery Eval
+Discovery оцениваем не по красоте текста.
+Основные вопросы:
+Нашёл ли AI действительно важные направления?
+Не придумал ли направления без фактов?
+Не раздробил ли один вопрос на пять одинаковых Threads?
+
+22. Golden Discovery annotation
+Для case эксперт определяет:
+MANDATORY_THREAD
+
+ACCEPTABLE_THREAD
+
+FORBIDDEN_THREAD
+Например:
+MANDATORY:
+Stock shortage on material SKU group
+
+ACCEPTABLE:
+Advertising efficiency around same SKUs
+
+FORBIDDEN:
+Profit decline
+если COGS отсутствует.
+
+23. Discovery metrics
+Mandatory Thread Recall
+
+Unsupported Thread Rate
+
+Duplicate Thread Rate
+
+Evidence Request Validity
+
+Material Entity Coverage
+
+Budget Compliance
+
+24. Initial pilot target
+Я предлагаю:
+Mandatory critical thread recall = 100%
+
+overall mandatory thread recall ≥90%
+
+unsupported critical thread = 0
+
+duplicate thread rate ≤5%
+Но первые реальные seller cases должны использоваться для калибровки.
+
+25. Discovery не наказываем за отсутствие проблемы
+Если case действительно стабильный:
+NO_MEANINGFUL_THREADS
+является правильным output.
+Это отдельный golden case.
+Очень важно не научить модель:
+всегда надо что-нибудь найти.
+
+26. Evidence Expansion Eval
+Evidence layer значительно проще, потому что он deterministic.
+Здесь снова почти всё должно быть:
+100%.
+Проверяем:
+requested Evidence recipe существует;
+
+request соответствует Evidence Menu;
+
+одинаковые requests дедуплицированы;
+
+правильный Factual Universe;
+
+никаких Ozon calls;
+
+никакого AI;
+
+правильный period;
+
+correct related entities;
+
+TOP_N Search не превращён в full universe;
+
+Promotion candidate != participant;
+
+Supply != Stock.
+
+27. Continuity Evidence — 100%
+Если P108 содержала:
+17 atomic Actions
+то P109 Deep Pack должен иметь возможность проверить:
+17 / 17
+старых Actions.
+Даже если Discovery вообще не заинтересовался их target'ами.
+Hard gate:
+continuity_evidence_coverage = 100%.
+
+28. Deep Analysis Eval
+Это центральный semantic eval.
+Мы отдельно оцениваем:
+Findings
+Правильно ли AI интерпретировал факты.
+Recommendations
+Логично ли предложение.
+Actions
+Допустимо и полезно ли конкретное действие.
+Не сваливаем всё в один score.
+
+29. Deep Finding rubric
+Для каждого Finding:
+Groundedness
+
+Factual correctness
+
+Relevance
+
+Material significance
+
+Causal restraint
+
+Non-duplication
+
+Clarity
+
+30. Groundedness — hard deterministic
+Если Finding говорит:
+продажи снизились на 18%
+то должен существовать FactRef, подтверждающий именно этот показатель.
+Для numeric/domain assertions:
+100% grounded
+Иначе Publication блокируется validator.
+
+31. Semantic Grounding
+Сложнее:
+основной причиной является stock.
+Backend не способен однозначно доказать семантический вывод.
+Это уже offline rubric.
+Grader должен проверять:
+достаточно ли evidence;
+не перепутана ли корреляция и причинность;
+соблюдён ли causal restraint.
+
+32. Запрещённые semantic mistakes
+Eval dataset должен специально содержать ловушки:
+ordered_amount → назвать revenue
+
+finance_net_accrual → назвать profit
+
+stock × price → назвать frozen capital
+
+paid spend / attributed amount
+→ назвать account DRR
+
+Promotion candidate
+→ назвать participant
+
+Search top15
+→ назвать всеми запросами
+
+current category
+→ перенести в старую Sales history
+Любое такое утверждение:
+CRITICAL_FAIL.
+
+33. Recommendations rubric
+Оцениваем:
+связь с Finding;
+
+практическая полезность;
+
+достаточность evidence;
+
+конкретность;
+
+отсутствие fake certainty;
+
+отсутствие contradiction.
+
+34. Action Eval
+Для Actions отдельно:
+Action type correct?
+
+Target correct?
+
+Action is warranted?
+
+Parameters reasonable?
+
+Required supports meaningful?
+
+No conflicts?
+
+Grouping appropriate?
+
+35. Action precision важнее количества
+Не ставим цель:
+Aivion должен сформировать хотя бы 10 Actions.
+Нормально:
+0 Actions
+если evidence не показывает, что надо что-то менять.
+Так мы предотвращаем action spam.
+
+36. Initial Action semantic target
+Для pilot gold set я предлагаю:
+≥90% published Actions
+эксперт считает разумными и обоснованными
+при этом:
+0 critical harmful/nonsensical Actions
+Например:
+увеличить запас товара без спроса на несколько лет вперёд
+является critical failure независимо от общей средней оценки.
+
+37. Numerical recommendation eval
+Если AI предлагает:
+price → 2 390 ₽
+replenish → 150 шт.
+budget → 90 000 ₽
+проверяем два уровня.
+Deterministic
+schema
+min/max
+provider constraints
+no-op
+eligibility
+Semantic
+выглядит ли такое изменение разумным с учётом evidence?
+Второе — expert/LLM rubric.
+
+38. Action Conflict Eval
+Специальные fixtures:
+SKU_ADJUST_PRICE up
++
+SKU_ADJUST_PRICE down
+для одного target/context.
+Или:
+CAMPAIGN_CHANGE_STATE → PAUSE
+
+и одновременно
+
+CAMPAIGN_ADJUST_BUDGET → увеличить бюджет
+если контексты несовместимы.
+Validator должен отловить известные deterministic conflicts.
+Semantic conflicts входят в eval rubric.
+
+39. Action Continuity Eval — один из главных тестов продукта
+Нужны отдельные longitudinal golden scenarios.
+Например:
+P108
+Пополнить SKU1, SKU2, SKU3, SKU4.
+
+P109
+SKU1:
+support no longer true
+SKU2-4:
+fully supported.
+Expected:
+old P108 remains immutable:
+4 SKU
+
+new P109:
+3 SKU
+
+40. Проверяем все revalidation outcomes
+Нужны fixtures:
+FULLY_SUPPORTED
+
+PARTIALLY_SUPPORTED
+
+NOT_SUPPORTED
+
+UNVERIFIABLE
+
+SUPERSEDED
+и точный expected lifecycle.
+
+41. DONE Eval
+Scenario:
+Action Case
+↓
+user DONE
+↓
+следующая Publication всё ещё подтверждает проблему
+Expected:
+new occurrence появляется сразу.
+DONE не создаёт suppression.
+
+42. DISMISSED Eval
+user DISMISSED
+↓
+29 дней
+Expected:
+same Action identity suppressed.
+На 31-й день:
+снова eligible.
+
+43. Publication Eval
+Тут почти всё deterministic.
+Перед Publish:
+factual universe fixed;
+
+all components present;
+
+hashes valid;
+
+Deep accepted;
+
+Actions reconciled;
+
+required projections valid;
+
+continuity complete.
+
+44. Single Publication Consistency
+Один из важнейших E2E tests.
+Берём:
+Publication P109
+и проверяем:
+Dashboard Overview
+Stock
+Advertising
+Funnel
+
+Actions
+
+Chat PUBLISHED_EXPLANATION
+Все ссылаются на один factual truth.
+
+45. Dashboard Evals
+Нельзя ограничиваться API tests.
+Нужны browser E2E tests.
+Например Playwright.
+Проверяем:
+3 KPI Overview;
+
+правильные labels;
+
+DRR;
+
+Stock buckets;
+
+Funnel states;
+
+Action group counts;
+
+no legacy fields;
+
+Missing != Zero.
+
+46. Visual Regression
+Поскольку мы отдельно уделяем большое внимание эстетике frontend, я бы добавил:
+visual snapshot regression tests
+для основных состояний.
+Особенно:
+Overview
+
+Funnel READY
+
+Funnel PARTIAL
+
+Funnel no Premium
+
+Stock
+
+Advertising
+
+Actions single
+
+Actions group
+
+Chat general
+
+Action Chat
+Но visual diff не должен требовать pixel-perfect совпадения каждой буквы AI.
+Фиксируем deterministic fixture copy.
+
+47. Responsive Visual Evals
+Минимально:
+Desktop
+1440px
+
+Laptop
+1280px
+
+Tablet
+768px
+
+Mobile
+390px
+Особенно критичны:
+Funnel;
+multi-entity Actions;
+Chat;
+tables.
+
+48. Accessibility Acceptance
+В автоматические проверки:
+keyboard navigation;
+
+aria-current;
+
+aria-pressed;
+
+Chat role=log;
+
+status announcements;
+
+focus handling;
+
+dialogs;
+
+contrast.
+Плюс ручной keyboard pass для major releases.
+
+49. Chat Evals
+Chat требует собственного dataset.
+Проверяем не только один вопрос, но turn sequence.
+
+50. Chat factual correctness
+Пользователь:
+Сколько заказано SKU417 за 7 дней?
+Gold:
+74 units
+AI обязан ответить именно этим числом.
+Grounding hard gate.
+
+51. Chat follow-up resolution
+User:
+Что происходит с SKU417?
+
+User:
+А реклама по нему?
+Expected entity:
+SKU417.
+
+52. Chat publication transition
+Turn1:
+P109
+stock=0
+Появляется P110:
+stock=300
+Turn2:
+Что теперь?
+Expected:
+использовать P110.
+
+53. Chat insufficient data
+Пользователь:
+Как менялись продажи последние 90 дней?
+Но history:
+10 дней.
+Expected:
+честно сообщить о недостаточной истории.
+Forbidden:
+экстраполировать.
+
+54. Chat no Premium Funnel
+Почему упала конверсия в корзину?
+Capability unavailable.
+Expected:
+недостаточно данных.
+Не придумывать conversion из Sales.
+
+55. Attachment + Cabinet
+Fixture:
+supplier.xlsx
+с известными значениями.
+Cabinet Facts также known.
+Проверяем:
+правильно ли сопоставлены SKU;
+
+использован ли и файл, и cabinet;
+
+не были ли данные attachment объявлены canonical facts.
+
+56. Chat recommendation
+Chat может сказать:
+я бы сначала проверил SKU417.
+Но evaluator проверяет:
+не создан Action Case;
+
+не выдано как Published Action;
+
+отличие ad-hoc recommendation понятно из контекста.
+
+57. Chat tools trajectory
+Для Chat важен не только final answer.
+Проверяем:
+какие tools вызваны;
+
+не было лишних вызовов;
+
+использован ли batch;
+
+не запрошен чужой seller;
+
+не сделан direct Ozon call;
+
+не превышен tool budget.
+Это именно тот случай, где важно eval'ить всю trajectory, а не только последний текст. OpenAI также подчёркивает, что для agentic workflow оценка должна учитывать environment, tools и полный execution harness. OpenAI
+
+58. Не оцениваем AI-текст через BLEU
+Для свободного аналитического ответа бессмысленно требовать:
+текст совпадает с эталоном на 82%.
+Два совершенно разных текста могут быть одинаково хорошими.
+Exact/string match используем для:
+enum;
+IDs;
+numbers;
+structured fields.
+Semantic text:
+rubric grader + human review.
+
+59. LLM Grader architecture
+Для сложных outputs используем отдельный:
+Eval Grader Policy
+Он не обязан совпадать с production model.
+Лучше не делать:
+GPT-X генерирует
+GPT-X говорит, что GPT-X отлично сработал.
+Grader получает:
+case facts
+
+expected rubric
+
+actual output
+
+allowed limitations
+и выставляет не один score, а отдельные dimensions.
+
+60. Пример Deep grader
+Factual correctness     PASS/FAIL
+Grounding               PASS/FAIL
+Material relevance      0–3
+Causal restraint        0–3
+Actionability           0–3
+Clarity                 0–3
+Critical error          YES/NO
+Так результат намного полезнее:
+causal_restraint упал с 2.8 до 2.3
+чем:
+AI score 84 → 82.
+
+61. Human Review обязателен
+LLM-grader — ускоритель, а не финальный судья.
+OpenAI в своих eval-подходах прямо рекомендует human expert auditing даже при использовании automated graders; в GDPval automated grader рассматривается как приближение к человеческой экспертной оценке, а не её полная замена. OpenAI
+
+62. На pilot я бы проверял каждую Publication
+Пока seller'ов мало:
+100% production Publications
+асинхронно прогоняются через quality eval.
+Важно:
+это происходит после Publish или параллельно вне critical path.
+
+63. Human sampling на pilot
+Первоначально я рекомендую:
+каждую новую AI/config version
+→ ручной просмотр нескольких complete replays;
+
+еженедельно
+→ случайная выборка production Publications;
+
+100%
+→ любые critical grader failures.
+Когда volume вырастет — sampling уменьшим.
+
+64. Feedback пользователя тоже становится eval source
+Например:
+Action DISMISSED
+не автоматически означает:
+AI ошибся.
+Причина может быть бизнесовая.
+Но если определённый Action type систематически получает:
+70% DISMISSED
+это сигнал для review.
+То же для:
+Chat thumbs down.
+
+65. Candidate vs Baseline
+Каждая существенная AI-изменение должна прогоняться:
+CURRENT BASELINE
+vs
+CANDIDATE
+на одном и том же dataset.
+Например:
+Deep Prompt 1.4
+vs
+Deep Prompt 1.5
+
+66. Не меняем одновременно всё
+Если хотим протестировать новую модель:
+model меняем
+prompt оставляем.
+Если eval показал regression — потом правим prompt.
+Так можно понять, что именно вызвало изменение.
+Актуальная guidance OpenAI для миграций моделей также рекомендует сначала менять модель при неизменном prompt, запускать eval baseline, а затем вносить prompt adjustments по одному. OpenAI Developers
+
+67. Release Gate для AI Config
+Candidate разрешён в production только если:
+Hard
+0 critical failures;
+
+100% schema/invariant gates;
+
+100% continuity coverage.
+Semantic
+не хуже accepted baseline
+по критическим rubric dimensions.
+И при крупных изменениях:
+human review PASS.
+
+68. Не требуем выигрыша по каждой метрике
+Допустим новый model:
+Grounding    same
+Recall       +4%
+Latency      -20%
+Clarity      -1%
+Это может быть хорошая версия.
+Поэтому release decision смотрит на:
+critical invariants
+
+semantic quality
+
+latency
+
+cost.
+
+69. Observability
+Теперь production.
+Я рекомендую использовать три стандартных сигнала:
+Metrics
+Traces
+Structured Logs
+на базе OpenTelemetry-compatible instrumentation.
+OpenTelemetry уже определяет semantic conventions для GenAI telemetry, включая model name, operation duration и token usage. Это хорошо ложится на Aivion Discovery/Deep/Chat. OpenTelemetry
+
+70. Full AI content не помещаем в telemetry labels
+Не:
+prompt="30KB text"
+output="..."
+в обычный metric/span label.
+Для observability:
+artifact hash
+artifact ref
+prompt version
+tokens
+sizes
+status
+Full immutable content уже хранится в наших controlled artifacts.
+OpenTelemetry отдельно отмечает, что prompt/tool content может записываться опционально, но он большой и плохо подходит для обычной telemetry presentation. OpenTelemetry
+
+71. Trace Analysis Run
+Один trace:
+analysis.run
+│
+├── resolve_context
+├── seal_universe
+├── prepare_continuity
+├── build_landscape
+├── materiality
+├── discovery.pack
+├── discovery.ai
+├── discovery.validate
+├── evidence.expand
+├── deep.pack
+├── deep.ai
+├── deep.validate
+├── action.reconcile.plan
+├── publication.build
+├── projections.build
+├── publication.validate
+├── publication.publish
+└── post_publish
+Так можно за секунды увидеть:
+где именно run провёл 4 минуты.
+
+72. GenAI spans
+Для Discovery/Deep записываем:
+model
+
+model policy version
+
+prompt version
+
+schema version
+
+attempt
+
+duration
+
+input tokens
+
+output tokens
+
+finish reason
+
+validation result
+
+provider request id
+где уместно.
+
+73. Не используем seller_id как высококардинальный metric label
+Для metrics:
+stage
+domain
+status
+model
+version
+Seller/run IDs остаются в:
+trace/log
+иначе metrics cardinality быстро взорвётся.
+
+74. Analysis Pipeline Metrics
+Минимальный набор:
+analysis_runs_total
+
+analysis_runs_published_total
+
+analysis_runs_noop_total
+
+analysis_runs_failed_total
+
+analysis_run_duration_seconds
+
+analysis_stage_duration_seconds
+
+analysis_stage_retry_total
+
+analysis_current_publication_age_seconds
+
+75. Data readiness metrics
+collection_runs_total
+
+collection_failures_total
+
+capability_state_count
+
+domain_watermark_age
+
+dq_issue_count
+
+core_ready_latency
+Но помним:
+expected provider lag ≠ failure.
+Search может законно иметь другой watermark.
+
+76. AI metrics
+ai_calls_total
+
+ai_call_duration_seconds
+
+ai_input_tokens
+
+ai_output_tokens
+
+ai_estimated_cost
+
+ai_validation_failures_total
+
+ai_retries_total
+
+ai_schema_failures_total
+
+ai_grounding_validation_failures_total
+Раздельно:
+stage=DISCOVERY
+stage=DEEP
+stage=CHAT
+
+77. Pack metrics
+Очень важны:
+landscape_entity_count
+
+material_entity_count
+
+discovery_pack_bytes
+
+deep_pack_bytes
+
+discovery_pack_tokens
+
+deep_pack_tokens
+
+evidence_request_count
+
+evidence_result_count
+Так мы быстро увидим:
+после вчерашнего commit Deep Pack вырос с 70k до 180k tokens.
+
+78. Discovery metrics production
+Не semantic evaluation, а operational:
+discovery_thread_count
+
+discovery_no_meaningful_threads_rate
+
+evidence_requests_per_run
+
+discovery_validation_retry_rate
+Резкий скачок — повод investigate.
+Но не обязательно page.
+
+79. Deep metrics production
+finding_count
+
+recommendation_count
+
+action_proposal_count
+
+deep_validation_retry_rate
+Например вчера:
+4 Actions / seller
+сегодня после prompt update:
+45.
+Это сильный regression signal.
+
+80. Action lifecycle metrics
+actions_created
+
+actions_reaffirmed
+
+actions_basis_changed
+
+actions_system_resolved
+
+actions_unverifiable
+
+actions_superseded
+
+actions_done
+
+actions_dismissed
+
+action_recurrence
+
+action_group_size
+
+81. Главная continuity metric
+previous_action_assessment_coverage
+Должна всегда быть:
+1.0 / 100%.
+Всё остальное:
+production invariant failure.
+
+82. Action health metrics
+Очень полезные product-quality показатели:
+dismiss_rate_by_action_type
+
+done_rate_by_action_type
+
+recurrence_after_done_rate
+
+reappearance_after_30d_dismissal
+
+mean_active_action_age
+Но:
+не используем их напрямую как AI truth.
+Это product feedback signals.
+
+83. Publication metrics
+publication_success_total
+
+publication_validation_failure_total
+
+publication_projection_failure_total
+
+publication_pointer_switch_total
+
+publication_withdraw_total
+
+publication_noop_total
+
+publication_age
+
+84. Dashboard consistency synthetic probe
+Помимо backend metrics я бы периодически запускал end-to-end probe:
+GET Overview
+GET Stock
+GET Advertising
+GET Actions
+и проверял:
+same publication
+Это black-box check того, что пользователь реально получает согласованный продукт.
+
+85. Chat trace
+chat.turn
+│
+├── context.resolve
+├── history.build
+├── attachment.prepare
+├── ai.response
+│   ├── factual_tool
+│   ├── factual_tool
+│   └── ...
+├── answer.validate
+└── response.stream
+
+86. Chat metrics
+chat_turns_total
+
+chat_turn_success_total
+
+chat_turn_failure_total
+
+chat_turn_duration
+
+chat_tool_calls_per_turn
+
+chat_tool_failure_total
+
+chat_validation_retry_total
+
+chat_context_tokens
+
+chat_history_truncated_total
+
+chat_attachment_turn_total
+
+chat_mixed_attachment_cabinet_total
+
+chat_cancel_total
+
+87. Chat product-quality metrics
+feedback_positive
+
+feedback_negative
+
+insufficient_data_response_rate
+
+action_context_turn_rate
+
+general_vs_adhoc modes
+Опять же — dashboard, не pager.
+
+88. Four Golden Signals
+На уровне user-facing system обязательно отслеживаем классические:
+Latency
+Traffic
+Errors
+Saturation
+Google SRE рекомендует именно эти четыре сигнала как минимальную основу мониторинга пользовательского сервиса. Google SRE
+Для Aivion они примерно:
+Latency
+Chat response
+Dashboard API
+Analysis run stages
+Traffic
+API requests
+Chat turns
+Analysis runs
+Errors
+failed requests
+failed Chat turns
+failed eligible analysis runs
+Saturation
+worker queue
+DB pool
+OpenAI concurrency
+memory/CPU
+MinIO
+
+89. Queue observability
+Поскольку Redis/Asynq — executor, но PostgreSQL truth:
+queue_depth
+
+oldest_job_age
+
+worker_active
+
+worker_lease_expiry
+
+job_redelivery
+
+postgres_ready_without_job
+Особенно последний test помогает поймать рассинхронизацию:
+DB говорит READY, а job потерялся.
+
+90. Alerts делим по actionable severity
+Очень важно не сделать 80 Slack alerts.
+Google SRE рекомендует будить человека только по срочным и реально actionable/user-visible проблемам; частые шумные alerts приводят к тому, что настоящие проблемы начинают игнорировать. Google SRE
+
+91. P0 / immediate alert
+Я бы отнёс сюда:
+cross-seller data isolation failure;
+
+current Publication fails integrity;
+
+wrong Publication pointer;
+
+corrupted immutable artifact;
+
+publication references factual universe
+другого seller;
+
+security/secrets leakage;
+
+system-wide inability to serve Dashboard/Chat.
+Это события:
+человеческая реакция нужна немедленно.
+
+92. P1 Engineering Alert
+Например:
+eligible production run terminal failed;
+
+continuity coverage &lt;100%;
+
+core-ready seller не может публиковаться;
+
+current Publication materially stale;
+
+Chat failure rate sharply exceeds SLO;
+
+queue stuck;
+
+OpenAI unavailable over sustained window.
+
+93. Ticket / warning
+Не page:
+optional Search unavailable;
+
+Finance unavailable;
+
+token costs выросли 15%;
+
+validation retry rate вырос;
+
+Materiality size растёт;
+
+Action dismiss rate вырос;
+
+Search watermark delayed.
+Это надо расследовать, но не будить человека.
+
+94. Вообще не engineering alert
+Например:
+Sales seller упали 40%.
+
+DRR seller вырос.
+
+SKU закончился.
+Это business evidence, которое анализирует Aivion.
+Не engineering incident.
+Это особенно важно, чтобы DQ/monitoring не превратился во второй business analysis engine.
+
+95. Operational SLI / SLO
+Я предлагаю формально определить показатели.
+Но численные operational targets лучше откалибровать первым pilot, а не придумать их из воздуха.
+Архитектурно обязательны:
+Publication Eligibility Success
+eligible Core-ready runs
+→ Published или legitimate NO_OP
+
+Publication Latency
+Не:
+обязательно до 06:00.
+А:
+core_ready_at
+→ published_at
+То есть измеряем нашу систему, а не задержку Ozon.
+
+Chat Success
+successful valid answers
+/
+eligible Chat turns
+
+Chat Latency
+p50 / p95 / p99.
+
+Dashboard Availability
+success rate user-visible reads.
+Google SRE также рекомендует определять SLO от того, что реально важно пользователю, а не просто от того, что легко измерить. Google SRE
+
+96. Hard Product Invariants не имеют error budget
+Для следующих вещей target всегда:
+100%.
+Это:
+seller isolation;
+
+publication universe consistency;
+
+FactRef integrity;
+
+continuity coverage;
+
+Action target legality;
+
+immutable Publication;
+
+Dashboard publication consistency;
+
+no fake Funnel;
+
+correct DRR formula.
+Тут не может быть:
+99% достаточно.
+
+97. Latency и availability имеют error budget
+Например после pilot можем определить:
+99% Chat turns succeed;
+
+95% eligible runs publish
+within X min after core-ready.
+Это SLO.
+Если иногда модель отвечает дольше — не data integrity failure.
+
+98. Engineering dashboards
+Я бы сделал пять внутренних dashboard.
+Data &amp; Capability
+collection
+watermarks
+capabilities
+DQ
+Daily AI Pipeline
+runs
+stages
+latency
+tokens
+cost
+retries
+AI Quality
+eval trends
+validation failures
+findings/actions distributions
+Actions
+lifecycle
+dismiss/done
+continuity
+Chat
+traffic
+latency
+tools
+failures
+feedback
+
+99. Eval Dashboard
+Отдельно:
+Baseline version
+
+Candidate version
+
+Overall pass
+
+Critical failures
+
+Materiality recall
+
+Discovery recall
+
+Deep factual/semantic rubrics
+
+Action acceptability
+
+Chat correctness
+
+Latency
+
+Tokens
+
+Cost
+Так решение о смене model/prompt становится инженерным, а не:
+мне кажется, стало отвечать лучше.
+
+100. Regression Gate Matrix
+Перед merge/deploy изменение автоматически определяет необходимые evals.
+Например:
+Изменение
+Что обязательно прогнать
+Sales formula
+Factual + projections + Dashboard + Chat
+Materiality policy
+Materiality → Discovery → Deep → Actions
+Discovery prompt
+Discovery + downstream Deep
+Evidence recipe
+Evidence + Deep + Actions
+Deep prompt/model
+Deep + Actions + Dashboard + continuity
+Action catalog
+Actions + frontend templates + lifecycle
+Chat prompt/tool
+Chat suite
+Funnel contract
+Capability + Projection + visual E2E
+Projection
+Dashboard E2E
+Model change
+Full AI regression suite
+
+101. Full Replay перед крупным release
+Берём несколько sealed real seller universes и полностью прогоняем:
+Landscape
+↓
+Materiality
+↓
+Discovery
+↓
+Evidence
+↓
+Deep
+↓
+Actions
+↓
+Publication
+↓
+Dashboard projections
+без live provider.
+И сравниваем baseline vs candidate.
+
+102. Replay должен быть deterministic кроме AI
+Если при одинаковом:
+factual universe
+policy versions
+deterministic stage дал другой hash:
+DETERMINISM_VIOLATION.
+Например:
+Landscape hash changed
+при неизменном code/policy — это баг.
+
+103. AI variance eval
+Можно несколько раз запустить AI на одном Pack, чтобы понимать variance.
+Не каждый CI — дорого.
+Но перед model/prompt major release:
+N repeated runs
+на critical cases.
+Проверяем:
+не меняются ли Actions радикально;
+сохраняются ли mandatory findings;
+нет ли нестабильного oscillation.
+
+104. Нельзя требовать byte-identical AI outputs
+AI stochastic.
+Поэтому проверяем:
+semantic invariants
+а не:
+точно тот же русский текст.
+
+105. Production shadow eval
+После выпуска нового AI config можно первые несколько runs:
+production = accepted model
+
+shadow = candidate
+на тех же sealed artifacts.
+Shadow:
+не публикуется;
+не влияет на Actions;
+используется для сравнения.
+Это очень полезно перед полным переключением.
+
+106. Evaluation mode уже предусмотрен orchestration architecture
+Мы ранее заложили:
+EVALUATION Run
+который:
+может работать параллельно;
+никогда не Publish.
+Именно его используем.
+Не создаём второй отдельный eval pipeline.
+
+107. Eval artifacts
+Для каждого Eval Run сохраняем:
+input artifact
+
+actual output
+
+baseline output
+
+deterministic grader result
+
+LLM grader result
+
+human review
+
+cost
+
+latency
+
+diff
+
+108. Human review UI можно пока не строить
+На v1 достаточно engineering artifact/report:
+case
+
+facts
+
+baseline
+
+candidate
+
+rubric result
+Полноценный internal QA frontend можно сделать позже.
+
+109. Eval Grader нельзя silently менять
+Сам grader имеет:
+grader_version.
+Если сменили grader prompt/model:
+старые scores и новые scores нельзя считать полностью сопоставимыми без calibration run.
+Поэтому сначала новый grader прогоняется на наборе human-reviewed cases.
+
+110. Grader Calibration Set
+Должен быть dataset:
+cases already rated by humans.
+Проверяем:
+grader-human agreement.
+Если agreement плохой:
+grader нельзя использовать для release decision.
+
+111. Acceptance hierarchy
+Каждый major release имеет итог:
+PASS
+
+PASS_WITH_KNOWN_LIMITATIONS
+
+FAIL
+
+112. PASS
+all hard invariants;
+
+semantic thresholds passed;
+
+no critical regression;
+
+operational performance acceptable.
+
+113. PASS_WITH_KNOWN_LIMITATIONS
+Например:
+Search eval degraded because provider capability changed.
+Но Core/AI unchanged and limitation documented.
+Такое решение должно быть явным, не silent.
+
+114. FAIL
+Любой:
+critical factual error;
+
+seller isolation violation;
+
+unsupported critical AI claim;
+
+continuity loss;
+
+invalid Action;
+
+Dashboard inconsistency;
+
+critical Chat hallucination regression.
+
+115. Pilot Acceptance
+До первого реального pilot я бы требовал:
+Factual
+100% Core Golden tests PASS.
+Pipeline
+100% hard orchestration invariants PASS.
+Continuity
+100% previous Actions assessed.
+UI
+critical E2E scenarios PASS.
+AI
+0 critical semantic failures
+на holdout;
+и установленный target по human/LLM rubric.
+Chat
+critical factual/tool/dialogue cases PASS.
+Recovery
+Проверены:
+worker crash;
+OpenAI timeout;
+retry;
+projection failure;
+publish crash;
+queue redelivery.
+
+116. Failure Injection Tests
+Это обязательно.
+Искусственно вызываем:
+OpenAI timeout during Discovery;
+
+OpenAI timeout during Deep;
+
+worker dies after Deep success;
+
+worker dies before Publish;
+
+MinIO temporary failure;
+
+DB temporary failure;
+
+projection builder crash;
+
+Redis job delivered twice.
+Проверяем:
+никаких двойных Publication;
+никаких двойных Actions;
+AI не запускается заново без необходимости;
+recovery идёт с последнего successful stage.
+
+117. Publish crash test
+Особенно:
+MinIO artifacts uploaded
+
+↓
+DB Publish transaction starts
+
+↓
+process crashes
+После recovery должно быть либо:
+Publication полностью current
+либо:
+Publication не опубликована.
+Не половина.
+
+118. NO_OP tests
+Один universe + тот же effective contract:
+NO_OP
+и AI не вызывается повторно.
+Проверяем стоимость:
+0 new Discovery call
+0 new Deep call.
+
+119. Eval economics
+Нужно отслеживать не только качество.
+Для каждого candidate:
+Discovery input/output tokens
+
+Deep input/output tokens
+
+total cost per Publication
+
+p50/p95 latency
+Если новая модель даёт:
++0.5% quality
++400% cost
+это уже продуктово-инженерное решение.
+
+120. Нормализованный cost metric
+Полезно считать:
+AI cost / successful Publication
+
+Chat cost / successful turn
+
+Eval cost / candidate release
+а не просто:
+в этом месяце потратили $X.
+
+121. Production anomaly thresholds
+Я бы не зашивал большинство сразу.
+Первоначально соберём baseline:
+2–4 недели pilot
+и затем определим alert thresholds для:
+tokens
+latency
+action counts
+validation retries
+Иначе получим придуманные границы.
+
+122. Но несколько alerts абсолютные сразу
+Без baseline:
+continuity coverage &lt;100%
+
+seller isolation failure
+
+current Publication integrity failure
+
+publish transaction violation
+
+Factual API cross-universe response
+немедленный alert.
+
+123. Концептуальные таблицы Evals
+Физически уточним на следующем этапе, но модель нужна уже сейчас:
+eval_suites
+
+eval_cases
+
+eval_suite_cases
+
+eval_runs
+
+eval_case_runs
+
+eval_grader_results
+
+eval_human_reviews
+
+eval_baselines
+
+124. Baseline
+Всегда существует:
+accepted production baseline.
+Candidate сравнивается именно с ним.
+После принятия:
+candidate
+→ new baseline.
+
+125. Не смешиваем Production Run и Eval Run
+Production:
+может Publish.
+Eval:
+NEVER Publish.
+Даже если кто-то случайно передал:
+force=true.
+Это hard infrastructure restriction.
+
+126. Observability data retention
+Минимально различаем:
+Metrics
+долгосрочные агрегаты.
+Traces
+ограниченный retention.
+Full immutable AI artifacts
+MinIO согласно audit/debug retention.
+Eval golden fixtures
+долгосрочные versioned assets.
+Точные сроки — implementation/operations decision.
+
+127. Что пользователь Aivion из этого видит
+Практически ничего.
+Это внутренний слой.
+Пользователь не должен видеть:
+Materiality recall 96%
+
+Deep grader 2.7
+
+Evidence coverage 100%
+
+OpenAI retries = 1
+Он просто получает надёжный Dashboard/Actions/Chat.
+
+128. Но некоторые limitations пользователь видит
+Например:
+Funnel недоступна;
+
+Search data through 19 Aug;
+
+недостаточно history;
+
+Advertising unavailable.
+Это business capability presentation, а не observability leak.
+
+129. Главное архитектурное правило Observability
+Monitoring не исправляет данные.
+Если обнаружена проблема:
+DQ issue
+validation failure
+eval regression
+мы:
+fail
+alert
+investigate
+fix source/code/prompt
+Не:
+monitoring system
+→ автоматически подправил AI output.
+Это полностью соответствует нашей архитектурной конституции.
+
+130. Итоговая схема
+В итоге:
+                    PRODUCTION
+                        │
+                        ▼
+                 Canonical Facts
+                        │
+               deterministic checks
+                        │
+                        ▼
+                Daily AI Pipeline
+                        │
+             runtime validators
+                        │
+                        ▼
+                  Publication
+                        │
+            ┌───────────┼───────────┐
+            ▼           ▼           ▼
+        Dashboard    Actions       Chat
+            │           │           │
+            └───────────┴───────────┘
+                        │
+                 Observability
+                        │
+                        ▼
+          Production Quality Sampling
+
+                    EVALUATION
+                        │
+                        ▼
+               Frozen Universes
+                        │
+             Baseline vs Candidate
+                        │
+          ┌─────────────┼─────────────┐
+          ▼             ▼             ▼
+    Deterministic    LLM Rubric     Human Review
+      Graders          Graders
+          │             │             │
+          └─────────────┴─────────────┘
+                        │
+                        ▼
+                 Release Decision
+
+131. Нормативное резюме контракта
+Я бы зафиксировал его следующим образом:
+Aivion использует многоуровневую систему оценки качества, разделяющую factual correctness, AI semantic quality, product consistency и operational reliability. Единого AI quality score не существует.
+Production Publication может блокироваться только детерминированными runtime invariants. LLM-graders и human evaluation не входят в критический production path и выполняются offline на immutable factual universes и artifacts.
+Все hard factual, isolation, grounding-reference, Publication consistency, Action target и Action continuity invariants требуют 100% выполнения и не имеют error budget.
+Materiality оценивается преимущественно по recall; потеря expert-labelled critical entity является release failure. Discovery оценивается по recall важных Threads, отсутствию unsupported/duplicate Threads и корректности Evidence requests.
+Deep Analysis оценивается раздельно по Findings, Recommendations и Actions. Numeric/factual grounding проверяется детерминированно; relevance, causal restraint, usefulness и reasonableness оцениваются rubric-based graders и human review.
+Все previous current Publication Actions должны иметь revalidation assessment в следующей generation; continuity coverage обязана составлять 100%. Longitudinal eval suite покрывает FULLY_SUPPORTED, PARTIALLY_SUPPORTED, NOT_SUPPORTED, UNVERIFIABLE и SUPERSEDED, а также DONE/DISMISSED recurrence semantics.
+Dashboard, Actions и Chat проходят end-to-end consistency evals на одной Publication. Visual regression и responsive tests являются частью frontend acceptance.
+Chat оценивается не только по final answer, но также по conversation context, entity resolution, factual tools, grounding, Publication transitions, attachment+cabinet analysis и tool trajectory.
+Любая новая model/prompt/schema/policy version сравнивается с accepted baseline на versioned DEV/HOLDOUT/real replay datasets. Крупные AI изменения требуют human review.
+Production observability строится на metrics, traces и structured logs. Full prompt/output artifacts не используются как high-cardinality telemetry; для них сохраняются controlled immutable artifacts и hashes/refs.
+Human-alerting используется только для urgent, actionable engineering failures. Необычные бизнес-показатели продавца не являются engineering incidents.
+Evaluation Run никогда не может Publish и не изменяет production Actions. Production и evaluation orchestration используют одинаковую фактическую архитектуру, но имеют жёстко разделённые side effects.
+
+Что осталось после этого
+Если этот контракт принимаем, архитектурное проектирование продукта практически завершено.
+Остаётся один последний большой проектировочный этап:
+Physical Implementation Plan
+И вот там мы уже буквально превращаем всё, что спроектировали за весь диалог, в план разработки:
+какие PostgreSQL tables создаём;
+
+какие старые таблицы удаляем;
+
+какие Go packages;
+
+какие interfaces;
+
+какие Ozon ingestion adapters;
+
+какие workers/jobs;
+
+какие pipeline stage implementations;
+
+какие artifacts;
+
+какие API для Dashboard/Actions/Chat;
+
+какие frontend DTO;
+
+какие migrations;
+
+какие eval fixtures;
+
+какие OpenTelemetry metrics/spans;
+
+в каком точном порядке всё писать;
+
+какие PR/этапы;
+
+как reseed seller 1;
+
+как сделать final cutover;
+
+как удалить всю legacy architecture.
+Продуктовых вопросов по самому Evals/Acceptance/Observability Contract у меня сейчас не осталось. Численные semantic thresholds (90%, 95% и т. п.) я намеренно считаю начальными versioned pilot targets, а не вечными бизнес-правилами: их нужно будет откалибровать на нашем первом хорошем Golden Dataset и реальных seller replays.

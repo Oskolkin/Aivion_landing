@@ -1,0 +1,7 @@
+{
+  "recorded_at": "2026-08-03T10:49:16.807416+03:00",
+  "result": "PASS",
+  "backend_secrets": 0,
+  "frontend_secrets": 0,
+  "tool": "aquasec/trivy:0.60.0"
+}

@@ -1,0 +1,25 @@
+{
+  "schema_version": "aivion_unified_analysis_v10",
+  "headline": "Доля рекламы в общей выручке кабинета на стабильном уровне, но ДРР по 2 кампаниям превышает 80%",
+  "summary": "Доля расходов на рекламу в общей выручке составила 26,2%. При этом атрибутированный ДРР всех кампаний достиг 53,3%, что превышает комфортную зону эффективности. В 2 кампаниях ДРР выше 80%, а по одной фиксируются расходы без заказов. Локальная оптимизация этих кампаний позволит снизить издержки и повысить эффективность вложений.",
+  "metric_claims": [
+    {
+      "metric_code": "ad_spend_share_of_total_store_revenue_pct",
+      "value": 26.231698344160172
+    },
+    {
+      "metric_code": "attributed_campaign_drr_pct",
+      "value": 53.333971468501254
+    }
+  ],
+  "threshold_claims": [
+    {
+      "scope": "campaign",
+      "value": 80,
+      "operator": "gt",
+      "policy_id": "high_drr_campaign_threshold",
+      "metric_code": "campaign_drr_pct"
+    }
+  ],
+  "action_count": 2
+}

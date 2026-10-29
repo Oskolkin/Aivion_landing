@@ -1,0 +1,26 @@
+{
+  "classified_at": "2026-08-03T08:55:00Z",
+  "sources": [
+    {
+      "source": "backend/.env.example and compose defaults",
+      "host_class": "loopback",
+      "host_redacted": "127.0.0.1:5432",
+      "database": "marketplace_ai_test / marketplace_ai",
+      "credential_type": "postgres:postgres",
+      "classification": "LOCAL_DEVELOPMENT_CREDENTIAL",
+      "rotation_required": false,
+      "accepted_scope": "local development only",
+      "production_forbidden": true,
+      "currently_used_in_cloud_agent": true
+    },
+    {
+      "source": ".env.local.bak-proxy (Git history only; removed from tip)",
+      "host_class": "unknown_without_owner_confirmation",
+      "host_redacted": "<REDACTED>",
+      "credential_type": "postgres connection string",
+      "classification": "UNKNOWN_OWNER_CONFIRMATION_REQUIRED",
+      "rotation_required": "if_real_shared_or_remote_credential",
+      "notes": "Do not treat as production-confirmed without owner verification of host and usage."
+    }
+  ]
+}

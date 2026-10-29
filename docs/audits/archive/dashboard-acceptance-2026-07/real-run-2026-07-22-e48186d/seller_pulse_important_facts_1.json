@@ -1,0 +1,37 @@
+{
+  "title": "2 рекламные кампании перевалили за 80% ДРР",
+  "value": 87.5,
+  "claims": [
+    {
+      "value": 90.1,
+      "fact_id": "campaign:882000021528:DRR",
+      "period_end": "2026-07-08",
+      "metric_code": "campaign_drr_pct",
+      "period_type": "current_7d",
+      "period_start": "2026-07-02"
+    }
+  ],
+  "metric": "campaign_drr_pct",
+  "period": "current_7d",
+  "fact_ids": [
+    "campaign:882000021528:DRR",
+    "campaign:882000031535:DRR"
+  ],
+  "severity": "high",
+  "direction": "above_threshold",
+  "signal_id": "imp2",
+  "entity_ids": [
+    "882000021528",
+    "882000031535"
+  ],
+  "period_end": "2026-07-08",
+  "explanation": "В двух кампаниях зарегистрирован перерасход бюджета: ДРР превысил критический порог.",
+  "metric_code": "campaign_drr_pct",
+  "period_type": "current_7d",
+  "signal_type": "high_drr_campaign",
+  "period_start": "2026-07-02",
+  "current_state": "DRR > 80%",
+  "previous_state": null,
+  "primary_section": "seller_pulse_important",
+  "first_seen_publication_id": "prev:2026-07-01"
+}

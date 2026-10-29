@@ -1,0 +1,7 @@
+{
+  "outcome": "material_actions_found",
+  "required_categories": ["stock", "sku"],
+  "required_sku_ids": ["901042000001", "901042000003"],
+  "max_actions": 4,
+  "no_duplicate_sku": true
+}

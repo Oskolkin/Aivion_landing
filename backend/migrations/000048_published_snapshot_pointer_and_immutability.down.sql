@@ -1,0 +1,3 @@
+DROP INDEX IF EXISTS uq_ai_pipeline_runs_published_actions_run;
+DROP INDEX IF EXISTS uq_ai_pipeline_runs_published_dashboard_run;
+DROP TABLE IF EXISTS seller_current_ai_snapshots;

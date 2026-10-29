@@ -1,0 +1,1469 @@
+{
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "enum": [
+        "aivion_unified_analysis_v11"
+      ]
+    },
+    "analysis_meta": {
+      "$ref": "#/$defs/AnalysisMeta"
+    },
+    "analysis_outcome": {
+      "type": "string",
+      "enum": [
+        "material_actions_found",
+        "no_material_actions",
+        "insufficient_data",
+        "analysis_failed"
+      ]
+    },
+    "metric_claims": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/MetricClaim"
+      },
+      "maxItems": 60
+    },
+    "threshold_claims": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/ThresholdClaim"
+      },
+      "maxItems": 20
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Finding"
+      },
+      "maxItems": 40
+    },
+    "dashboard": {
+      "$ref": "#/$defs/Dashboard"
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Action"
+      },
+      "maxItems": 15
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Limitation"
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "analysis_meta",
+    "analysis_outcome",
+    "metric_claims",
+    "threshold_claims",
+    "findings",
+    "dashboard",
+    "actions",
+    "limitations"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "AnalysisMeta": {
+      "type": "object",
+      "properties": {
+        "pack_id": {
+          "type": "string"
+        },
+        "pack_hash": {
+          "type": "string"
+        },
+        "metric_date": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "pack_id",
+        "pack_hash",
+        "metric_date"
+      ],
+      "additionalProperties": false
+    },
+    "MetricClaim": {
+      "type": "object",
+      "description": "One numeric assertion referencing exactly one current Pack fact (and optionally a previous-period fact for delta rendering).",
+      "properties": {
+        "claim_id": {
+          "type": "string"
+        },
+        "metric_code": {
+          "type": "string"
+        },
+        "scope_type": {
+          "type": "string",
+          "enum": [
+            "account",
+            "funnel",
+            "sku",
+            "campaign",
+            "category"
+          ]
+        },
+        "entity_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "current_fact_id": {
+          "type": "string"
+        },
+        "previous_fact_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "render_format": {
+          "type": "string",
+          "enum": [
+            "money",
+            "integer",
+            "percent",
+            "days",
+            "units",
+            "ratio",
+            "decimal"
+          ]
+        },
+        "delta_mode": {
+          "type": "string",
+          "enum": [
+            "none",
+            "absolute",
+            "percent",
+            "percentage_points"
+          ]
+        }
+      },
+      "required": [
+        "claim_id",
+        "metric_code",
+        "scope_type",
+        "entity_id",
+        "current_fact_id",
+        "previous_fact_id",
+        "render_format",
+        "delta_mode"
+      ],
+      "additionalProperties": false
+    },
+    "ThresholdClaim": {
+      "type": "object",
+      "description": "A policy-backed comparative threshold cited by a Finding, grounded in the versioned business policy registry. AI must copy policy_id verbatim.",
+      "properties": {
+        "claim_id": {
+          "type": "string"
+        },
+        "policy_id": {
+          "type": "string"
+        },
+        "metric_claim_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "claim_id",
+        "policy_id",
+        "metric_claim_id"
+      ],
+      "additionalProperties": false
+    },
+    "FindingScope": {
+      "type": "object",
+      "properties": {
+        "scope_type": {
+          "type": "string",
+          "enum": [
+            "account",
+            "funnel",
+            "sku",
+            "campaign",
+            "category"
+          ]
+        },
+        "entity_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "scope_type",
+        "entity_ids"
+      ],
+      "additionalProperties": false
+    },
+    "Finding": {
+      "type": "object",
+      "description": "One atomic analytical finding. Findings are the single source of truth referenced by dashboard blocks and actions via finding_id.",
+      "properties": {
+        "finding_id": {
+          "type": "string"
+        },
+        "domain": {
+          "type": "string",
+          "enum": [
+            "sales",
+            "funnel",
+            "stock",
+            "advertising",
+            "sku",
+            "category",
+            "data_quality"
+          ]
+        },
+        "finding_type": {
+          "type": "string",
+          "description": "Closed enum of all finding types produced by Unified Analysis (contract section 11).",
+          "enum": [
+            "revenue_decline",
+            "revenue_growth",
+            "orders_decline",
+            "orders_growth",
+            "average_order_value_decline",
+            "average_order_value_growth",
+            "sales_stable",
+            "traffic_decline",
+            "impression_to_view_decline",
+            "view_to_cart_decline",
+            "cart_to_order_decline",
+            "order_to_delivery_decline",
+            "funnel_conversion_improved",
+            "stockout",
+            "critical_coverage",
+            "short_coverage",
+            "no_sales_with_stock",
+            "slow_turnover",
+            "surplus",
+            "coverage_healthy",
+            "high_drr_campaign",
+            "spend_without_orders",
+            "ad_share_growth",
+            "ad_share_decline",
+            "campaign_efficiency_improved",
+            "budget_concentration",
+            "sku_orders_drop",
+            "key_sku_stock_risk",
+            "key_sku_growth",
+            "key_sku_concentration",
+            "category_underperformance",
+            "category_growth",
+            "category_concentration",
+            "history_missing",
+            "source_incomplete",
+            "data_stale"
+          ]
+        },
+        "primary_block": {
+          "type": "string",
+          "enum": [
+            "account",
+            "what_changed",
+            "category",
+            "funnel",
+            "stock",
+            "advertising",
+            "seller_pulse",
+            "sku_focus"
+          ]
+        },
+        "direction": {
+          "type": "string",
+          "enum": [
+            "positive",
+            "negative",
+            "neutral"
+          ]
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "critical",
+            "important",
+            "watch",
+            "none"
+          ]
+        },
+        "interpretation": {
+          "type": "string",
+          "enum": [
+            "observed",
+            "derived",
+            "hypothesis"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "explanation_template": {
+          "type": "string"
+        },
+        "business_impact_template": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scope": {
+          "$ref": "#/$defs/FindingScope"
+        },
+        "metric_claim_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "threshold_claim_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "confidence": {
+          "type": "string",
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ]
+        },
+        "limitation_codes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "finding_id",
+        "domain",
+        "finding_type",
+        "primary_block",
+        "direction",
+        "severity",
+        "interpretation",
+        "title",
+        "explanation_template",
+        "business_impact_template",
+        "scope",
+        "metric_claim_ids",
+        "threshold_claim_ids",
+        "confidence",
+        "limitation_codes"
+      ],
+      "additionalProperties": false
+    },
+    "ImprovementLever": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "explanation_template": {
+          "type": "string"
+        },
+        "finding_id": {
+          "type": "string"
+        },
+        "linked_action_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "expected_direction": {
+          "type": "string",
+          "enum": [
+            "risk_decrease",
+            "revenue_support",
+            "conversion_improvement",
+            "cost_efficiency",
+            "stock_stability",
+            "data_quality_improvement"
+          ]
+        }
+      },
+      "required": [
+        "title",
+        "explanation_template",
+        "finding_id",
+        "linked_action_id",
+        "expected_direction"
+      ],
+      "additionalProperties": false
+    },
+    "AccountDiagnosis": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "available",
+            "limited",
+            "unavailable"
+          ]
+        },
+        "headline": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "executive_summary_template": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "primary_finding_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 3
+        },
+        "positive_finding_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 2
+        },
+        "improvement_levers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ImprovementLever"
+          },
+          "maxItems": 4
+        },
+        "limitation_codes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "status",
+        "headline",
+        "executive_summary_template",
+        "primary_finding_ids",
+        "positive_finding_ids",
+        "improvement_levers",
+        "limitation_codes"
+      ],
+      "additionalProperties": false
+    },
+    "ChangeItem": {
+      "type": "object",
+      "properties": {
+        "change_id": {
+          "type": "string"
+        },
+        "finding_id": {
+          "type": "string"
+        },
+        "linked_action_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "change_id",
+        "finding_id",
+        "linked_action_id"
+      ],
+      "additionalProperties": false
+    },
+    "WhatChanged": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "available",
+            "limited",
+            "unavailable"
+          ]
+        },
+        "summary_template": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "worsened": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ChangeItem"
+          }
+        },
+        "new_risks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ChangeItem"
+          }
+        },
+        "unchanged_risks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ChangeItem"
+          }
+        },
+        "improved": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ChangeItem"
+          }
+        },
+        "limitation_codes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "status",
+        "summary_template",
+        "worsened",
+        "new_risks",
+        "unchanged_risks",
+        "improved",
+        "limitation_codes"
+      ],
+      "additionalProperties": false
+    },
+    "CategoryInsightItem": {
+      "type": "object",
+      "properties": {
+        "category_id": {
+          "type": "string"
+        },
+        "headline": {
+          "type": "string"
+        },
+        "diagnosis_template": {
+          "type": "string"
+        },
+        "finding_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "linked_action_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "confidence": {
+          "type": "string",
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ]
+        }
+      },
+      "required": [
+        "category_id",
+        "headline",
+        "diagnosis_template",
+        "finding_ids",
+        "linked_action_id",
+        "confidence"
+      ],
+      "additionalProperties": false
+    },
+    "CategoryInsights": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "available",
+            "limited",
+            "unavailable"
+          ]
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CategoryInsightItem"
+          },
+          "maxItems": 10
+        },
+        "limitation_codes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "status",
+        "items",
+        "limitation_codes"
+      ],
+      "additionalProperties": false
+    },
+    "RecommendedCheck": {
+      "type": "object",
+      "properties": {
+        "check_type": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "reason_template": {
+          "type": "string"
+        },
+        "finding_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "linked_action_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "check_type",
+        "title",
+        "reason_template",
+        "finding_ids",
+        "linked_action_id"
+      ],
+      "additionalProperties": false
+    },
+    "FunnelInsight": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "available",
+            "limited",
+            "unavailable"
+          ]
+        },
+        "weakest_transition_key": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "headline": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "diagnosis_template": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "business_meaning_template": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "positive_context_template": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "recommended_checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RecommendedCheck"
+          },
+          "maxItems": 3
+        },
+        "finding_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "high",
+                "medium",
+                "low"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "limitation_codes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "status",
+        "weakest_transition_key",
+        "headline",
+        "diagnosis_template",
+        "business_meaning_template",
+        "positive_context_template",
+        "recommended_checks",
+        "finding_ids",
+        "confidence",
+        "limitation_codes"
+      ],
+      "additionalProperties": false
+    },
+    "StockInsight": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "available",
+            "limited",
+            "unavailable"
+          ]
+        },
+        "headline": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "diagnosis_template": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "primary_finding_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 4
+        },
+        "positive_finding_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 2
+        },
+        "recommended_checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RecommendedCheck"
+          },
+          "maxItems": 3
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "high",
+                "medium",
+                "low"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "limitation_codes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "status",
+        "headline",
+        "diagnosis_template",
+        "primary_finding_ids",
+        "positive_finding_ids",
+        "recommended_checks",
+        "confidence",
+        "limitation_codes"
+      ],
+      "additionalProperties": false
+    },
+    "AdvertisingInsight": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "available",
+            "limited",
+            "unavailable"
+          ]
+        },
+        "headline": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "diagnosis_template": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "primary_finding_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 4
+        },
+        "positive_finding_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 2
+        },
+        "recommended_checks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RecommendedCheck"
+          },
+          "maxItems": 3
+        },
+        "confidence": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "high",
+                "medium",
+                "low"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "limitation_codes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "status",
+        "headline",
+        "diagnosis_template",
+        "primary_finding_ids",
+        "positive_finding_ids",
+        "recommended_checks",
+        "confidence",
+        "limitation_codes"
+      ],
+      "additionalProperties": false
+    },
+    "SellerPulseInsight": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "available",
+            "limited",
+            "unavailable"
+          ]
+        },
+        "headline": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "summary_template": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "key_point_finding_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 4
+        },
+        "important_fact_finding_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 4
+        },
+        "limitation_codes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "status",
+        "headline",
+        "summary_template",
+        "key_point_finding_ids",
+        "important_fact_finding_ids",
+        "limitation_codes"
+      ],
+      "additionalProperties": false
+    },
+    "SKUFocusItem": {
+      "type": "object",
+      "properties": {
+        "sku_id": {
+          "type": "string"
+        },
+        "finding_id": {
+          "type": "string"
+        },
+        "primary_metric_code": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "sku_id",
+        "finding_id",
+        "primary_metric_code"
+      ],
+      "additionalProperties": false
+    },
+    "SKUFocusSelection": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "available",
+            "limited",
+            "unavailable"
+          ]
+        },
+        "order_drop": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SKUFocusItem"
+          },
+          "maxItems": 7
+        },
+        "stock_risk": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SKUFocusItem"
+          },
+          "maxItems": 7
+        },
+        "no_sales_with_stock": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SKUFocusItem"
+          },
+          "maxItems": 7
+        },
+        "slow_turnover": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SKUFocusItem"
+          },
+          "maxItems": 7
+        },
+        "key_skus": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SKUFocusItem"
+          },
+          "maxItems": 7
+        },
+        "limitation_codes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "status",
+        "order_drop",
+        "stock_risk",
+        "no_sales_with_stock",
+        "slow_turnover",
+        "key_skus",
+        "limitation_codes"
+      ],
+      "additionalProperties": false
+    },
+    "Dashboard": {
+      "type": "object",
+      "properties": {
+        "account_diagnosis": {
+          "$ref": "#/$defs/AccountDiagnosis"
+        },
+        "what_changed": {
+          "$ref": "#/$defs/WhatChanged"
+        },
+        "category_insights": {
+          "$ref": "#/$defs/CategoryInsights"
+        },
+        "funnel_insight": {
+          "$ref": "#/$defs/FunnelInsight"
+        },
+        "stock_insight": {
+          "$ref": "#/$defs/StockInsight"
+        },
+        "advertising_insight": {
+          "$ref": "#/$defs/AdvertisingInsight"
+        },
+        "seller_pulse_insight": {
+          "$ref": "#/$defs/SellerPulseInsight"
+        },
+        "sku_focus_selection": {
+          "$ref": "#/$defs/SKUFocusSelection"
+        }
+      },
+      "required": [
+        "account_diagnosis",
+        "what_changed",
+        "category_insights",
+        "funnel_insight",
+        "stock_insight",
+        "advertising_insight",
+        "seller_pulse_insight",
+        "sku_focus_selection"
+      ],
+      "additionalProperties": false
+    },
+    "ActionScope": {
+      "type": "object",
+      "properties": {
+        "scope_type": {
+          "type": "string",
+          "enum": [
+            "account",
+            "sku",
+            "campaign",
+            "funnel",
+            "category"
+          ]
+        },
+        "entity_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "scope_type",
+        "entity_ids"
+      ],
+      "additionalProperties": false
+    },
+    "PlanStep": {
+      "type": "object",
+      "properties": {
+        "order": {
+          "type": "integer"
+        },
+        "instruction": {
+          "type": "string"
+        },
+        "rationale_template": {
+          "type": "string"
+        },
+        "expected_result": {
+          "type": "string"
+        },
+        "entity_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "order",
+        "instruction",
+        "rationale_template",
+        "expected_result",
+        "entity_ids"
+      ],
+      "additionalProperties": false
+    },
+    "MetricImprovementCondition": {
+      "type": "object",
+      "properties": {
+        "condition_id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "metric_improvement"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "metric_code": {
+          "type": "string"
+        },
+        "entity_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "baseline_claim_id": {
+          "type": "string"
+        },
+        "direction": {
+          "type": "string",
+          "enum": [
+            "increase",
+            "decrease"
+          ]
+        },
+        "period_days": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "condition_id",
+        "type",
+        "title",
+        "metric_code",
+        "entity_id",
+        "baseline_claim_id",
+        "direction",
+        "period_days"
+      ],
+      "additionalProperties": false
+    },
+    "PolicyThresholdCondition": {
+      "type": "object",
+      "properties": {
+        "condition_id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "policy_threshold"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "metric_code": {
+          "type": "string"
+        },
+        "entity_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "policy_id": {
+          "type": "string"
+        },
+        "period_days": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "condition_id",
+        "type",
+        "title",
+        "metric_code",
+        "entity_id",
+        "policy_id",
+        "period_days"
+      ],
+      "additionalProperties": false
+    },
+    "ManualConfirmationCondition": {
+      "type": "object",
+      "properties": {
+        "condition_id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "manual_confirmation"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "confirmation_text": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "condition_id",
+        "type",
+        "title",
+        "confirmation_text"
+      ],
+      "additionalProperties": false
+    },
+    "Completion": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": [
+            "all",
+            "any"
+          ]
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/MetricImprovementCondition"
+              },
+              {
+                "$ref": "#/$defs/PolicyThresholdCondition"
+              },
+              {
+                "$ref": "#/$defs/ManualConfirmationCondition"
+              }
+            ]
+          }
+        }
+      },
+      "required": [
+        "mode",
+        "conditions"
+      ],
+      "additionalProperties": false
+    },
+    "ObjectInstruction": {
+      "type": "object",
+      "properties": {
+        "entity_id": {
+          "type": "string"
+        },
+        "instruction": {
+          "type": "string"
+        },
+        "reason_template": {
+          "type": "string"
+        },
+        "expected_result": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "entity_id",
+        "instruction",
+        "reason_template",
+        "expected_result"
+      ],
+      "additionalProperties": false
+    },
+    "Action": {
+      "type": "object",
+      "properties": {
+        "analysis_action_id": {
+          "type": "string"
+        },
+        "finding_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 3
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "stock_replenishment",
+            "stock_redistribution",
+            "slow_turnover_review",
+            "no_sales_with_stock",
+            "sku_orders_drop",
+            "key_sku_protection",
+            "ad_high_drr_review",
+            "ad_spend_no_orders",
+            "ad_budget_reallocation",
+            "funnel_weak_transition",
+            "card_conversion_review",
+            "category_underperformance",
+            "sales_drop_review"
+          ]
+        },
+        "priority": {
+          "type": "string",
+          "enum": [
+            "critical",
+            "important",
+            "watch"
+          ]
+        },
+        "execution_tier": {
+          "type": "string",
+          "enum": [
+            "required",
+            "recommended"
+          ]
+        },
+        "title": {
+          "type": "string"
+        },
+        "situation_template": {
+          "type": "string"
+        },
+        "goal": {
+          "type": "string"
+        },
+        "scope": {
+          "$ref": "#/$defs/ActionScope"
+        },
+        "entity_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "plan": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PlanStep"
+          },
+          "maxItems": 5
+        },
+        "expected_effect_template": {
+          "type": "string"
+        },
+        "completion": {
+          "$ref": "#/$defs/Completion"
+        },
+        "object_instructions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ObjectInstruction"
+          }
+        },
+        "limitation_codes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "confidence": {
+          "type": "string",
+          "enum": [
+            "high",
+            "medium",
+            "low"
+          ]
+        }
+      },
+      "required": [
+        "analysis_action_id",
+        "finding_ids",
+        "type",
+        "priority",
+        "execution_tier",
+        "title",
+        "situation_template",
+        "goal",
+        "scope",
+        "entity_ids",
+        "plan",
+        "expected_effect_template",
+        "completion",
+        "object_instructions",
+        "limitation_codes",
+        "confidence"
+      ],
+      "additionalProperties": false
+    },
+    "Limitation": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "scope": {
+          "type": "string",
+          "enum": [
+            "account",
+            "history",
+            "funnel",
+            "stock",
+            "advertising",
+            "sku",
+            "category"
+          ]
+        },
+        "affected_blocks": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "code",
+        "scope",
+        "affected_blocks"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

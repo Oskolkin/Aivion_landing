@@ -1,0 +1,8 @@
+check,status,entity_id,expected,actual,detail
+actions_count_matches_output,ok,,output_actions=3,persisted_actions=3,AI output action count vs persisted action_items count
+action_evidence_fact_ids_non_empty,ok,unified:pack:1:2026-:action_001,>=1 evidence_fact_id,5,persisted action must carry at least one evidence_fact_id
+action_evidence_facts_exist,ok,unified:pack:1:2026-:action_001,all evidence facts resolve in Pack registry,5/5 resolved,every classifiable evidence_fact_id must resolve in the run's Pack facts registry
+action_evidence_fact_ids_non_empty,ok,unified:pack:1:2026-:action_002,>=1 evidence_fact_id,6,persisted action must carry at least one evidence_fact_id
+action_evidence_facts_exist,ok,unified:pack:1:2026-:action_002,all evidence facts resolve in Pack registry,6/6 resolved,every classifiable evidence_fact_id must resolve in the run's Pack facts registry
+action_evidence_fact_ids_non_empty,ok,unified:pack:1:2026-:action_003,>=1 evidence_fact_id,6,persisted action must carry at least one evidence_fact_id
+action_evidence_facts_exist,ok,unified:pack:1:2026-:action_003,all evidence facts resolve in Pack registry,6/6 resolved,every classifiable evidence_fact_id must resolve in the run's Pack facts registry

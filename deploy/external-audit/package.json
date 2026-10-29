@@ -1,0 +1,17 @@
+{
+  "name": "aivion-external-audit",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "capture": "node src/cli.mjs capture",
+    "validate": "node src/cli.mjs validate",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "playwright": "1.51.1"
+  }
+}

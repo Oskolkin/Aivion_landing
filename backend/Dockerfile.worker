@@ -1,0 +1,23 @@
+FROM golang:1.25-alpine AS builder
+
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=0 go build -o /bin/worker ./cmd/worker
+
+FROM alpine:3.20
+
+RUN apk add --no-cache ca-certificates \
+  && adduser -D -u 10001 worker
+
+WORKDIR /app
+COPY --from=builder /bin/worker /app/worker
+COPY migrations /app/migrations
+RUN chown -R worker:worker /app
+
+USER worker
+# No HTTP HEALTHCHECK: worker has no health endpoint. Orchestrator relies on
+# process status / restart policy. Go handles SIGTERM for graceful shutdown.
+CMD ["/app/worker"]

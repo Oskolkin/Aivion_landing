@@ -1,0 +1,25 @@
+{
+  "schema_version": "aivion_unified_analysis_v10",
+  "headline": "Доля рекламы в общей выручке кабинета остается на уровне 26,2%, атрибутированный ДРР кампаний — 53,3%",
+  "summary": "За 7 дней рекламный бюджет достиг 1 848 129 руб., что дает долю рекламы в общей выручке в 26,2%. По атрибутированным кампаниям ДРР составил 53,3% (на уровне прошлой недели), при этом 3 кампании превысили порог 80%. Общий вклад рекламы поддерживает динамику, но требуется перераспределение на кампании с критическим ДРР.",
+  "metric_claims": [
+    {
+      "metric_code": "ad_spend_share_of_total_store_revenue_pct",
+      "value": 26.231698344160172
+    },
+    {
+      "metric_code": "attributed_campaign_drr_pct",
+      "value": 53.333971468501254
+    }
+  ],
+  "threshold_claims": [
+    {
+      "scope": "campaign",
+      "value": 80,
+      "operator": "gt",
+      "policy_id": "high_drr_campaign_threshold",
+      "metric_code": "campaign_drr_pct"
+    }
+  ],
+  "action_count": 3
+}

@@ -1,0 +1,130 @@
+﻿# Aivion edge routing — public demo on apex + protected staging entrypoint.
+# Topology: SHARED_PUBLIC_DEMO_STACK_WITH_PROTECTED_STAGING_ENTRYPOINT
+# (one app stack; access contracts differ by hostname only).
+#
+# TLS: Caddy obtains and renews Let's Encrypt certificates automatically via ACME.
+# Set ACME_EMAIL in the compose environment (contact for certificate notices).
+#
+# No HSTS preload — Strict-Transport-Security without preload.
+
+{
+	email {$ACME_EMAIL}
+}
+
+# Internal-only liveness for Docker healthcheck (not published to the host).
+http://127.0.0.1:9080 {
+	respond /healthz 200
+}
+
+# Temporary Live Seller Review host (token/host never stored in Git).
+# Host-managed file; when disabled contains only a comment stub.
+import /etc/caddy/live-review.caddy
+
+# ---------------------------------------------------------------------------
+# Staging — same app stack, Caddy Basic Auth preserved for technical access.
+# ---------------------------------------------------------------------------
+staging.aivion.pro {
+	encode gzip zstd
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# Mounted Docker secret: a Caddy snippet with `basic_auth { user <hash> }`.
+	import /run/secrets/staging_basic_auth
+
+	reverse_proxy frontend:3000 {
+		# Never accept spoofed live-review headers on the main staging host.
+		header_up -X-Aivion-Live-Review
+		header_up -X-Aivion-Live-Review-Token
+		header_up -X-Aivion-Live-Review-Host
+
+		transport http {
+			read_timeout  900s
+			write_timeout 900s
+			dial_timeout  10s
+		}
+		flush_interval -1
+	}
+}
+
+# ---------------------------------------------------------------------------
+# Canonical public demo entry — no Caddy Basic Auth.
+# ---------------------------------------------------------------------------
+aivion.pro {
+	encode gzip zstd
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		-Server
+	}
+
+	# Do not access-log external-audit URLs (paths contain secret bundle IDs).
+	log_skip /external-audit/*
+
+	# Ozon redirects here after seller consent. This dedicated callback is handled
+	# by backend so state and OAuth exchange stay server-side.
+	handle /oauth/* {
+		reverse_proxy backend-api:8081
+	}
+
+	# Static external-audit bundles (no proxy, no cookies).
+	handle /external-audit/* {
+		@auditNotGetHead {
+			not method GET HEAD
+		}
+		respond @auditNotGetHead "Method Not Allowed" 405
+
+		root * /srv/external-audit/published
+		uri strip_prefix /external-audit
+		@auditTxt path *.txt
+		header @auditTxt Content-Type "text/plain; charset=utf-8"
+		header {
+			Cache-Control "no-store, private, max-age=0"
+			Pragma "no-cache"
+			Expires "0"
+			X-Robots-Tag "noindex, nofollow, noarchive, nosnippet"
+			Referrer-Policy "no-referrer"
+			X-Content-Type-Options "nosniff"
+			X-Frame-Options "DENY"
+			Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+			-Server
+			-Set-Cookie
+		}
+		file_server {
+			hide .*
+		}
+	}
+
+	reverse_proxy frontend:3000 {
+		# Never accept spoofed live-review headers on the public apex.
+		header_up -X-Aivion-Live-Review
+		header_up -X-Aivion-Live-Review-Token
+		header_up -X-Aivion-Live-Review-Host
+
+		transport http {
+			read_timeout  900s
+			write_timeout 900s
+			dial_timeout  10s
+		}
+		flush_interval -1
+	}
+}
+
+# ---------------------------------------------------------------------------
+# Apex aliases → canonical aivion.pro (preserve path + query).
+# ---------------------------------------------------------------------------
+www.aivion.pro {
+	redir https://aivion.pro{uri} 308
+}
+
+app.aivion.pro {
+	redir https://aivion.pro{uri} 308
+}

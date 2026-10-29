@@ -1,0 +1,16 @@
+﻿Expanded display is on.
+-[ RECORD 1 ]----------+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+id                     | 194
+status                 | publication_blocked
+error_code             | output_contract_invalid
+error_message          | advertising_claim_percent_without_claim: free-text percentage 80.0% has no matching ad_spend_share_of_total_store_revenue_pct/attributed_campaign_drr_pct claim
+prompt_version         | unified_analyst_v1_25
+pack_hash              | 17e80bbe7eccb4f8cf7740e1d1ada796c22e4dd581b61c76874c38da036be854
+provider_latency_ms    | 76012
+input_tokens           | 15376
+output_tokens          | 10503
+code_interpreter_calls | 2
+cleanup_status         | completed
+provider_response_id   | resp_0a6543ddcf1220a6006a608128f9cc819eb80371678154ad05
+unified_publication_id | 
+

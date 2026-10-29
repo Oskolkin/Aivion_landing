@@ -1,0 +1,201 @@
+{
+  "schema_version": "aivion_unified_analysis_v11",
+  "analysis_meta": {
+    "pack_id": "pack_seller_1_2026_07_08_ab12",
+    "pack_hash": "9d78f0a1b2c3d4e5f678901234567890abcdef0123456789abcdef0123456789",
+    "metric_date": "2026-07-08"
+  },
+  "analysis_outcome": "material_actions_found",
+  "metric_claims": [
+    {
+      "claim_id": "c_stock_units",
+      "metric_code": "available_stock_units",
+      "scope_type": "sku",
+      "entity_id": "801000100003",
+      "current_fact_id": "sku:801000100003:available_stock_units",
+      "previous_fact_id": null,
+      "render_format": "units",
+      "delta_mode": "none"
+    }
+  ],
+  "threshold_claims": [],
+  "findings": [
+    {
+      "finding_id": "f_stockout",
+      "domain": "stock",
+      "finding_type": "stockout",
+      "primary_block": "stock",
+      "direction": "negative",
+      "severity": "critical",
+      "interpretation": "observed",
+      "title": "Товар отсутствует на складе",
+      "explanation_template": "Доступный остаток равен нулю при подтверждённом спросе.",
+      "business_impact_template": "Прямой риск потери продаж.",
+      "scope": {
+        "scope_type": "sku",
+        "entity_ids": [
+          "801000100003"
+        ]
+      },
+      "metric_claim_ids": [
+        "c_stock_units"
+      ],
+      "threshold_claim_ids": [],
+      "confidence": "high",
+      "limitation_codes": []
+    }
+  ],
+  "dashboard": {
+    "account_diagnosis": {
+      "status": "available",
+      "headline": "Критический риск отсутствия товара",
+      "executive_summary_template": "Обнаружен stockout по SKU с подтверждённым спросом.",
+      "primary_finding_ids": [
+        "f_stockout"
+      ],
+      "positive_finding_ids": [],
+      "improvement_levers": [
+        {
+          "title": "Восстановить наличие товара",
+          "explanation_template": "Пополнение устранит прямую потерю продаж.",
+          "finding_id": "f_stockout",
+          "linked_action_id": "a_stockout_replenish",
+          "expected_direction": "stock_stability"
+        }
+      ],
+      "limitation_codes": []
+    },
+    "what_changed": {
+      "status": "available",
+      "summary_template": "Динамика кабинета неоднородна.",
+      "worsened": [],
+      "new_risks": [],
+      "unchanged_risks": [],
+      "improved": [],
+      "limitation_codes": []
+    },
+    "category_insights": {
+      "status": "available",
+      "items": [],
+      "limitation_codes": []
+    },
+    "funnel_insight": {
+      "status": "available",
+      "weakest_transition_key": null,
+      "headline": null,
+      "diagnosis_template": null,
+      "business_meaning_template": null,
+      "positive_context_template": null,
+      "recommended_checks": [],
+      "finding_ids": [],
+      "confidence": "medium",
+      "limitation_codes": []
+    },
+    "stock_insight": {
+      "status": "available",
+      "headline": "Основной риск — отсутствие товара",
+      "diagnosis_template": "SKU с подтверждённым спросом имеет нулевой доступный остаток.",
+      "primary_finding_ids": [
+        "f_stockout"
+      ],
+      "positive_finding_ids": [],
+      "recommended_checks": [],
+      "confidence": "high",
+      "limitation_codes": []
+    },
+    "advertising_insight": {
+      "status": "available",
+      "headline": null,
+      "diagnosis_template": null,
+      "primary_finding_ids": [],
+      "positive_finding_ids": [],
+      "recommended_checks": [],
+      "confidence": "medium",
+      "limitation_codes": []
+    },
+    "seller_pulse_insight": {
+      "status": "available",
+      "headline": "Сводка по кабинету",
+      "summary_template": "Ключевые изменения отражены в findings.",
+      "key_point_finding_ids": [
+        "f_stockout"
+      ],
+      "important_fact_finding_ids": [],
+      "limitation_codes": []
+    },
+    "sku_focus_selection": {
+      "status": "available",
+      "order_drop": [],
+      "stock_risk": [
+        {
+          "sku_id": "801000100003",
+          "finding_id": "f_stockout",
+          "primary_metric_code": "available_stock_units"
+        }
+      ],
+      "no_sales_with_stock": [],
+      "slow_turnover": [],
+      "key_skus": [],
+      "limitation_codes": []
+    }
+  },
+  "actions": [
+    {
+      "analysis_action_id": "a_stockout_replenish",
+      "finding_ids": [
+        "f_stockout"
+      ],
+      "type": "stock_replenishment",
+      "priority": "critical",
+      "execution_tier": "required",
+      "title": "Пополнить отсутствующий SKU",
+      "situation_template": "Товар закончился при подтверждённом спросе.",
+      "goal": "Восстановить наличие товара.",
+      "scope": {
+        "scope_type": "sku",
+        "entity_ids": [
+          "801000100003"
+        ]
+      },
+      "plan": [
+        {
+          "order": 1,
+          "instruction": "Проверить текущие данные по затронутым объектам.",
+          "rationale_template": "Нужно подтвердить актуальность сигнала перед действием.",
+          "expected_result": "Подтверждена актуальность проблемы.",
+          "entity_ids": [
+            "801000100003"
+          ]
+        },
+        {
+          "order": 2,
+          "instruction": "Выполнить операционное решение в кабинете маркетплейса.",
+          "rationale_template": "Это устраняет подтверждённую проблему.",
+          "expected_result": "Действие выполнено по объектам Action.",
+          "entity_ids": [
+            "801000100003"
+          ]
+        }
+      ],
+      "expected_effect_template": "Вернуть товар в продажу.",
+      "completion": {
+        "mode": "all",
+        "conditions": [
+          {
+            "condition_id": "condition_1",
+            "type": "manual_confirmation",
+            "title": "Поставка создана",
+            "confirmation_text": "Поставка создана и подтверждена в кабинете маркетплейса."
+          }
+        ]
+      },
+      "object_instructions": [],
+      "limitation_codes": [],
+      "confidence": "high",
+      "entity_ids": [
+        "801000100003"
+      ]
+    }
+  ],
+  "limitations": []
+}

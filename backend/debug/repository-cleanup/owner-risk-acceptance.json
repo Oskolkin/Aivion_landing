@@ -1,0 +1,12 @@
+{
+  "decision_id": "openai-key-rotation-deferred-2026-08-03",
+  "key_rotation_status": "DEFERRED_BY_OWNER",
+  "owner_risk_acceptance": true,
+  "rotation_required_before_real_seller_production": true,
+  "old_key_revoked": false,
+  "old_key_mask": "sk-proj-...zpsA",
+  "new_key_configured_outside_git": false,
+  "security_incident_fully_closed": false,
+  "severity": "P0_SECURITY_EXCEPTION",
+  "notes": "Owner deferred OpenAI key rotation for this cleanup pass. Git history cleanup proceeds independently. Real seller production onboarding remains blocked until revoke + new key."
+}

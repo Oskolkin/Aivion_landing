@@ -1,0 +1,66 @@
+[
+  {
+    "arr": "important_facts",
+    "i": 0,
+    "fact_ids": [
+      "account:no_sales_with_stock_count:current_7d"
+    ],
+    "claims": [
+      "account:no_sales_with_stock_count:current_7d"
+    ]
+  },
+  {
+    "arr": "important_facts",
+    "i": 1,
+    "fact_ids": [
+      "account:ad_spend_share_of_total_revenue_pct:current_7d"
+    ],
+    "claims": [
+      "account:ad_spend_share_of_total_revenue_pct:current_7d"
+    ]
+  },
+  {
+    "arr": "important_facts",
+    "i": 2,
+    "fact_ids": [
+      "account:orders_7d:current_7d",
+      "account:orders_7d:previous_7d"
+    ],
+    "claims": [
+      "account:orders_7d:current_7d"
+    ]
+  },
+  {
+    "arr": "key_points",
+    "i": 0,
+    "fact_ids": [
+      "account:revenue_7d:current_7d",
+      "account:revenue_delta_pct:current_7d"
+    ],
+    "claims": [
+      "account:revenue_7d:current_7d",
+      "account:revenue_delta_pct:current_7d"
+    ]
+  },
+  {
+    "arr": "key_points",
+    "i": 1,
+    "fact_ids": [
+      "account:orders_7d:current_7d",
+      "account:orders_7d:previous_7d"
+    ],
+    "claims": [
+      "account:orders_7d:current_7d"
+    ]
+  },
+  {
+    "arr": "key_points",
+    "i": 2,
+    "fact_ids": [
+      "account:cart_to_order_pct:current_7d"
+    ],
+    "claims": [
+      "account:cart_to_order_pct:current_7d"
+    ]
+  }
+]

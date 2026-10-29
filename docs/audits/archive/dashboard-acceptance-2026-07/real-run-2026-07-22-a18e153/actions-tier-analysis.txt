@@ -1,0 +1,11 @@
+﻿analysis_outcome=material_actions_found
+schema_version=aivion_unified_analysis_v10
+top_action_ids=action_001, action_002, action_003
+recommended_action_ids=
+action_count=3
+action[0] id=action_001 tier=required type=stock_replenishment category=stock
+action[1] id=action_002 tier=required type=ad_high_drr_review category=advertising
+action[2] id=action_003 tier=recommended type=no_sales_with_stock category=slow_turnover
+top_action_ids[0]=action_001 -> tier=required
+top_action_ids[1]=action_002 -> tier=required
+top_action_ids[2]=action_003 -> tier=recommended

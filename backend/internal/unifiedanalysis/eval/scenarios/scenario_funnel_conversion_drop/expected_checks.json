@@ -1,0 +1,6 @@
+{
+  "outcome": "material_actions_found",
+  "required_categories": ["funnel"],
+  "require_top_action": true,
+  "no_duplicate_sku": true
+}

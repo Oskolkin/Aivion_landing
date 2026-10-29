@@ -1,0 +1,496 @@
+{
+  "schema_version": "aivion_unified_analysis_v11",
+  "analysis_meta": {
+    "pack_id": "pack_seller_1_2026_07_08_ab12",
+    "pack_hash": "9d78f0a1b2c3d4e5f678901234567890abcdef0123456789abcdef0123456789",
+    "metric_date": "2026-07-08"
+  },
+  "analysis_outcome": "material_actions_found",
+  "metric_claims": [
+    {
+      "claim_id": "c_funnel_conversion",
+      "metric_code": "impression_to_view_pct",
+      "scope_type": "funnel",
+      "entity_id": null,
+      "current_fact_id": "account:impression_to_view_pct:current_7d",
+      "previous_fact_id": "account:impression_to_view_pct:previous_7d",
+      "render_format": "percent",
+      "delta_mode": "percentage_points"
+    },
+    {
+      "claim_id": "c_sku_coverage",
+      "metric_code": "stock_coverage_days_7d",
+      "scope_type": "sku",
+      "entity_id": "801000100001",
+      "current_fact_id": "sku:801000100001:stock_coverage_days_7d",
+      "previous_fact_id": null,
+      "render_format": "days",
+      "delta_mode": "none"
+    },
+    {
+      "claim_id": "c_campaign_drr",
+      "metric_code": "campaign_drr_pct",
+      "scope_type": "campaign",
+      "entity_id": "882000021528",
+      "current_fact_id": "campaign:882000021528:campaign_drr_pct",
+      "previous_fact_id": null,
+      "render_format": "percent",
+      "delta_mode": "none"
+    },
+    {
+      "claim_id": "c_orders_growth",
+      "metric_code": "orders_7d",
+      "scope_type": "account",
+      "entity_id": null,
+      "current_fact_id": "account:orders_7d:current_7d",
+      "previous_fact_id": "account:orders_7d:previous_7d",
+      "render_format": "integer",
+      "delta_mode": "percent"
+    }
+  ],
+  "threshold_claims": [
+    {
+      "claim_id": "t_high_drr_campaign",
+      "policy_id": "high_drr_campaign_threshold",
+      "metric_claim_id": "c_campaign_drr"
+    },
+    {
+      "claim_id": "t_low_coverage",
+      "policy_id": "low_stock_coverage_days_threshold",
+      "metric_claim_id": "c_sku_coverage"
+    }
+  ],
+  "findings": [
+    {
+      "finding_id": "f_funnel_top_loss",
+      "domain": "funnel",
+      "finding_type": "impression_to_view_decline",
+      "primary_block": "funnel",
+      "direction": "negative",
+      "severity": "important",
+      "interpretation": "observed",
+      "title": "Снизилась эффективность перехода из показов в карточку",
+      "explanation_template": "Конверсия составила {{claim:c_funnel_conversion.current}} и изменилась на {{claim:c_funnel_conversion.delta}} относительно прошлого периода.",
+      "business_impact_template": "Меньше пользователей переходит к изучению карточки.",
+      "scope": {
+        "scope_type": "funnel",
+        "entity_ids": [
+          "impressions_to_product_views"
+        ]
+      },
+      "metric_claim_ids": [
+        "c_funnel_conversion"
+      ],
+      "threshold_claim_ids": [],
+      "confidence": "high",
+      "limitation_codes": []
+    },
+    {
+      "finding_id": "f_key_sku_stock_risk",
+      "domain": "stock",
+      "finding_type": "critical_coverage",
+      "primary_block": "stock",
+      "direction": "negative",
+      "severity": "critical",
+      "interpretation": "observed",
+      "title": "Критическое покрытие ключевого SKU",
+      "explanation_template": "Покрытие запасом ниже {{threshold:t_low_coverage.value}} {{threshold:t_low_coverage.operator}} допустимого уровня.",
+      "business_impact_template": "Риск потери продаж по ключевому товару.",
+      "scope": {
+        "scope_type": "sku",
+        "entity_ids": [
+          "801000100001"
+        ]
+      },
+      "metric_claim_ids": [
+        "c_sku_coverage"
+      ],
+      "threshold_claim_ids": [
+        "t_low_coverage"
+      ],
+      "confidence": "high",
+      "limitation_codes": []
+    },
+    {
+      "finding_id": "f_high_drr_campaign",
+      "domain": "advertising",
+      "finding_type": "high_drr_campaign",
+      "primary_block": "advertising",
+      "direction": "negative",
+      "severity": "important",
+      "interpretation": "observed",
+      "title": "Кампания превышает порог эффективности",
+      "explanation_template": "Показатель превышает {{threshold:t_high_drr_campaign.value}}.",
+      "business_impact_template": "Часть рекламного бюджета используется неэффективно.",
+      "scope": {
+        "scope_type": "campaign",
+        "entity_ids": [
+          "882000021528"
+        ]
+      },
+      "metric_claim_ids": [
+        "c_campaign_drr"
+      ],
+      "threshold_claim_ids": [
+        "t_high_drr_campaign"
+      ],
+      "confidence": "high",
+      "limitation_codes": []
+    },
+    {
+      "finding_id": "f_orders_growth",
+      "domain": "sales",
+      "finding_type": "orders_growth",
+      "primary_block": "account",
+      "direction": "positive",
+      "severity": "critical",
+      "interpretation": "observed",
+      "title": "Заказы выросли относительно прошлого периода",
+      "explanation_template": "Заказы составили {{claim:c_orders_growth.current}} и изменились на {{claim:c_orders_growth.delta}}.",
+      "business_impact_template": "Продажи получили поддержку со стороны спроса.",
+      "scope": {
+        "scope_type": "account",
+        "entity_ids": []
+      },
+      "metric_claim_ids": [
+        "c_orders_growth"
+      ],
+      "threshold_claim_ids": [],
+      "confidence": "high",
+      "limitation_codes": []
+    }
+  ],
+  "dashboard": {
+    "account_diagnosis": {
+      "status": "available",
+      "headline": "Рост продаж сопровождается риском дефицита ключевых товаров",
+      "executive_summary_template": "Продажи улучшились относительно прошлого периода, однако часть ключевых SKU имеет недостаточное покрытие запасом, а реклама и верхняя часть воронки требуют внимания.",
+      "primary_finding_ids": [
+        "f_key_sku_stock_risk",
+        "f_high_drr_campaign",
+        "f_funnel_top_loss"
+      ],
+      "positive_finding_ids": [
+        "f_orders_growth"
+      ],
+      "improvement_levers": [
+        {
+          "title": "Снизить риск дефицита ключевых SKU",
+          "explanation_template": "Устранение проблемы повысит устойчивость продаж по затронутым товарам.",
+          "finding_id": "f_key_sku_stock_risk",
+          "linked_action_id": "a_stock_replenishment",
+          "expected_direction": "stock_stability"
+        }
+      ],
+      "limitation_codes": []
+    },
+    "what_changed": {
+      "status": "available",
+      "summary_template": "Продажи улучшились, но верхняя часть воронки ослабла, а риски по остаткам сохраняются.",
+      "worsened": [
+        {
+          "change_id": "change_funnel_view_conversion",
+          "finding_id": "f_funnel_top_loss",
+          "linked_action_id": "a_funnel_review"
+        }
+      ],
+      "new_risks": [
+        {
+          "change_id": "change_stock_critical",
+          "finding_id": "f_key_sku_stock_risk",
+          "linked_action_id": "a_stock_replenishment"
+        }
+      ],
+      "unchanged_risks": [],
+      "improved": [
+        {
+          "change_id": "change_orders_growth",
+          "finding_id": "f_orders_growth",
+          "linked_action_id": null
+        }
+      ],
+      "limitation_codes": []
+    },
+    "category_insights": {
+      "status": "available",
+      "items": [],
+      "limitation_codes": []
+    },
+    "funnel_insight": {
+      "status": "available",
+      "weakest_transition_key": "impressions_to_product_views",
+      "headline": "Слабое место — переход из показов в карточку",
+      "diagnosis_template": "Конверсия составила {{claim:c_funnel_conversion.current}} и изменилась на {{claim:c_funnel_conversion.delta}} относительно прошлого периода.",
+      "business_meaning_template": "Основные потери происходят до изучения карточки товара.",
+      "positive_context_template": null,
+      "recommended_checks": [
+        {
+          "check_type": "search_visibility",
+          "title": "Проверить видимость товаров в выдаче",
+          "reason_template": "Сокращение верхней части воронки требует проверки источников трафика.",
+          "finding_ids": [
+            "f_funnel_top_loss"
+          ],
+          "linked_action_id": "a_funnel_review"
+        }
+      ],
+      "finding_ids": [
+        "f_funnel_top_loss"
+      ],
+      "confidence": "high",
+      "limitation_codes": []
+    },
+    "stock_insight": {
+      "status": "available",
+      "headline": "Основной риск — недостаточный запас ключевых SKU",
+      "diagnosis_template": "В кабинете есть товары с критическим покрытием при подтверждённом спросе.",
+      "primary_finding_ids": [
+        "f_key_sku_stock_risk"
+      ],
+      "positive_finding_ids": [],
+      "recommended_checks": [
+        {
+          "check_type": "incoming_supply",
+          "title": "Проверить поставки в пути",
+          "reason_template": "Нужно учесть уже созданные поставки перед новой отгрузкой.",
+          "finding_ids": [
+            "f_key_sku_stock_risk"
+          ],
+          "linked_action_id": "a_stock_replenishment"
+        }
+      ],
+      "confidence": "high",
+      "limitation_codes": [
+        "future_supply_visibility_limited"
+      ]
+    },
+    "advertising_insight": {
+      "status": "available",
+      "headline": "Часть рекламных расходов неэффективна",
+      "diagnosis_template": "Обнаружены кампании, превышающие установленный порог эффективности.",
+      "primary_finding_ids": [
+        "f_high_drr_campaign"
+      ],
+      "positive_finding_ids": [],
+      "recommended_checks": [],
+      "confidence": "high",
+      "limitation_codes": []
+    },
+    "seller_pulse_insight": {
+      "status": "available",
+      "headline": "Продажи растут, но устойчивость ограничивают остатки",
+      "summary_template": "Продажи улучшились относительно прошлого периода, однако риск дефицита ключевых товаров может ограничить дальнейшую динамику.",
+      "key_point_finding_ids": [
+        "f_orders_growth",
+        "f_key_sku_stock_risk"
+      ],
+      "important_fact_finding_ids": [
+        "f_funnel_top_loss",
+        "f_high_drr_campaign"
+      ],
+      "limitation_codes": []
+    },
+    "sku_focus_selection": {
+      "status": "available",
+      "order_drop": [],
+      "stock_risk": [
+        {
+          "sku_id": "801000100001",
+          "finding_id": "f_key_sku_stock_risk",
+          "primary_metric_code": "stock_coverage_days_7d"
+        }
+      ],
+      "no_sales_with_stock": [],
+      "slow_turnover": [],
+      "key_skus": [],
+      "limitation_codes": []
+    }
+  },
+  "actions": [
+    {
+      "analysis_action_id": "a_stock_replenishment",
+      "finding_ids": [
+        "f_key_sku_stock_risk"
+      ],
+      "type": "stock_replenishment",
+      "priority": "critical",
+      "execution_tier": "required",
+      "title": "Пополнить SKU с критическим остатком",
+      "situation_template": "Товар имеет критическое покрытие при подтверждённом спросе.",
+      "goal": "Обеспечить достаточный запас до следующего контроля.",
+      "scope": {
+        "scope_type": "sku",
+        "entity_ids": [
+          "801000100001"
+        ]
+      },
+      "plan": [
+        {
+          "order": 1,
+          "instruction": "Проверить текущие данные по затронутым объектам.",
+          "rationale_template": "Нужно подтвердить актуальность сигнала перед действием.",
+          "expected_result": "Подтверждена актуальность проблемы.",
+          "entity_ids": [
+            "801000100001"
+          ]
+        },
+        {
+          "order": 2,
+          "instruction": "Выполнить операционное решение в кабинете маркетплейса.",
+          "rationale_template": "Это устраняет подтверждённую проблему.",
+          "expected_result": "Действие выполнено по объектам Action.",
+          "entity_ids": [
+            "801000100001"
+          ]
+        }
+      ],
+      "expected_effect_template": "Снизить риск отсутствия товара и сохранить продажи.",
+      "completion": {
+        "mode": "all",
+        "conditions": [
+          {
+            "condition_id": "condition_1",
+            "type": "metric_improvement",
+            "title": "Покрытие запасом улучшилось",
+            "metric_code": "stock_coverage_days_7d",
+            "entity_id": "801000100001",
+            "baseline_claim_id": "c_sku_coverage",
+            "direction": "increase",
+            "period_days": 7
+          }
+        ]
+      },
+      "object_instructions": [],
+      "limitation_codes": [],
+      "confidence": "high",
+      "entity_ids": [
+        "801000100001"
+      ]
+    },
+    {
+      "analysis_action_id": "a_funnel_review",
+      "finding_ids": [
+        "f_funnel_top_loss"
+      ],
+      "type": "funnel_weak_transition",
+      "priority": "important",
+      "execution_tier": "required",
+      "title": "Проверить верхнюю часть воронки",
+      "situation_template": "Конверсия из показов в карточку ослабла относительно прошлого периода.",
+      "goal": "Восстановить эффективность перехода в карточку.",
+      "scope": {
+        "scope_type": "funnel",
+        "entity_ids": [
+          "impressions_to_product_views"
+        ]
+      },
+      "plan": [
+        {
+          "order": 1,
+          "instruction": "Проверить текущие данные по затронутым объектам.",
+          "rationale_template": "Нужно подтвердить актуальность сигнала перед действием.",
+          "expected_result": "Подтверждена актуальность проблемы.",
+          "entity_ids": [
+            "impressions_to_product_views"
+          ]
+        },
+        {
+          "order": 2,
+          "instruction": "Выполнить операционное решение в кабинете маркетплейса.",
+          "rationale_template": "Это устраняет подтверждённую проблему.",
+          "expected_result": "Действие выполнено по объектам Action.",
+          "entity_ids": [
+            "impressions_to_product_views"
+          ]
+        }
+      ],
+      "expected_effect_template": "Снизить потери на входе в воронку.",
+      "completion": {
+        "mode": "all",
+        "conditions": [
+          {
+            "condition_id": "condition_2",
+            "type": "manual_confirmation",
+            "title": "Проверка выполнена",
+            "confirmation_text": "Проверка видимости и привлекательности выдачи выполнена."
+          }
+        ]
+      },
+      "object_instructions": [],
+      "limitation_codes": [],
+      "confidence": "high",
+      "entity_ids": [
+        "impressions_to_product_views"
+      ]
+    },
+    {
+      "analysis_action_id": "a_high_drr_review",
+      "finding_ids": [
+        "f_high_drr_campaign"
+      ],
+      "type": "ad_high_drr_review",
+      "priority": "important",
+      "execution_tier": "required",
+      "title": "Пересмотреть кампанию с высоким ДРР",
+      "situation_template": "Кампания превышает установленный порог эффективности.",
+      "goal": "Вернуть эффективность кампании в допустимый диапазон.",
+      "scope": {
+        "scope_type": "campaign",
+        "entity_ids": [
+          "882000021528"
+        ]
+      },
+      "plan": [
+        {
+          "order": 1,
+          "instruction": "Проверить текущие данные по затронутым объектам.",
+          "rationale_template": "Нужно подтвердить актуальность сигнала перед действием.",
+          "expected_result": "Подтверждена актуальность проблемы.",
+          "entity_ids": [
+            "882000021528"
+          ]
+        },
+        {
+          "order": 2,
+          "instruction": "Выполнить операционное решение в кабинете маркетплейса.",
+          "rationale_template": "Это устраняет подтверждённую проблему.",
+          "expected_result": "Действие выполнено по объектам Action.",
+          "entity_ids": [
+            "882000021528"
+          ]
+        }
+      ],
+      "expected_effect_template": "Снизить неэффективные рекламные расходы.",
+      "completion": {
+        "mode": "all",
+        "conditions": [
+          {
+            "condition_id": "condition_3",
+            "type": "policy_threshold",
+            "title": "Показатель в допустимом диапазоне",
+            "metric_code": "campaign_drr_pct",
+            "entity_id": "882000021528",
+            "policy_id": "high_drr_campaign_threshold",
+            "period_days": 7
+          }
+        ]
+      },
+      "object_instructions": [],
+      "limitation_codes": [],
+      "confidence": "high",
+      "entity_ids": [
+        "882000021528"
+      ]
+    }
+  ],
+  "limitations": [
+    {
+      "code": "future_supply_visibility_limited",
+      "scope": "stock",
+      "affected_blocks": [
+        "stock_insight",
+        "actions"
+      ]
+    }
+  ]
+}

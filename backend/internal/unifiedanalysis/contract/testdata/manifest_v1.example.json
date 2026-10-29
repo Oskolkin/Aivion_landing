@@ -1,0 +1,29 @@
+{
+  "schema_version": "aivion_analysis_pack_v1",
+  "pack_id": "pack_example_v1",
+  "seller_account_id": 42,
+  "metric_date": "2026-07-08",
+  "timezone": "Europe/Moscow",
+  "currency": "RUB",
+  "periods": {
+    "current_7d": { "from": "2026-07-02", "to": "2026-07-08" },
+    "previous_7d": { "from": "2026-06-25", "to": "2026-07-01" },
+    "trend": { "from": "2026-06-25", "to": "2026-07-08" }
+  },
+  "tables": [
+    {
+      "name": "account_summary",
+      "file": "account_summary.csv",
+      "required": true,
+      "row_count": 1,
+      "columns": ["row_id", "seller_account_id", "metric_date", "orders_7d"],
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ],
+  "entity_counts": {
+    "sku_count": 12,
+    "campaign_count": 3,
+    "category_count": 2
+  },
+  "data_status": "available"
+}

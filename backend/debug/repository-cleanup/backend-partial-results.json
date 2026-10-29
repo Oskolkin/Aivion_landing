@@ -1,0 +1,8 @@
+{
+    "build":  0,
+    "tidy":  0,
+    "vet":  0,
+    "verify":  0,
+    "gofmt_count":  1,
+    "download":  0
+}

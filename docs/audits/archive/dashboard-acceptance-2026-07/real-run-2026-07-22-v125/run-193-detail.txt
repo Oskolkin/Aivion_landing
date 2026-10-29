@@ -1,0 +1,27 @@
+﻿Expanded display is on.
+-[ RECORD 1 ]--------------+-------------------------------------------------------------------------------------------------------------------------
+id                         | 193
+status                     | publication_blocked
+error_code                 | output_contract_invalid
+error_message              | advertising_narrative_fact_mismatch: sentence cites conflicting percents 26.2% and 53.3% for store-revenue share
+prompt_version             | unified_analyst_v1_25
+pack_id                    | pack:1:2026-07-08:17e80bbe7eccb4f8
+pack_hash                  | 17e80bbe7eccb4f8cf7740e1d1ada796c22e4dd581b61c76874c38da036be854
+pack_storage_key           | ai-analysis-packs/seller-1/2026-07-08/17e80bbe7eccb4f8cf7740e1d1ada796c22e4dd581b61c76874c38da036be854/analysis_pack.zip
+pack_archive_sha256        | 2c4acd2799c6065f7538fbf52f2003f309284a26e3ecbc757eac1c389ad84eeb
+provider_model             | gpt-4.1
+provider_container_id      | cntr_6a607db1a19c8191b3b60ffb0b588ae600d041ddfbeedfdc
+provider_container_file_id | cfile_6a607db34a888191af8765611595c60c
+provider_response_id       | resp_0a90fba443e04a7e006a607db3b830819f9fba387b06827a98
+provider_status            | completed
+provider_latency_ms        | 54512
+input_tokens               | 13236
+output_tokens              | 9512
+total_tokens               | 22748
+code_interpreter_calls     | 1
+cleanup_status             | completed
+metric_date                | 2026-07-08
+started_at                 | 2026-07-22 08:22:12.972271+00
+completed_at               | 2026-07-22 08:23:13+00
+unified_publication_id     | 
+

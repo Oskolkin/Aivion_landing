@@ -1,0 +1,1818 @@
+
+Да. Здесь я бы строил Data Quality / Readiness Model как последний защитный слой перед тем, как данные вообще получают право попасть в AI-анализ.
+Главная идея:
+UCDM говорит, какие факты мы храним. Capabilities — какие виды анализа потенциально доступны. Factual API — как правильно читать факты. Data Quality / Readiness решает: достаточно ли конкретные факты полны, корректны, свежи и согласованы, чтобы использовать их прямо сейчас.
+И я бы не вводил никакой Data Quality Score = 87/100. Как и с Account Health, один усреднённый балл скроет важные различия.
+
+1. Где находится Data Quality / Readiness
+Финальный нижний контур становится таким:
+Ozon
+ ↓
+Source ingestion
+ ↓
+UCDM
+ ↓
+Data Quality checks
+ ↓
+Watermarks / maturity
+ ↓
+Business Capabilities evaluation
+ ↓
+Analysis Date Resolver
+ ↓
+Analysis-context Readiness
+ ↓
+Factual Universe Manifest
+ ↓
+Internal Factual API
+ ↓
+AI
+Factual API при этом читает уже подготовленную readiness/capability semantics, а не пытается сам решать, хорошие данные или плохие.
+
+2. Самое важное: проблема данных ≠ проблема продавца
+Это нужно сделать фундаментальным invariant.
+Допустим вчера было:
+ordered_amount = 1 000 000 ₽
+сегодня:
+ordered_amount = 300 000 ₽
+Падение на 70%.
+Это не Data Quality Error.
+Продажи действительно могли рухнуть.
+Backend не должен сказать:
+подозрительно низкое значение, заменим / проигнорируем.
+И тем более:
+previous value = 1m
+current = 300k
+→ data invalid
+Нельзя.
+
+3. Что считается Data Quality проблемой
+Только то, что мы можем доказать технически или семантически.
+Например:
+20 batches expected
+19 received
+→ данные неполные.
+Account Sales = 1 000 000
+Σ SKU Sales = 620 000
+необъяснённый gap
+→ reconciliation issue.
+Stock snapshot 36 часов назад
+→ stale.
+две active Category assignment
+для одного SKU
+→ integrity violation.
+Search query details возвращают только provider top-N
+→ semantic coverage limited.
+Finance type неизвестен
+→ mapping incomplete.
+SKU source reference не удалось resolve
+→ entity resolution incomplete.
+Вот это Data Quality.
+Общепринятые data-quality frameworks также разделяют completeness, consistency, timeliness/freshness, uniqueness, validity и integrity; freshness особенно важна для inventory-like данных. Great Expectations
+
+4. Никакого автоматического исправления плохих данных
+Если:
+Stock source A = 100
+Stock source B = 87
+не:
+canonical stock = 93.5
+и не:
+canonical stock = MAX(100,87)
+У нас уже определён owner:
+Primary Stock = source A
+Secondary = reconciliation evidence
+Canonical остаётся:
+100
+и создаётся:
+STOCK_RECONCILIATION_MISMATCH
+
+5. Никакого AI-repair внутри DQ
+DQ может:
+проверить;
+измерить;
+классифицировать техническое состояние;
+запретить использование;
+понизить readiness;
+инициировать повторный sync.
+Но не:
+«починить» Finance;
+придумать Category;
+заменить отсутствующий Stock;
+заполнить missing Search;
+решить, что Ozon ошибся.
+
+6. Я предлагаю 10 основных DQ dimensions
+SCHEMA
+Пришёл ли source в ожидаемой структуре.
+Например Ozon убрал/изменил поле.
+
+COMPLETENESS
+Получили ли всё, что ожидали.
+Например:
+pages expected = 10
+pages completed = 10
+
+UNIQUENESS
+Нет ли duplicate business identities.
+Например:
+seller + ozon_sku
+должен однозначно определять Canonical SKU.
+Uniqueness критична именно потому, что duplicates искажают downstream analytics. Great Expectations
+
+INTEGRITY
+Корректны ли relations.
+Например:
+Campaign Seller 1
+→ SKU Seller 2
+недопустимо.
+
+VALIDITY
+Допустимы ли конкретные значения.
+Например:
+ordered_units &lt; 0
+в Sales Demand — invalid.
+Но:
+Finance signed_amount &lt; 0
+совершенно нормально.
+То есть validity всегда domain-specific.
+
+SEMANTIC
+Понимаем ли мы смысл provider field.
+Например:
+новый finance type
+есть фактически, но:
+canonical mapping = UNMAPPED
+
+RESOLUTION
+Сколько provider entities удалось связать с canonical identities.
+Например:
+1000 Supply items
+970 canonical SKU resolved
+→ 97%.
+
+RECONCILIATION
+Сходятся ли независимые representations там, где они должны сходиться.
+
+TEMPORAL
+Правильно ли определены period/as-of/event semantics и подходят ли периоды друг другу.
+
+FRESHNESS / MATURITY
+Насколько данные своевременны и достаточно ли они стабилизировались у provider.
+
+7. Completeness надо разделить на несколько видов
+Это важно.
+Transport completeness
+Успешно ли загрузили технически весь ответ.
+Например:
+20 Stock batches
+20 success
+
+Universe completeness
+Проверили ли весь expected universe.
+Например:
+expected SKU = 2000
+requested = 2000
+
+Resolution completeness
+returned SKU = 2000
+resolved canonical SKU = 1980
+
+Semantic completeness
+Даже complete API может по определению давать неполный business universe.
+Лучший пример — Search Details.
+Ozon возвращает ограниченный набор ranked queries; успешный ответ не означает полный universe запросов SKU. GitHub
+Поэтому:
+transport = COMPLETE
+semantic_scope = TOP_N_PROVIDER_RANKED
+Это не ошибка загрузки.
+
+8. Freshness и provider lag — тоже разные понятия
+Очень важный момент.
+Search сейчас официально имеет естественную задержку: данные за последний месяц не включают текущий день и рассчитываются примерно 1–2 дня. GitHub
+Поэтому:
+Search through 17 Aug
+Analysis date 19 Aug
+может быть:
+EXPECTED_PROVIDER_LAG
+а не:
+STALE
+
+9. А настоящий STALE выглядит иначе
+Например Search обычно:
+lag 1–2 days
+а у нас последний успешный sync:
+6 days ago
+Тогда:
+STALE
+
+10. Stock — совсем другая freshness policy
+С 17 августа 2026 /v1/analytics/stocks перешёл на real-time данные. Telegram
+Следовательно Stock может иметь гораздо более строгий freshness expectation, чем Search.
+Нельзя:
+all domains stale after 24h.
+У каждого domain/capability своя versioned policy.
+
+11. Provider maturity — отдельное понятие
+Особенно для Sales.
+Представим:
+20 Aug 02:00
+19 Aug ordered_units = 800
+потом:
+20 Aug 04:00
+19 Aug = 1030
+Обе загрузки технически:
+COMPLETE
+Но первая ещё не была достаточно mature.
+Поэтому:
+complete ≠ ready.
+
+12. Нужен Maturity Policy
+Я предлагаю:
+UNCONFIRMED
+STABILIZING
+MATURE
+Maturity может определяться различными способами:
+provider explicit final marker — если существует;
+source-specific known lag;
+повторными одинаковыми observations;
+empirical not-before window;
+комбинацией этих способов.
+
+13. Для Sales я бы использовал stability observations
+Пока у нас нет достоверного Ozon SLA завершения D-1.
+Пример:
+05:00
+Sales D hash = H1
+
+05:45
+Sales D hash = H1
+и обе загрузки:
+COMPLETE
+reconciled
+Получаем дополнительное доказательство:
+STABLE_TWO_OBSERVATIONS
+
+14. Но не делаем это вечным жёстким правилом
+Это versioned maturity policy.
+После реального пилота мы измерим:
+когда Sales D стабилизируется;
+как часто Ozon позднее корректирует D;
+каков реальный lag.
+И настроим нормальную policy.
+Архитектурный принцип остаётся:
+readiness определяется evidence, а не просто временем cron.
+
+15. Provider revisions после maturity разрешены
+Допустим 21 августа Ozon исправил Sales за 19 августа.
+Canonical facts получают новую revision.
+Это не означает:
+предыдущий Run был invalid.
+Он был корректным:
+AS KNOWN AT cutoff.
+Старая Publication immutable.
+Новый Run увидит corrected facts.
+
+16. Revision itself не является DQ failure
+Provider имеет право исправлять history.
+DQ problem возникает, например, если:
+revision резко изменилась
++
+source contract нарушен
++
+reconciliation перестала работать
+Но сам факт:
+100 → 105
+нормален.
+
+17. Statistical anomaly checks можно иметь, но только WARNING
+Например:
+row count suddenly -90%
+можно зарегистрировать:
+UNEXPECTED_VOLUME_CHANGE
+severity = WARNING
+и попытаться проверить source completeness.
+Но не блокировать данные только потому, что бизнес резко изменился.
+Great Expectations также рекомендует использовать data-quality checks в бизнес-контексте, а не слепо считать необычные значения ошибками. Great Expectations
+
+18. DQ Rule Registry
+Нужен versioned catalog:
+analysis.dq_rule_definitions
+analysis.dq_rule_versions
+Stable rule:
+rule_key
+domain
+dimension
+Например:
+SALES.ACCOUNT_SKU_RECONCILIATION
+
+STOCK.SNAPSHOT_BATCH_COMPLETENESS
+
+CATEGORY.NO_OVERLAPPING_ASSIGNMENTS
+
+SEARCH.QUERY_DETAIL_SEMANTIC_SCOPE
+
+FINANCE.TYPE_MAPPING_COVERAGE
+
+19. Rule Version
+Хранит:
+description
+
+check_scope
+
+thresholds
+
+evaluation_method
+
+severity_on_failure
+
+readiness_effect
+
+retry_class
+
+policy_version
+
+20. Очень важно отделить Severity от Readiness Effect
+Например:
+severity = WARNING
+не обязательно значит:
+PARTIAL.
+И наоборот критическая техническая проблема может затронуть только узкую capability.
+Поэтому отдельно:
+readiness_effect
+с вариантами:
+NONE
+
+LIMITATION_ONLY
+
+DEGRADE_TO_PARTIAL
+
+DEGRADE_TO_STALE
+
+FAIL_CAPABILITY
+
+FAIL_DOMAIN
+
+BLOCK_ANALYSIS_DATE
+
+21. Например Search top-N
+Check:
+SEARCH.QUERY_DETAILS_SCOPE
+результат:
+semantic_scope = TOP_N_PROVIDER_RANKED
+Это вообще:
+DQ result = PASS
+потому что provider contract работает правильно.
+Но capability:
+PARTIAL
+из-за ограниченной semantics.
+То есть:
+partial capability не всегда означает плохое качество ingestion.
+
+22. Результат каждого DQ check
+Я предлагаю:
+PASS
+
+WARN
+
+FAIL
+
+NOT_APPLICABLE
+
+NOT_EVALUATED
+И отдельно measurements.
+Например:
+expected = 2000
+received = 1980
+ratio = 99%
+
+23. DQ evaluation должен хранить измерение, а не только PASS/FAIL
+Это позволит позднее менять threshold без потери фактов.
+Например сегодня policy:
+resolution &gt;= 95%
+завтра:
+&gt;= 98%
+Raw measurement:
+97.2%
+остаётся прежним.
+Policy меняет только interpretation.
+
+24. Поэтому физически нужны
+analysis.dq_check_runs
+
+analysis.dq_check_results
+
+analysis.dq_measurements
+
+25. dq_check_runs
+Один набор проверок:
+seller
+
+domain
+sync_run_id NULL
+analysis_context_id NULL
+
+policy_version
+
+started_at
+completed_at
+
+status
+
+26. dq_check_results
+dq_check_run_id
+
+rule_version_id
+
+entity_ref NULL
+
+metric NULL
+grain NULL
+
+result_status
+
+severity
+
+readiness_effect
+
+primary_reason
+
+details
+
+27. dq_measurements
+Можно хранить:
+measurement_key
+
+numeric_value
+text_value
+boolean_value
+
+unit
+Например:
+resolved_ratio = 0.972
+или:
+collection_span_seconds = 27
+
+28. DQ checks выполняются на трёх уровнях
+Level 1 — ingestion-time
+Сразу после source collection.
+Проверяем:
+pagination
+schema
+counts
+cursor
+duplicates
+parsing
+basic validity
+
+Level 2 — canonicalization-time
+После записи UCDM.
+Проверяем:
+identity
+resolution
+FK
+intervals
+mapping
+canonical invariants
+
+Level 3 — analysis-context
+Когда уже известны:
+analysis_date
+cutoff
+periods
+selected snapshots
+Проверяем:
+freshness
+period completeness
+history adequacy
+cross-domain temporal compatibility
+run-specific coverage
+
+29. Почему нельзя делать только nightly DQ job
+Потому что readiness конкретного Analysis Run зависит от context.
+Например Stock snapshot:
+05:30
+при analysis:
+05:40
+может быть READY.
+Тот же snapshot завтра:
+05:40
+уже STALE.
+Source data физически не изменилась.
+Изменился analytical context.
+
+30. Watermarks — центральный operational mechanism
+Нужна таблица:
+analysis.domain_data_watermarks
+Мы уже предусмотрели её в Capability Model.
+
+31. Watermark содержит не просто latest row
+Например Sales:
+latest_observed_business_date
+latest_complete_business_date
+latest_mature_business_date
+Это три разные вещи.
+
+32. Пример
+Ozon уже вернул 19 Aug:
+latest_observed = 19
+Но один batch failed:
+latest_complete = 18
+Тогда:
+latest_mature = 18
+И Analysis Date остаётся 18.
+
+33. Для snapshot domains другой watermark
+Stock:
+latest_observed_snapshot_at
+latest_complete_snapshot_at
+latest_usable_snapshot_at
+
+34. Для Search
+latest_provider_period_to
+
+expected_provider_lag_days
+
+latest_complete_period_to
+
+history_semantics
+
+35. Watermark никогда не продвигается при failed DQ gate
+Например:
+20 Aug Finance source complete HTTP-wise
+но pagination issue:
+PARTIAL.
+Watermark:
+latest_complete_business_date
+не меняется.
+Это очень важно.
+
+36. Analysis Date Resolver
+Это одна из главных функций всего слоя.
+Пусть сегодня:
+20 Aug
+candidate:
+19 Aug.
+Resolver спрашивает:
+можем ли мы считать 19 Aug готовым?
+
+37. Hard Gate я бы сохранил очень маленьким
+Как мы уже договорились:
+CATALOG.SKU_UNIVERSE usable
++
+SALES.DEMAND usable for D
++
+Sales Account↔SKU reconciliation usable
+И, для нормального AI-analysis, достаточно historical Sales context.
+Остальные domains — optional.
+
+38. Почему Stock не hard gate
+Сегодня Stock API Ozon временно упал.
+Продажи полностью готовы.
+Нельзя из-за этого остановить весь Aivion.
+Run:
+PUBLISH
+с:
+Stock = FAILED
+и без Stock conclusions.
+
+39. Почему Advertising не hard gate
+Performance API — отдельная плоскость, со своей статистикой и async report mechanisms. Текущая Performance API спецификация содержит отдельный Statistics family и несколько способов получения campaign/report data. GitHub
+Её temporary outage не должна останавливать Sales/Stock/Price analysis.
+
+40. Почему Finance не hard gate
+Finance может иметь отдельную maturity/lag semantics.
+К тому же Ozon прямо сейчас мигрирует старые transaction endpoints на новый accrual family с отключением старых методов 8 сентября 2026. Telegram
+Архитектура обязана gracefully переживать подобные provider changes.
+
+41. analysis_date fallback
+Если 19 августа не готово:
+candidate = 19
+→ core gate FAIL
+Resolver ищет:
+latest previous date
+where core gate = READY.
+Например:
+18 Aug.
+Dashboard честно показывает:
+Анализ по данным на 18 августа.
+
+42. Но нельзя бесконечно публиковать одну и ту же дату
+Если:
+analysis_date = 18
+и factual universe с прошлого Run не изменился:
+same universe hash
+новая Publication не создаётся.
+Мы уже приняли:
+no pointless republish.
+
+43. Core Data Ready ≠ AI Run обязательно нужен
+После readiness:
+Build universe hash.
+Если:
+Hnew == Hcurrent_publication
+Run:
+SKIP_UNCHANGED.
+
+44. CONNECTED_NO_ANALYZABLE_DATA
+Мы уже согласовали состояние пустого/неанализируемого кабинета.
+DQ/Readiness должен формализовать его.
+Например:
+Catalog complete:
+0 SKU
+→
+CONNECTED_NO_ANALYZABLE_DATA
+
+45. Аналогично seller с SKU, но без meaningful Sales history
+Это не:
+FAILED.
+Это:
+INSUFFICIENT_ANALYSIS_HISTORY
+Ingestion продолжает работать.
+AI не запускается.
+
+46. Здесь появился один действительно продуктовый параметр
+Для стандартного анализа мы сравниваем:
+current_7d
+vs
+previous_7d
+Поэтому моя рекомендация:
+обычный Daily AI Analysis запускать только при наличии минимум 14 полных дней Core Sales history.
+Тогда мы имеем:
+7 current
++
+7 previous
+и первый анализ сразу методологически полноценный.
+Подробнее вернусь к этому вопросу в конце.
+
+47. Domain Readiness формируется из Checks + Capability
+Важно избежать дублирования.
+Я предлагаю flow:
+Provider Capability
++
+DQ evidence
++
+Watermark
++
+Temporal Context
+        ↓
+Business Capability Evaluator
+        ↓
+READY / PARTIAL / STALE / ...
+То есть DQ Model не создаёт второй независимый readiness truth.
+Capabilities остаются конечным user/consumer-readable состоянием.
+DQ — evidence, почему оно такое.
+
+48. Domain summary — тоже derived
+Например Stock:
+CURRENT_SELLABLE READY
+
+LOCATION_BREAKDOWN PARTIAL
+
+HISTORY READY
+
+COVERAGE READY
+Domain summary:
+STOCK = READY/PARTIAL
+по policy.
+Source of truth — отдельные capabilities + DQ evidence.
+
+49. Catalog / SKU DQ rules
+Минимальный набор.
+Catalog enumeration complete
+active pagination complete
+archived pagination complete
+
+Identity uniqueness
+seller + ozon_sku
+unique
+
+Invalid IDs
+ozon_sku &lt;= 0
+→ FAIL row normalization
+
+Stable identity conflict
+Один SKU одновременно пытается resolve к несовместимым provider identities.
+SKU_IDENTITY_CONFLICT
+
+State version overlap
+Должно быть невозможно благодаря DB EXCLUDE.
+Если каким-то образом обнаружено:
+DATA_INVARIANT_VIOLATION
+CRITICAL.
+
+50. Catalog completeness hard gate
+Для Analysis Run должно существовать:
+usable Canonical SKU universe.
+Но Category mapping:
+может быть partial.
+
+51. Category DQ
+Full taxonomy tree loaded
+Только полный authoritative tree позволяет отметить старые nodes UNOBSERVED.
+
+No cycles
+A → B → A
+CRITICAL provider/canonicalization issue.
+
+Parent exists
+Кроме root.
+
+Product Type belongs to resolved Category
+
+SKU assignment coverage
+Например:
+resolved = 1920
+UNMAPPED = 80
+Это не Catalog failure.
+Account/SKU analysis:
+READY
+Category grain:
+PARTIAL.
+
+52. Category mapping coverage желательно измерять двумя способами
+Не только:
+96% SKU count
+но и:
+98.5% ordered_amount coverage
+Почему?
+80 unmapped SKU могут быть:
+ничтожными
+или:
+40% бизнеса.
+Для Category analysis второй показатель гораздо важнее.
+
+53. Но backend не выбирает «важность»
+Он просто предоставляет:
+entity coverage
+sales exposure coverage.
+Readiness policy может использовать оба deterministic значения.
+
+54. Sales DQ — самый важный domain
+Потому что Sales hard gate.
+Минимально:
+Source pagination/request completeness
+Day D present
+SKU resolution
+Currency consistency
+Negative invalid values
+Account total reconciliation
+Historical window continuity
+Source maturity
+Duplicate business grain
+
+55. Sales daily continuity
+Если target 90d:
+18 Aug
+19 Aug
+и вдруг missing:
+17 Aug
+нельзя автоматически создать:
+0.
+Сначала source-specific rule:
+complete source explicitly has zero? → 0;
+no row semantics proven sparse? → perhaps 0;
+otherwise → MISSING.
+
+56. Account ↔ SKU reconciliation
+Самая важная проверка:
+Provider Account ordered_amount
+↔
+Σ SKU ordered_amount
++
+known unresolved provider rows
+
+57. Reconciliation statuses
+Я предлагаю:
+PASS
+
+EXPLAINED_GAP
+
+UNEXPLAINED_GAP
+
+NOT_COMPARABLE
+EXPLAINED_GAP:
+например account total выше ровно на unresolved SKU facts.
+Это не обязательно fail.
+
+58. Не фиксировать сейчас произвольный 1% threshold
+Точный permissible reconciliation tolerance зависит от:
+provider rounding
+unknown SKU behavior
+account source semantics
+Его нужно live-accept на непустом seller.
+Policy versioned.
+
+59. Но крупный unexplained gap не проходит hard gate
+Если:
+account = 1m
+SKU resolved+unresolved = 600k
+и нет объяснения:
+SALES.DEMAND != READY.
+Иначе AI будет анализировать неполный ассортимент как полный.
+
+60. Lifecycle DQ
+Не блокирует Core Sales.
+Проверяем:
+posting unique
+order relation
+split cycles absent
+SKU resolution
+state version overlap
+event dedupe
+timestamp quality
+
+61. Posting lifecycle не reconciliate с ordered demand простой суммой
+Мы специально развели эти domains.
+Поэтому:
+sum posting quantities
+≠ Sales ordered_units DQ check
+как authoritative equality.
+Это было бы возвращением к старой ошибке.
+
+62. Stock DQ
+Особенно важно:
+Fixed SKU universe
+sku_universe_hash
+all batches complete
+requested/resolved counts
+inventory pool identity
+no overlapping physical pools in aggregate
+source field semantics validated
+snapshot collection span
+freshness
+
+63. Real-time Stock требует более строгой operational freshness
+После перехода /v1/analytics/stocks на real-time 17 августа, старый freshness assumption «обновляется пару раз в сутки» больше не подходит. Telegram
+Это хороший пример, почему freshness policy должна быть versioned, а не захардкожена навечно.
+
+64. Stock secondary reconciliation
+Например:
+primary analytics stocks = 100
+
+/v4/product/info/stocks
+= 97
+Это:
+WARN / reconciliation issue
+по умолчанию.
+Не обязательно делает primary Stock FAILED.
+
+65. Когда secondary mismatch становится серьёзным
+Только после real seller acceptance мы можем определить:
+какая величина gap нормальна;
+есть ли temporal lag;
+сопоставимы ли exact semantics.
+До этого:
+diagnostic.
+
+66. Price DQ
+Проверяем:
+snapshot completeness
+SKU universe
+currency
+field-specific zero semantics
+source mapping validation
+version overlap
+freshness
+
+67. Price cross-source reconciliation
+Basic:
+/v5/product/info/prices
+Premium detailed:
+/v1/product/prices/details
+Могут legitimately различаться.
+Поэтому сравниваем только те fields, где source contract ожидает конкретную relation.
+Не:
+all prices must equal.
+
+68. Price history не требует 90d
+Если Aivion подключился сегодня:
+PRICE.AIVION_HISTORY
+coverage_from = today
+Это нормальное состояние.
+Не:
+DQ FAILED, missing 90 days.
+Capability history semantics заранее знает:
+from connection.
+
+69. Advertising DQ
+Performance API имеет собственную сложность: часть статистики получается напрямую, часть через async report generation/poll/download. GitHub
+Поэтому checks:
+report requested
+report ready
+download complete
+parse complete
+campaign coverage
+date coverage
+currency
+campaign resolution
+SKU resolution
+attribution semantics
+
+70. Advertising spend reconciliation
+Primary campaign daily spend:
+↔ expense source
+Но не суммировать.
+Statuses:
+PASS
+WITHIN_EXPECTED_DIFFERENCE
+MISMATCH
+NOT_COMPARABLE
+
+71. Provider DRR reconciliation
+Если provider DRR существует:
+provider_drr
+vs
+paid_spend / attributed_amount
+очень полезный DQ check.
+Но при mismatch:
+не исправляем provider DRR.
+И не усредняем.
+Может быть:
+bonus spend semantics;
+attribution difference;
+provider formula;
+rounding.
+
+72. Funnel DQ
+Особенность — динамические metrics.
+Проверяем:
+metric registry mapping
+provider metric availability
+zero semantics
+period correctness
+grain compatibility
+direct-period retrieval
+Unknown metric:
+raw preserved
+semantic_status = UNMAPPED
+Domain ingestion не должен падать целиком.
+
+73. Не проверяем Funnel как линейную математическую цепочку
+Например:
+search impressions &gt;= PDP impressions &gt;= cart &gt;= orders
+не является валидным универсальным DQ rule.
+Потому что Funnel Model уже установила:
+эти surfaces не являются одной cohort chain.
+
+74. Search DQ
+Очень специфичный domain.
+Summary source period exact
+Details source top-N semantic scope
+retrieval ranking preserved
+query identity normalization conservative
+unique metrics non-additive
+provider maturity lag
+Category period ambiguity
+
+75. Search 1–2 day delay не является failure
+Текущая документация прямо говорит, что данные последнего месяца рассчитываются 1–2 дня. GitHub
+Поэтому readiness policy:
+lag &lt;= source expected lag
+→ PARTIAL/LAGGED_EXPECTED
+не:
+STALE.
+
+76. Finance DQ
+Здесь особенно важны:
+pagination complete
+provider type registry coverage
+mapping coverage
+parent total semantics
+currency
+posting/SKU resolution
+sign preservation
+duplicate records
+
+77. Finance old source должен автоматически считаться deprecated
+Ozon объявил /v3/finance/transaction/list и /totals устаревающими с отключением 8 сентября 2026. Telegram
+Поэтому если новый implementation случайно снова начал получать факты через старый contract:
+SOURCE_CONTRACT_DEPRECATED
+это DQ/contract violation.
+
+78. Finance mapping coverage отдельно
+Например:
+Account accrual total:
+100%
+
+canonical subtype mapping:
+92%
+
+direct SKU mapping:
+68%
+Тогда:
+Account Finance = READY
+
+Finance breakdown = PARTIAL
+
+SKU Finance = PARTIAL
+Не один Finance=PARTIAL на всё.
+
+79. Promotions DQ
+Проверяем:
+Promotion identity
+definition versions
+complete participant pagination
+complete candidate pagination
+SKU resolution
+membership closure validity
+
+80. Partial participant snapshot никогда не закрывает membership
+Это hard invariant.
+Если:
+page 1 success
+page 2 failed
+отсутствующий SKU не означает:
+membership ended.
+
+81. Eligibility и Membership не reconciliate как equality
+Candidate ≠ Participant.
+Поэтому:
+participants subset candidates
+тоже не обязательно universal invariant без source contract.
+Не придумываем DQ rule.
+
+82. Account Health DQ
+Проверяем:
+unknown rating keys
+value_type changes
+direction changes
+threshold consistency
+history periods
+penalty dedupe
+localization freshness
+FBS error pagination
+posting resolution
+currency
+
+83. Provider WARNING/CRITICAL не Data Quality issue
+Очень важно.
+rating status = CRITICAL
+означает бизнес/operational state seller по оценке Ozon.
+DQ:
+PASS
+если мы корректно загрузили этот CRITICAL.
+
+84. Supply DQ
+Проверяем:
+order enumeration
+order→supply relation
+bundle completeness
+SKU resolution
+state registry
+warehouse/cluster resolution
+timeslot interval
+acceptance acts
+act item pagination
+act semantics
+
+85. Beta Acceptance Acts не должны ломать Supply Core
+Новые FBO act methods появились 11 августа 2026 как beta. Telegram
+Поэтому:
+Supply Order Catalog READY
+Lifecycle READY
+Planned Content READY
+
+Acceptance Acts FAILED
+→ Supply Core остаётся usable.
+Acts capability отдельно:
+FAILED/PARTIAL.
+
+86. Unknown Supply state
+Если Ozon завтра добавляет:
+SOME_NEW_STATE
+мы:
+store raw
+canonical = UNKNOWN
+DQ issue = UNKNOWN_PROVIDER_STATE
+Но ingestion не должен терять Supply.
+
+87. Cross-domain DQ checks
+Их должно быть немного и только там, где семантика доказана.
+Хорошие:
+Advertising paid spend
+↔ Finance advertising accrual
+как reconciliation context.
+Health posting error
+→ Posting resolution
+Supply warehouse
+→ canonical Warehouse
+Price/Promotion
+source contract compatibility
+
+88. Плохие cross-domain DQ checks
+Не делать:
+Stock should equal yesterday stock
++ supply
+- sales.
+Слишком много неизвестных movements.
+
+Не делать:
+Finance must equal Sales - Ads.
+Это разные accounting concepts.
+
+Не делать:
+Search GMV &lt;= Sales ordered_amount
+без доказанной attribution semantics.
+
+89. Data Quality Manifest
+Перед AI Run я предлагаю замораживать не только Capability Manifest, но и краткий:
+Data Quality Manifest
+в Factual Universe.
+
+90. Он не содержит миллионы check rows
+Только summary:
+domain
+
+critical issues
+limitations
+
+coverage metrics
+freshness
+maturity
+reconciliation state
+
+policy version
+
+dq_hash
+
+91. Например
+{
+  "sales": {
+    "readiness": "READY",
+    "complete_through": "2026-08-19",
+    "reconciliation": "PASS",
+    "sku_resolution_coverage": 1.0,
+    "maturity": "MATURE"
+  },
+  "stock": {
+    "readiness": "READY",
+    "as_of": "2026-08-20T05:31:00+03:00",
+    "age_minutes": 9,
+    "snapshot_completeness": "COMPLETE"
+  },
+  "search": {
+    "readiness": "PARTIAL",
+    "through": "2026-08-17",
+    "reason": "EXPECTED_PROVIDER_LAG",
+    "query_detail_scope": "TOP_N_PROVIDER_RANKED"
+  }
+}
+
+92. AI не получает technical noise
+Не нужно передавать:
+batch_17_duration = ...
+cursor = ...
+HTTP 200
+если всё нормально.
+AI получает только analytical limitations.
+
+93. Если есть критическая DQ проблема
+Например:
+Finance SKU mapping = 24%
+AI получает:
+SKU-level Finance data is incomplete; do not make comprehensive SKU financial conclusions.
+Не:
+FINANCE_MAPPING_42.
+Хотя code сохраняется для audit.
+
+94. Data Quality issues не должны попадать в seller Actions
+Очень важный boundary.
+Например:
+STOCK_RECONCILIATION_MISMATCH
+это проблема Aivion/source integration.
+Нельзя создать пользователю Action:
+Исправьте расхождение остатков.
+Если только Ozon сам не сообщает бизнесовую проблему.
+
+95. Нужны два разных monitoring channels
+Product/User-facing limitations
+Например:
+Search data available through 17 Aug.
+Engineering alerts
+Например:
+Sales account reconciliation unexplained gap 38%.
+Второе не обязательно показывать seller в сыром виде.
+
+96. Severity
+Для engineering:
+INFO
+WARNING
+ERROR
+CRITICAL
+
+97. Пример CRITICAL
+cross-seller FK violation
+two active canonical SKU versions
+sealed snapshot changed
+Это нарушение нашей архитектуры.
+
+98. Пример ERROR
+Stock pagination incomplete
+Sales reconciliation material unexplained gap
+Capability fail/partial.
+
+99. Пример WARNING
+secondary Stock mismatch
+unexpected volume change
+new unknown optional provider enum
+
+100. Пример INFO
+Search provider expected lag = 2d
+Price history begins today
+
+101. Retry policy
+DQ issue должен иметь:
+TRANSIENT
+STRUCTURAL
+DATA_STATE
+
+TRANSIENT
+page timeout
+429
+5xx
+→ retry ingestion.
+Ozon API guidance действительно требует учитывать 429 и retry/backoff; pagination при этом различается по endpoint family. GitHub
+
+STRUCTURAL
+provider field removed
+unknown mandatory semantics
+contract deprecated
+identity conflict
+Retry ничего не решит.
+Нужен код/config update.
+
+DATA_STATE
+Search lag
+insufficient history
+empty catalog
+Не техническая ошибка.
+
+102. Auto-retry никогда не repair canonical facts
+Retry:
+получить source заново.
+Не:
+исправить старую canonical row эвристикой.
+
+103. Readiness calculation
+Я бы зафиксировал deterministic precedence.
+Например capability:
+FAILED
+если:
+required current collection failed
+OR critical data invariant violated
+
+UNAVAILABLE
+если:
+source structurally inaccessible
+не DQ failure.
+
+STALE
+если:
+last usable data exists
+but freshness policy exceeded.
+
+PARTIAL
+если:
+usable data exists
+but coverage/semantic/history limitation matters.
+
+READY
+если:
+all mandatory rules pass
++
+freshness/maturity acceptable
++
+required dependency coverage adequate.
+
+104. Не нужно автоматически считать STALE &gt; PARTIAL
+У них разные semantics.
+Если данные:
+100% complete
+but 48h old
+→ STALE.
+Если:
+fresh
+but 80% mapped
+→ PARTIAL.
+Не один ordinal score.
+
+105. Domain Summary может иметь multiple flags
+Например:
+readiness = PARTIAL
+
+freshness = CURRENT
+coverage = PARTIAL
+maturity = MATURE
+Это намного информативнее.
+
+106. Data Quality policy должна быть versioned
+Например:
+stock_freshness_policy_v1
+
+sales_reconciliation_policy_v1
+
+search_maturity_policy_v1
+Почему?
+Сегодня решаем:
+Stock stale &gt; 6h
+после реального опыта:
+&gt; 2h.
+Старый Run должен оставаться объяснимым.
+
+107. Никакие thresholds не хардкодим по Go-файлам в 20 местах
+Policy registry:
+analysis.dq_policy_versions
+или rule versions.
+Analysis Context фиксирует:
+dq_policy_bundle_version.
+
+108. analysis_date тоже должен сохранять readiness evidence
+Например:
+analysis_date = 2026-08-19
+
+selected because:
+
+catalog READY
+sales D READY
+sales reconciliation PASS
+history READY
+Чтобы audit мог объяснить:
+почему выбрали именно 19-е.
+
+109. analysis_readiness_evaluations
+Я бы добавил физическую таблицу:
+id
+
+seller
+
+candidate_analysis_date
+
+evaluated_at
+
+core_gate_status
+
+selected BOOLEAN
+
+blocking_reasons
+
+dq_policy_version
+
+sales_watermark
+catalog_watermark
+
+evaluation_hash
+
+110. Это поможет диагностировать fallback
+Например:
+19 Aug:
+BLOCKED
+reason SALES_NOT_MATURE
+
+18 Aug:
+READY
+selected=true
+Очень удобно и для operations, и для пилота.
+
+111. Analysis state machine
+Я предлагаю:
+WAITING_FOR_DATA
+
+CONNECTED_NO_ANALYZABLE_DATA
+
+READY_TO_ANALYZE
+
+UNCHANGED
+
+ANALYSIS_RUNNING
+
+PUBLISHED
+Но это скорее pipeline orchestration status, не domain readiness.
+
+112. Если данные вчера стали готовы позже
+Например утром мы анализировали 18 Aug.
+В 10:00 19 Aug наконец mature.
+Scheduler/worker может повторить readiness evaluation.
+Если:
+19 Aug READY
+создаётся новый daily analysis для 19-го.
+
+113. Не обязательно ждать следующего календарного дня
+Readiness — truth.
+Не cron time.
+
+114. DQ checks должны быть idempotent
+Один и тот же:
+source data
+policy version
+context
+→ один и тот же result/hash.
+Никаких random thresholds/AI judgments.
+
+115. DQ result hash
+Можно строить:
+hash(
+ rule_version
+ + context
+ + measurements
+)
+Полезно для:
+no-change detection
+audit
+manifest.
+
+116. Data Quality не требует Great Expectations как dependency
+Я использовал его документацию как внешний reference для data-quality dimensions, но для Aivion я не рекомендую добавлять отдельный Python/GX stack только ради этого. Great Expectations
+Почему:
+backend Go
+facts PostgreSQL
+rules highly domain-specific
+Нам проще и безопаснее реализовать deterministic DQ engine непосредственно в Go + SQL.
+
+117. Архитектура Go
+Например:
+internal/dataquality/
+
+    registry/
+    evaluator/
+    measurements/
+    readiness/
+    watermark/
+    maturity/
+    reconciliation/
+
+    catalog/
+    category/
+    sales/
+    stock/
+    advertising/
+    funnel/
+    finance/
+    price/
+    search/
+    promotions/
+    health/
+    supply/
+
+118. Interface
+Концептуально:
+type DQRule interface {
+    Evaluate(
+        ctx context.Context,
+        input DQEvaluationContext,
+    ) (DQResult, error)
+}
+
+119. Но rule error ≠ rule FAIL
+Очень важно.
+DQ rule executed
+found mismatch
+→ result FAIL.
+DQ evaluator itself crashed
+→ evaluator error.
+Это разные вещи.
+
+120. DQ evaluator не ходит в Ozon
+Как Capability evaluator.
+Правильно:
+ingestion
+→ UCDM
+→ DQ
+Не:
+DQ check
+→ hidden Ozon request.
+Иначе reproducibility теряется.
+
+121. DQ checks используют Factual repositories или UCDM?
+Я бы сделал два типа.
+Low-level ingestion checks
+Работают непосредственно через repository/UCDM.
+Analysis-context checks
+Работают через Internal Factual API.
+Это очень полезно:
+если Factual API неправильно решает temporal semantics, analysis DQ сможет это обнаруживать на contract level.
+
+122. Но не создаём cyclic package dependency
+Factual API
+использует frozen capability/readiness.
+Analysis DQ может использовать lower-level Factual Core Reader или отдельный internal adapter.
+Package architecture нужно аккуратно разделить:
+repositories
+↓
+canonical readers
+↓
+DQ / capabilities
+↓
+sealed ReadContext
+↓
+public Factual API
+Чтобы не было:
+Factual API → DQ → Factual API.
+
+123. CI gates
+Кроме runtime DQ должны быть architecture/data contract tests.
+Например:
+canonical_constraints_gate
+
+sales_reconciliation_contract_gate
+
+snapshot_completeness_gate
+
+missing_zero_semantics_gate
+
+non_additive_metric_gate
+
+temporal_cutoff_gate
+
+sealed_snapshot_immutability_gate
+
+124. Runtime и CI DQ различаются
+CI проверяет:
+может ли система нарушить invariant.
+Runtime:
+нарушил ли provider/current ingestion ожидание.
+Оба нужны.
+
+125. Простой end-to-end пример
+Сегодня:
+20 Aug 05:00
+первый sync.
+Catalog
+2000 expected
+2000 received
+2000 resolved
+
+READY
+
+Sales 19 Aug
+2000 SKU requested
+
+1998 resolved
+2 source SKU unresolved
+
+Account ordered amount:
+1 000 000 ₽
+
+Resolved SKU:
+995 000 ₽
+
+Unresolved:
+5 000 ₽
+
+Reconciliation:
+PASS / explained gap
+
+Source hash:
+H1
+Но:
+maturity = UNCONFIRMED
+
+126. В 05:45 повторный Sales sync
+Получаем те же:
+1 000 000
+same SKU universe
+same hash H1
+Теперь:
+maturity = MATURE
+
+127. Stock
+snapshot 05:30
+
+20/20 batches
+2000/2000 SKU
+
+COMPLETE
+
+age = 15 min
+
+READY
+
+128. Advertising
+campaign report:
+READY
+
+SKU report:
+one async report failed
+
+Campaign performance = READY
+
+SKU performance = PARTIAL
+
+129. Search
+complete through 17 Aug
+
+provider expected lag:
+1–2 days
+
+Seller Summary = PARTIAL/LAGGED_EXPECTED
+
+Query Details =
+PARTIAL/TOP_N
+
+130. Finance
+complete through 18 Aug
+
+Account Finance READY
+
+SKU mapping coverage 73%
+
+SKU Finance PARTIAL
+
+131. Funnel
+Seller lacks metric capability:
+UNAVAILABLE
+не DQ error.
+
+132. Resolver смотрит Core Gate
+Catalog usable ✅
+
+Sales 19 Aug complete ✅
+
+Sales reconciliation ✅
+
+Sales maturity ✅
+
+History sufficient ✅
+Получает:
+analysis_date = 19 Aug
+
+133. В 05:50 Ozon Stock source падает
+Это уже после cutoff.
+Текущий Analysis Run:
+ничего не меняется.
+Использует Stock snapshot 05:30.
+
+134. AI получает
+Sales READY
+Stock READY
+Advertising campaign READY / SKU PARTIAL
+Search PARTIAL — expected provider lag
+Finance account READY / SKU PARTIAL
+Funnel UNAVAILABLE
+И ни одна DQ проблема не masquerade'ится как business insight.
+
+135. Что если Sales reconciliation сломан
+Вместо:
+Account = 1m
+SKU+unresolved = 600k
+получаем:
+UNEXPLAINED_GAP 40%
+Тогда:
+SALES.DEMAND = FAILED/PARTIAL
+CORE GATE = BLOCKED
+19 Aug не становится Analysis Date.
+
+136. Но если вчерашний 18 Aug готов
+analysis_date = 18.
+Продукт не падает.
+
+137. Что если всё сломано несколько дней
+Dashboard показывает:
+Последний полный анализ:
+18 августа
+и operational warning.
+Но старый analysis не переписывается.
+
+138. Monitoring
+Нужны технические metrics:
+dq_checks_total{rule,result}
+
+dq_failures_total{domain,rule}
+
+dq_resolution_coverage
+
+dq_reconciliation_gap
+
+domain_watermark_lag_days
+
+snapshot_age_seconds
+
+analysis_date_lag_days
+
+analysis_gate_blocked_total{reason}
+
+139. Очень важный alert
+analysis_date_lag_days
+Если сегодня 20-е, а система всё ещё анализирует 16-е:
+это уже operational problem Aivion.
+Даже если каждый отдельный service «зелёный».
+
+140. Второй важный alert
+core_analysis_gate_blocked_duration
+Не просто число failures.
+Сколько времени seller не может продвинуть analysis date.
+
+141. Third-party/provider changes
+Текущий Ozon API ещё раз показывает, почему этот слой нужен: в течение нескольких недель были изменения Stock на real-time, Finance deprecation и новый beta Supply Acts API. Telegram
+DQ/contract checks должны обнаруживать такое системно, а не после того как AI покажет странные цифры пользователю.
+
+142. Я предлагаю добавить contract-drift check
+При каждом source contract deployment:
+expected schema hash / relevant fields
+сверяется с актуальным adapter contract.
+Но не нужно автоматически тянуть OpenAPI в production каждый run.
+Это:
+CI / scheduled integration contract check.
+
+143. Unknown optional field не ломает ingestion
+Ozon добавил поле:
+new_optional_field
+→ raw artifact сохраняет.
+Canonical adapter игнорирует до mapping.
+
+144. Missing mandatory field
+Если ожидаемый authoritative:
+sku
+исчез:
+SOURCE_SCHEMA_BREAKING_CHANGE
+и affected capability FAIL.
+
+145. Readiness Manifest и Publication
+Publication должна сохранять:
+analysis_date
+
+cutoff
+
+domain capabilities
+
+DQ policy version
+
+domain DQ hashes
+
+limitations
+Тогда через месяц можно точно ответить:
+Почему AI не анализировал Search 20 августа?
+Потому что manifest говорил:
+Search PARTIAL
+through 17 Aug
+expected provider lag.
+
+146. Старые DQ results immutable
+Если завтра меняем threshold:
+старый check result не переписываем.
+Можно re-evaluate historical measurements новой policy для diagnostics, но старая Publication продолжает ссылаться на policy version того времени.
+
+147. Физические дополнения к Schema Blueprint
+После Capability/Factual API я бы добавил:
+analysis.dq_rule_definitions
+analysis.dq_rule_versions
+
+analysis.dq_check_runs
+analysis.dq_check_results
+analysis.dq_measurements
+
+analysis.domain_data_watermarks
+
+analysis.analysis_readiness_evaluations
+
+analysis.factual_universe_dq_summary
+Плюс существующие:
+audit.data_quality_issues
+audit.reconciliation_results
+можно оставить как operational projections.
+
+148. Разница dq_check_result и data_quality_issue
+dq_check_result:
+результат каждого выполнения правила.
+Например:
+PASS.
+data_quality_issue:
+открытая operational проблема, требующая внимания.
+Мы не создаём issue на каждый PASS.
+
+149. Issue lifecycle
+OPEN
+
+ACKNOWLEDGED
+
+RESOLVED
+Но resolver не является seller Action lifecycle.
+Это engineering operations.
+
+150. Архитектурный контракт Data Quality / Readiness
+Я предлагаю зафиксировать его следующим образом:
+Data Quality / Readiness Layer Aivion является deterministic evidence layer между UCDM ingestion и Business Capability/Factual Universe. Он проверяет техническую и семантическую пригодность фактов через versioned rules по dimensions schema, completeness, uniqueness, integrity, validity, semantic mapping, entity resolution, reconciliation, temporal compatibility, freshness и provider maturity. Data Quality никогда не классифицирует необычное бизнес-значение как ошибку только на основании статистической аномалии и никогда не исправляет provider facts эвристически.
+Data Quality различает transport completeness, expected-universe completeness, canonical resolution coverage и semantic coverage. Successful HTTP response не означает complete/usable data; partial pagination не может закрывать entity relations; expected provider limitations вроде Search top-N или documented source lag отражаются как semantic/temporal limitations, а не ingestion failures.
+Freshness и provider maturity различаются. Snapshot freshness определяется domain-specific versioned policy; provider-native reporting lag моделируется отдельно и не считается stale автоматически. Period facts могут требовать maturity evidence перед продвижением Analysis Date. Provider revisions являются нормальными append-only corrections и не делают предыдущие immutable Publications ошибочными.
+Каждый DQ rule хранит raw measurements, result, severity, readiness effect и policy version. Severity engineering issue и влияние на analytical readiness не смешиваются. Thresholds и maturity/freshness policies versioned и фиксируются в Analysis Context. DQ evaluation не выполняет network I/O и не использует AI.
+Domain/capability readiness остаётся конечной consumer-facing truth и вычисляется из provider capability evidence, DQ results, watermarks, dependencies и Temporal Context. DQ является объясняющим evidence layer, а не конкурирующей второй системой readiness.
+Analysis Date Resolver продвигает дату только при прохождении минимального Core Gate: usable Canonical SKU universe, complete/mature Sales Demand и приемлемая Account↔SKU reconciliation. Optional domains не блокируют Daily Publication и деградируют независимо. Если candidate D не готов, выбирается последний предыдущий READY business date; одинаковый factual universe повторно не публикуется. Empty/no-history seller находится в состоянии CONNECTED_NO_ANALYZABLE_DATA/INSUFFICIENT_ANALYSIS_HISTORY и не запускает дорогой AI pipeline.
+После выбора Analysis Date и analysis_cutoff_at DQ summary замораживается вместе с Capability Manifest/Factual Universe. Discovery, Evidence, Deep Analysis, Dashboard replay и audit получают одну и ту же readiness semantics. DQ problems Aivion/provider integration не превращаются в seller business Actions.
+Один продуктовый вопрос, который я бы сейчас действительно закрыл
+Как я писал выше, наша основная сравнительная модель:
+current_7d
+vs
+previous_7d
+Поэтому моя рекомендация — считать кабинет готовым к первому стандартному AI Analysis только при наличии минимум 14 полных дней Sales Demand.
+То есть:
+0 SKU
+→ CONNECTED_NO_ANALYZABLE_DATA
+
+SKU есть, но &lt;14 полных дней Sales
+→ INSUFFICIENT_ANALYSIS_HISTORY
+
+≥14 дней
++ Core Gate READY
+→ первый normal AI analysis
+Учитывая нашу ЦА — состоявшиеся продавцы с 700–2000+ SKU — при нормальном /analytics/data backfill это обычно будет выполнено сразу после подключения, а методология первого отчёта будет намного чище.
+Фиксируем минимум 14 полных дней Sales для первого стандартного AI-анализа?
+да, фиксируем

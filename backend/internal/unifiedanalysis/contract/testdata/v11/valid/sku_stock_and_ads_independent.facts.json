@@ -1,0 +1,16 @@
+{
+  "facts": [
+    {
+      "fact_id": "sku:801000100005:stock_coverage_days_7d",
+      "metric_code": "stock_coverage_days_7d",
+      "scope_type": "sku",
+      "entity_id": "801000100005"
+    },
+    {
+      "fact_id": "campaign:882000021530:campaign_drr_pct",
+      "metric_code": "campaign_drr_pct",
+      "scope_type": "campaign",
+      "entity_id": "882000021530"
+    }
+  ]
+}

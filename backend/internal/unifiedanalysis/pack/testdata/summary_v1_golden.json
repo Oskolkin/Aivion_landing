@@ -1,0 +1,21 @@
+{
+  "archive_sha256": "077d9f190c9b1c4f73ae53657a20ad58f1321ab979f56d6ee61a13d7b71bef71",
+  "compressed_bytes": 11994,
+  "limitations_count": 8,
+  "metric_date": "2026-07-08",
+  "pack_hash": "1754fd43e026162a513ee53cdea3dba8f6c84c13237f666f93db3897b8106fee",
+  "pack_id": "pack:42:2026-07-08:1754fd43e026162a",
+  "row_counts": {
+    "account_daily.csv": 30,
+    "account_summary.csv": 1,
+    "campaign_daily.csv": 30,
+    "campaign_sku.csv": 1,
+    "campaign_summary.csv": 1,
+    "product_enrichment.csv": 1,
+    "sku_daily.csv": 30,
+    "sku_summary.csv": 1
+  },
+  "schema_version": "aivion_analysis_pack_v1",
+  "seller_account_id": 42,
+  "uncompressed_bytes": 51805
+}

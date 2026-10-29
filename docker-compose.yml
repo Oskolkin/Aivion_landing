@@ -1,0 +1,255 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: marketplace_ai_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: marketplace_ai
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "55432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d marketplace_ai"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: marketplace_ai_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: minio/minio:latest
+    container_name: marketplace_ai_minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+    ports:
+      - "19000:9000"
+      - "19001:9001"
+    volumes:
+      - minio_data:/data
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: marketplace_ai_minio_init
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 minio minio123; do sleep 2; done;
+      mc mb -p local/raw-payloads || true;
+      mc mb -p local/exports || true;
+      mc mb -p local/artifacts || true;
+      exit 0;
+      "
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: marketplace_ai_prometheus
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.118.0
+    container_name: marketplace_ai_otel_collector
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol/config.yaml"]
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    volumes:
+      - ./infra/otel/otel-collector.yml:/etc/otelcol/config.yaml:ro
+    depends_on:
+      - tempo
+
+  tempo:
+    image: grafana/tempo:2.7.1
+    container_name: marketplace_ai_tempo
+    restart: unless-stopped
+    command: ["-config.file=/etc/tempo.yaml"]
+    ports:
+      - "3200:3200"
+    volumes:
+      - ./infra/tempo/tempo.yml:/etc/tempo.yaml:ro
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: marketplace_ai_grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ./infra/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./infra/grafana/dashboards/dashboard-provider.yml:/etc/grafana/provisioning/dashboards/dashboard-provider.yml:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+
+  migrations:
+    profiles: ["app"]
+    image: migrate/migrate
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend/migrations:/migrations
+    command: ["-path", "/migrations", "-database", "postgres://postgres:postgres@postgres:5432/marketplace_ai?sslmode=disable", "up"]
+
+  backend-api:
+    profiles: ["app"]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      migrations:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    environment:
+      APP_ENV: local
+      BACKEND_PORT: "8081"
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/marketplace_ai?sslmode=disable
+      MIGRATIONS_PATH: /app/migrations
+      REDIS_ADDR: redis:6379
+      S3_ENDPOINT: minio:9000
+      S3_ACCESS_KEY: minio
+      S3_SECRET_KEY: minio123
+      S3_BUCKET_RAW: raw-payloads
+      S3_BUCKET_EXPORTS: exports
+      S3_BUCKET_ARTIFACTS: artifacts
+      S3_USE_SSL: "false"
+      JWT_SECRET: dev-jwt-secret
+      ENCRYPTION_KEY: "01234567890123456789012345678901"
+      SELLER_AI_PIPELINE_ENABLED: ${SELLER_AI_PIPELINE_ENABLED:-true}
+      ACTIONS_AI_FIRST: ${ACTIONS_AI_FIRST:-true}
+      AI_PIPELINE_SHARED_CHUNK_ANALYSIS_ENABLED: ${AI_PIPELINE_SHARED_CHUNK_ANALYSIS_ENABLED:-true}
+      LEGACY_AI_POST_SYNC_ENABLED: ${LEGACY_AI_POST_SYNC_ENABLED:-false}
+      METRICS_ALLOW_UNAUTHENTICATED: "true"
+      AI_PROVIDER_MODE: ${AI_PROVIDER_MODE:-real}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_TIMEOUT_SECONDS: ${OPENAI_TIMEOUT_SECONDS:-120}
+      OPENAI_GLOBAL_CONTEXT_TIMEOUT_SECONDS: ${OPENAI_GLOBAL_CONTEXT_TIMEOUT_SECONDS:-300}
+      OPENAI_ACTIONS_TIMEOUT_SECONDS: ${OPENAI_ACTIONS_TIMEOUT_SECONDS:-900}
+      DASHBOARD_VALIDATION_MODE: ${DASHBOARD_VALIDATION_MODE:-pilot_structural}
+      OPENAI_MAX_RETRIES: ${OPENAI_MAX_RETRIES:-0}
+      AI_MAX_INPUT_TOKENS_PER_REQUEST: ${AI_MAX_INPUT_TOKENS_PER_REQUEST:-120000}
+      AI_MAX_OUTPUT_TOKENS_PER_REQUEST: ${AI_MAX_OUTPUT_TOKENS_PER_REQUEST:-8192}
+      CORS_ALLOWED_ORIGINS: http://localhost:3000,http://localhost:3002
+      UNIFIED_ANALYSIS_PROVIDER_ENABLED: ${UNIFIED_ANALYSIS_PROVIDER_ENABLED:-true}
+      UNIFIED_ANALYSIS_ROLLOUT_ENABLED: ${UNIFIED_ANALYSIS_ROLLOUT_ENABLED:-true}
+      UNIFIED_ANALYSIS_PROMPT_PROFILE: ${UNIFIED_ANALYSIS_PROMPT_PROFILE:-analysis}
+      UNIFIED_ANALYSIS_LEGACY_FALLBACK_ENABLED: ${UNIFIED_ANALYSIS_LEGACY_FALLBACK_ENABLED:-true}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
+    ports:
+      - "8081:8081"
+    volumes:
+      # Keep migration files in sync with the host so missing .down.sql in stale images
+      # cannot crash API startup (golang-migrate requires both up and down).
+      - ./backend/migrations:/app/migrations:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8081/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  backend-worker:
+    profiles: ["app"]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.worker
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      migrations:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    environment:
+      APP_ENV: local
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/marketplace_ai?sslmode=disable
+      REDIS_ADDR: redis:6379
+      S3_ENDPOINT: minio:9000
+      S3_ACCESS_KEY: minio
+      S3_SECRET_KEY: minio123
+      S3_BUCKET_RAW: raw-payloads
+      S3_BUCKET_EXPORTS: exports
+      S3_BUCKET_ARTIFACTS: artifacts
+      S3_USE_SSL: "false"
+      JWT_SECRET: dev-jwt-secret
+      ENCRYPTION_KEY: "01234567890123456789012345678901"
+      WORKER_SCHEDULER_ENABLED: "true"
+      WORKER_METRICS_PORT: "9091"
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4318}
+      SELLER_AI_PIPELINE_ENABLED: ${SELLER_AI_PIPELINE_ENABLED:-true}
+      ACTIONS_AI_FIRST: ${ACTIONS_AI_FIRST:-true}
+      AI_PIPELINE_SHARED_CHUNK_ANALYSIS_ENABLED: ${AI_PIPELINE_SHARED_CHUNK_ANALYSIS_ENABLED:-true}
+      LEGACY_AI_POST_SYNC_ENABLED: ${LEGACY_AI_POST_SYNC_ENABLED:-false}
+      AI_PROVIDER_MODE: ${AI_PROVIDER_MODE:-real}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_TIMEOUT_SECONDS: ${OPENAI_TIMEOUT_SECONDS:-120}
+      OPENAI_GLOBAL_CONTEXT_TIMEOUT_SECONDS: ${OPENAI_GLOBAL_CONTEXT_TIMEOUT_SECONDS:-300}
+      OPENAI_ACTIONS_TIMEOUT_SECONDS: ${OPENAI_ACTIONS_TIMEOUT_SECONDS:-900}
+      DASHBOARD_VALIDATION_MODE: ${DASHBOARD_VALIDATION_MODE:-pilot_structural}
+      OPENAI_MAX_RETRIES: ${OPENAI_MAX_RETRIES:-0}
+      AI_MAX_INPUT_TOKENS_PER_REQUEST: ${AI_MAX_INPUT_TOKENS_PER_REQUEST:-120000}
+      AI_MAX_OUTPUT_TOKENS_PER_REQUEST: ${AI_MAX_OUTPUT_TOKENS_PER_REQUEST:-8192}
+    command: ["/app/worker"]
+
+  frontend:
+    profiles: ["app"]
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ""
+        BACKEND_PROXY_URL: http://backend-api:8081
+    depends_on:
+      backend-api:
+        condition: service_healthy
+    restart: unless-stopped
+    environment:
+      BACKEND_PROXY_URL: http://backend-api:8081
+      BACKEND_INTERNAL_URL: http://backend-api:8081
+      NEXT_PUBLIC_API_BASE_URL: ""
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:3000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:

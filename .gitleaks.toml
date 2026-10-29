@@ -1,0 +1,47 @@
+# Title: gitleaks config for Aivion
+# Narrow allowlists only — never disable detectors globally.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Example templates, build caches, local e2e/debug artifacts, and known non-secret identifiers"
+paths = [
+  '''(^|/)\.env\.example$''',
+  '''(^|/)\.env\..*\.example$''',
+  '''(^|/)frontend/\.next/''',
+  '''(^|/)node_modules/''',
+  '''(^|/)\.gotmp/''',
+  '''(^|/)backend/internal/unifiedanalysis/outputvalidator/testdata/''',
+  '''(^|/)docs/audits/''',
+  '''(^|/)frontend/e2e/helpers/\.e2e-credentials\.json$''',
+  '''(^|/)backend/debug/''',
+  '''(^|/)backend/run23_validated\.json$''',
+]
+regexes = [
+  '''REPLACEME_LOCAL_ENC_KEY_32BYTES!''',
+  '''sk-proj-fake[A-Za-z0-9_\-]*test''',
+  '''sk-live-should-never-leak-991122''',
+  '''dev-jwt-secret-at-least-32-chars-long!!''',
+  '''0123456789abcdef0123456789abcdef''',
+  '''minio123''',
+  '''replace-me-local''',
+  '''password123''',
+  '''test-secret''',
+  '''test-encryption-key''',
+  '''dev-jwt-secret''',
+]
+stopwords = [
+  "healthy_14plus",
+  "critical_0_3",
+  "shortage_4_7",
+  "planning_8_14",
+  "collecting_data",
+  "out_of_stock",
+  "key_skus_total_count",
+  "key_skus_total_revenue_7d",
+  "KeySKUsTotalCount",
+  "KeySKUsTotalRevenue7d",
+  "skuID",
+  "skuID",
+]

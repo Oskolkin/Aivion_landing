@@ -1,0 +1,57 @@
+{
+  "headline": "Р РµРєР»Р°РјРЅР°СЏ РЅР°РіСЂСѓР·РєР° РЅР° РєР°Р±РёРЅРµС‚ вЂ” 26,2%, Р° Р°С‚СЂРёР±СѓС‚РёСЂРѕРІР°РЅРЅС‹Р№ Р”Р Р  РїРѕ РєР°РјРїР°РЅРёСЏРј РґРѕСЃС‚РёРі 53,3%",
+  "summary": "Р—Р° РЅРµРґРµР»СЋ 2вЂ“8 РёСЋР»СЏ РЅР° СЂРµРєР»Р°РјСѓ РїРѕС‚СЂР°С‡РµРЅРѕ 1 848 129 в‚Ѕ, С‡С‚Рѕ СЃРѕСЃС‚Р°РІР»СЏРµС‚ 26,2% РѕС‚ РѕР±С‰РµР№ РІС‹СЂСѓС‡РєРё РєР°Р±РёРЅРµС‚Р° (7 045 405 в‚Ѕ). РџСЂРё СЌС‚РѕРј РїРѕ Р°С‚СЂРёР±СѓС‚РёСЂРѕРІР°РЅРЅС‹Рј РїСЂРѕРґР°Р¶Р°Рј Р”Р Р  РєР°РјРїР°РЅРёР№ вЂ” 53,3% (РІС‹СЂСѓС‡РєР° 3 465 201 в‚Ѕ). 6 РєР°РјРїР°РЅРёР№ РІС‹РґРµР»СЏСЋС‚СЃСЏ РІС‹СЃРѕРєРёРј Р”Р Р , РѕРґРЅР° вЂ” РѕС‚СЃСѓС‚СЃС‚РІРёРµРј Р·Р°РєР°Р·РѕРІ РЅРµСЃРјРѕС‚СЂСЏ РЅР° Р·Р°С‚СЂР°С‚С‹. Р’ С†РµР»РѕРј СЂРµРєР»Р°РјРЅР°СЏ РЅР°РіСЂСѓР·РєР° РІС‹С€Рµ РєРѕРјС„РѕСЂС‚РЅРѕР№, РЅРѕ РѕСЃРЅРѕРІРЅС‹Рµ РїСЂРѕР±Р»РµРјС‹ вЂ” РЅР° СѓСЂРѕРІРЅРµ РѕС‚РґРµР»СЊРЅС‹С… РєР°РјРїР°РЅРёР№.",
+  "metric_claims": [
+    {
+      "value": 26.231698344160172,
+      "fact_id": "account:ad_spend_share_of_total_store_revenue_pct:current_7d",
+      "period_end": "2026-07-08",
+      "metric_code": "ad_spend_share_of_total_store_revenue_pct",
+      "period_type": "current_7d",
+      "period_start": "2026-07-02"
+    },
+    {
+      "value": 53.333971468501254,
+      "fact_id": "account:attributed_campaign_drr_pct:current_7d",
+      "period_end": "2026-07-08",
+      "metric_code": "attributed_campaign_drr_pct",
+      "period_type": "current_7d",
+      "period_start": "2026-07-02"
+    },
+    {
+      "value": 1848129.35,
+      "fact_id": "account:ad_spend:current_7d",
+      "period_end": "2026-07-08",
+      "metric_code": "ad_spend",
+      "period_type": "current_7d",
+      "period_start": "2026-07-02"
+    },
+    {
+      "value": 7045404.86,
+      "fact_id": "account:store_total_revenue:current_7d",
+      "period_end": "2026-07-08",
+      "metric_code": "store_total_revenue",
+      "period_type": "current_7d",
+      "period_start": "2026-07-02"
+    },
+    {
+      "value": 3465201.07,
+      "fact_id": "account:attributed_ad_revenue:current_7d",
+      "period_end": "2026-07-08",
+      "metric_code": "attributed_ad_revenue",
+      "period_type": "current_7d",
+      "period_start": "2026-07-02"
+    },
+    {
+      "value": 2289,
+      "fact_id": "account:ad_orders:current_7d",
+      "period_end": "2026-07-08",
+      "metric_code": "ad_orders",
+      "period_type": "current_7d",
+      "period_start": "2026-07-02"
+    }
+  ],
+  "action_count": 3,
+  "schema_version": "aivion_unified_analysis_v9",
+  "analysis_outcome": "material_actions_found"
+}

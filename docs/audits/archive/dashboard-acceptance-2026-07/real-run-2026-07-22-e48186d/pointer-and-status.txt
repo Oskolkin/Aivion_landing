@@ -1,0 +1,2 @@
+﻿pointer publication_id=74
+run=204 status=publication_blocked error=output_contract_invalid seller_pulse_ai_fact_mismatch

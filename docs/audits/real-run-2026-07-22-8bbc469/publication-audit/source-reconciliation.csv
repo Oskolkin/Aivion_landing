@@ -1,0 +1,3 @@
+check,status,entity_id,expected,actual,detail
+source_snapshot_reconciles,ok,,valid=true,valid=true errors=0 warnings=0,sourcerecon.ReconcileSnapshot over the live source-DB snapshot
+source_recon_matches_run_artifact,warning,,4413ff0b7b6b71e38c84dc79db2e984da5e69dd6b6826ee412c6097addad6110,6256547305f51e61fc7d6073daa531ea732dbe43d246985f331cc2669557e87e,live source reconciliation hash vs the hash captured by the pre-OpenAI gate

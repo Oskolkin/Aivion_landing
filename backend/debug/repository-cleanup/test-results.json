@@ -1,0 +1,68 @@
+{
+  "recorded_at": "2026-08-03T10:49:16.807416+03:00",
+  "baseline_commit": "212e9762569c41846dfcfa4e7cb4853acf66c7b2",
+  "gofmt": {
+    "exit_code": 0,
+    "unformatted_count": 0
+  },
+  "go_mod_verify": {
+    "exit_code": 0
+  },
+  "go_vet": {
+    "exit_code": 0
+  },
+  "go_build": {
+    "exit_code": 0
+  },
+  "go_test": {
+    "exit_code": 0
+  },
+  "go_race": {
+    "exit_code": 0,
+    "method": "docker golang:1.26.1 CGO",
+    "packages": [
+      "./internal/chat/...",
+      "./internal/unifiedanalysis/..."
+    ]
+  },
+  "go_integration": {
+    "exit_code": 1,
+    "note": "Pre-existing failures also reproduce on pristine HEAD 212e976. Pack RealPostgres fixed via seed alignment.",
+    "fixed_in_branch": [
+      "TestUnifiedPackBuild_RealPostgres",
+      "action count expectation 5"
+    ],
+    "still_failing_on_main_and_branch": [
+      "TestStaleOlderMetricDate",
+      "TestSameSellerOutcomeSequence pointer",
+      "TestAsynqPublishE2E"
+    ]
+  },
+  "frontend_lint": {
+    "exit_code": 0
+  },
+  "frontend_typecheck": {
+    "exit_code": 0
+  },
+  "frontend_test": {
+    "exit_code": 0
+  },
+  "frontend_build": {
+    "exit_code": 0
+  },
+  "e2e_smoke": {
+    "status": "NOT_RUN",
+    "reason": "frontend not on :3000; API health live=200"
+  },
+  "docker_backend_build": {
+    "exit_code": 0
+  },
+  "docker_frontend_build": {
+    "exit_code": 0
+  },
+  "docker_secret_scan": {
+    "exit_code": 0,
+    "backend": "PASS",
+    "frontend": "PASS"
+  }
+}

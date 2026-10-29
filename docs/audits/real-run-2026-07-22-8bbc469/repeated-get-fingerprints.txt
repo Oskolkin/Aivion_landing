@@ -1,0 +1,4 @@
+﻿dash1=accb07efba2f477cdb48cdcf1af3b8ef5430801e7b387a5a882d5c40ac5c1660
+dash2=accb07efba2f477cdb48cdcf1af3b8ef5430801e7b387a5a882d5c40ac5c1660
+dash3=accb07efba2f477cdb48cdcf1af3b8ef5430801e7b387a5a882d5c40ac5c1660
+stable=True

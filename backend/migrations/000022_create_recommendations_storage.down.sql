@@ -1,0 +1,23 @@
+DROP INDEX IF EXISTS idx_recommendation_alert_links_seller_link_type;
+DROP INDEX IF EXISTS idx_recommendation_alert_links_seller_alert;
+DROP INDEX IF EXISTS idx_recommendation_alert_links_seller_recommendation;
+
+DROP INDEX IF EXISTS idx_recommendation_runs_seller_as_of_date_desc;
+DROP INDEX IF EXISTS idx_recommendation_runs_seller_type_started_desc;
+DROP INDEX IF EXISTS idx_recommendation_runs_seller_status;
+DROP INDEX IF EXISTS idx_recommendation_runs_seller_started_desc;
+
+DROP INDEX IF EXISTS idx_recommendations_constraints_payload_gin;
+DROP INDEX IF EXISTS idx_recommendations_supporting_metrics_payload_gin;
+DROP INDEX IF EXISTS idx_recommendations_seller_priority_score_desc;
+DROP INDEX IF EXISTS idx_recommendations_seller_last_seen_desc;
+DROP INDEX IF EXISTS idx_recommendations_seller_entity_sku;
+DROP INDEX IF EXISTS idx_recommendations_seller_entity_type;
+DROP INDEX IF EXISTS idx_recommendations_seller_horizon_status;
+DROP INDEX IF EXISTS idx_recommendations_seller_confidence_level_status;
+DROP INDEX IF EXISTS idx_recommendations_seller_priority_level_status;
+DROP INDEX IF EXISTS idx_recommendations_seller_status;
+
+DROP TABLE IF EXISTS recommendation_alert_links;
+DROP TABLE IF EXISTS recommendation_runs;
+DROP TABLE IF EXISTS recommendations;

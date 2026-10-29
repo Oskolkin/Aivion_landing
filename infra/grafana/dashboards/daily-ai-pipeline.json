@@ -1,0 +1,31 @@
+{
+  "uid": "aivion-daily-ai-pipeline",
+  "title": "Daily AI Pipeline",
+  "schemaVersion": 38,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Analysis runs",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "sum by (status) (analysis_runs_total)", "legendFormat": "{{status}}", "refId": "A" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Discovery / Deep AI attempts",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "sum(discovery_ai_attempts_total)", "legendFormat": "discovery", "refId": "A" },
+        { "expr": "sum(deep_ai_attempts_total)", "legendFormat": "deep", "refId": "B" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Stage duration",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "histogram_quantile(0.95, sum by (le, stage) (rate(analysis_stage_duration_seconds_bucket[5m])))", "legendFormat": "{{stage}}", "refId": "A" }]
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+﻿Expanded display is on.
+docker : ERROR:  column "prompt_hash" does not exist
+C:\Users\oskol\AppData\Local\Temp\ps-script-a2655aa0-7e66-4e68-b4d9-4511b248e2c1.ps1:128 знак:1
++ docker exec marketplace_ai_postgres psql -U postgres -d marketplace_a ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (ERROR:  column ... does not exist:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+LINE 1: ...tatus, error_code, error_message, prompt_version, prompt_has...
+                                                             ^

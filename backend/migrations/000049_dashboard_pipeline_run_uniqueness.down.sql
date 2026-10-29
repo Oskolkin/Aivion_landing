@@ -1,0 +1,2 @@
+DROP INDEX IF EXISTS uq_action_generation_runs_pipeline_run;
+DROP INDEX IF EXISTS uq_ai_dashboard_narratives_pipeline_run;

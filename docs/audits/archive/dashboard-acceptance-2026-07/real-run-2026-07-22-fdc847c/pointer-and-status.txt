@@ -1,0 +1,2 @@
+﻿pointer publication_id=74
+run=205 status=publication_failed error=advertising_total_revenue_share_mismatch

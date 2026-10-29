@@ -1,0 +1,38 @@
+{
+  "seller_account_id": 1,
+  "publication_id": 147,
+  "run_id": 269,
+  "metric_date": "2026-07-08",
+  "generated_at": "2026-07-23T13:15:45Z",
+  "layers": {
+    "actions-reconciliation": {
+      "total": 7,
+      "ok": 7,
+      "warnings": 0,
+      "errors": 0,
+      "valid": true
+    },
+    "ai-claims-reconciliation": {
+      "total": 1,
+      "ok": 1,
+      "warnings": 0,
+      "errors": 0,
+      "valid": true
+    },
+    "dashboard-reconciliation": {
+      "total": 8,
+      "ok": 8,
+      "warnings": 0,
+      "errors": 0,
+      "valid": true
+    },
+    "source-reconciliation": {
+      "total": 2,
+      "ok": 1,
+      "warnings": 1,
+      "errors": 0,
+      "valid": true
+    }
+  },
+  "valid": true
+}

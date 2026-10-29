@@ -1,0 +1,14 @@
+{
+  "uid": "aivion-actions",
+  "title": "Actions",
+  "schemaVersion": 38,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Deep action proposals",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "sum by (action_type) (deep_action_proposals_total)", "legendFormat": "{{action_type}}", "refId": "A" }]
+    }
+  ]
+}

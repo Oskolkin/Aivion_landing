@@ -1,0 +1,3 @@
+DROP INDEX IF EXISTS idx_ai_dashboard_narratives_seller_status_metric;
+DROP INDEX IF EXISTS idx_ai_dashboard_narratives_seller_metric;
+DROP TABLE IF EXISTS ai_dashboard_narratives;

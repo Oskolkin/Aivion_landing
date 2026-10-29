@@ -1,0 +1,16 @@
+DROP INDEX idx_lifecycle_events_as_known;
+DROP INDEX idx_return_events_as_known;
+DROP INDEX idx_posting_versions_as_known;
+DROP INDEX idx_sales_sku_as_known;
+DROP INDEX idx_sales_account_as_known;
+DROP INDEX idx_sku_assignments_historical;
+DROP INDEX idx_sku_versions_as_known;
+DROP INDEX idx_sales_reconciliations_maturity;
+DROP INDEX IF EXISTS idx_dq_issues_evaluation_identity;
+DROP TABLE analysis_readiness_evaluations;
+DROP TABLE domain_watermarks;
+DROP TABLE business_capability_assessments;
+DROP TABLE data_quality_issues;
+DROP TABLE data_quality_runs;
+ALTER TABLE sales_reconciliations DROP CONSTRAINT sales_reconciliations_day_hash_check;
+ALTER TABLE sales_reconciliations DROP COLUMN normalized_day_hash;

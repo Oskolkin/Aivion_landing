@@ -1,0 +1,30 @@
+{
+  "TestStaleOlderMetricDate": {
+    "count": 5,
+    "result": "PASS",
+    "package": "./internal/unifiedanalysis/publication/"
+  },
+  "TestSameSellerOutcomeSequence": {
+    "count": 5,
+    "result": "PASS",
+    "package": "./internal/unifiedanalysis/publication/"
+  },
+  "TestAsynqPublishE2E": {
+    "count": 5,
+    "result": "PASS",
+    "package": "./internal/unifiedanalysis/"
+  },
+  "full_suite_count_1": {
+    "exit_code": 0,
+    "duration_s": 226,
+    "log": "/tmp/integration-count1.log",
+    "result": "PASS"
+  },
+  "full_suite_count_3": {
+    "exit_code": 0,
+    "duration_s": 621,
+    "log": "/tmp/integration-count3.log",
+    "result": "PASS"
+  },
+  "flaky_failures": 0
+}

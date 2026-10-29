@@ -1,0 +1,43 @@
+{
+  "valid": false,
+  "errors": [
+    {
+      "code": "advertising_claim_percent_without_claim",
+      "path": "$.dashboard.ad_efficiency.narrative.summary",
+      "message": "free-text percentage 80.0% has no matching ad_spend_share_of_total_store_revenue_pct/attributed_campaign_drr_pct claim"
+    },
+    {
+      "code": "advertising_claim_percent_without_claim",
+      "path": "$.dashboard.ad_efficiency.narrative.summary",
+      "message": "free-text percentage 80.0% has no matching ad_spend_share_of_total_store_revenue_pct/attributed_campaign_drr_pct claim"
+    }
+  ],
+  "outcome": "material_actions_found",
+  "pack_id": "pack:1:2026-07-08:17e80bbe7eccb4f8",
+  "warnings": [
+    {
+      "code": "dashboard_signal_section_conflict",
+      "path": "$.dashboard.what_changed.groups[0].items[0].signal_id",
+      "message": "signal_id \"sig_ad_waste_high_drr\" used in seller_pulse_important and what_changed_worsened"
+    },
+    {
+      "code": "dashboard_signal_section_conflict",
+      "path": "$.dashboard.what_changed.groups[2].items[0].signal_id",
+      "message": "signal_id \"sig_no_sales_with_stock\" used in seller_pulse_important and what_changed_active_problems"
+    },
+    {
+      "code": "dashboard_signal_section_conflict",
+      "path": "$.dashboard.what_changed.groups[3].items[0].signal_id",
+      "message": "signal_id \"sig_sales_growth\" used in seller_pulse_key_point and what_changed_support_points"
+    }
+  ],
+  "pack_hash": "17e80bbe7eccb4f8cf7740e1d1ada796c22e4dd581b61c76874c38da036be854",
+  "error_code": "output_contract_invalid",
+  "duration_ms": 28,
+  "prompt_hash": "9b0fd12db06cb28acf3505d254b47b73303cdbd6c6b7c876142d58ff807e3308",
+  "schema_hash": "sha256:8c2474226f0de69ec18709df7da9853fa5fb11e00522caf829e270bc3ecc673b",
+  "action_count": 3,
+  "prompt_version": "unified_analyst_v1_26",
+  "schema_version": "aivion_unified_analysis_v1",
+  "top_action_count": 2
+}

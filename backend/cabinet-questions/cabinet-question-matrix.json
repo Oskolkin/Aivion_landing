@@ -1,0 +1,368 @@
+{
+  "api": "http://localhost:18081",
+  "generated_at": "2026-07-29T18:39:46Z",
+  "pass": 40,
+  "results": [
+    {
+      "question": "Какая выручка за текущий период?",
+      "intent": "sales",
+      "actual_answer": "Выручка за текущий период (2026-07-22 по 2026-07-29) составляет 0.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "Как она изменилась к предыдущей неделе?",
+      "intent": "sales",
+      "actual_answer": "Ключевые показатели (продажи, выручка, заказы, возвраты, отмены) не изменились по сравнению с предыдущей неделей. Все значения остались на нуле.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "Сколько заказов было за период?",
+      "intent": "sales",
+      "actual_answer": "За указанный период заказов не было.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "Что сильнее повлияло на изменение выручки?",
+      "intent": "sales",
+      "actual_answer": "На изменение выручки не повлияли никакие факторы за указанный период: выручка осталась неизменной, изменений по заказам, отменам и возвратам также не зафиксировано.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "Какой средний чек?",
+      "intent": "unknown",
+      "actual_answer": "Я не до конца понял, что именно нужно проверить. Могу посмотреть продажи, остатки, рекламу, alert'ы или рекомендации. Например:  Например: - Что проверить сегодня? - Почему упали заказы за последние 7 дней? - Какие товары с риском остатка? - Какие кампании имеют высокий ДРР?",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "Какие категории дали основной рост?",
+      "intent": "abc_analysis",
+      "actual_answer": "Данных для определения категорий, обеспечивших основной рост, за указанный период не найдено.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "Какие категории снизились?",
+      "intent": "unknown",
+      "actual_answer": "Я не до конца понял, что именно нужно проверить. Могу посмотреть продажи, остатки, рекламу, alert'ы или рекомендации. Например:  Например: - Что проверить сегодня? - Почему упали заказы за последние 7 дней? - Какие товары с риском остатка? - Какие кампании имеют высокий ДРР?",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "Какие SKU формируют основную выручку?",
+      "intent": "abc_analysis",
+      "actual_answer": "Нет данных о SKU, формирующих основную выручку, за выбранный период.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "Где слабое место воронки?",
+      "intent": "priorities",
+      "actual_answer": "Слабое место воронки — полное отсутствие заказов, выручки, возвратов и отмен за последнюю неделю. Это указывает на отсутствие активности на всех этапах воронки.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "Как изменилась конверсия?",
+      "intent": "sales",
+      "actual_answer": "Данных о конверсии за период с 2026-07-22 по 2026-07-29 нет. Все ключевые показатели (отмены, заказы, возвраты, выручка) равны нулю, изменений не зафиксировано.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "На каком этапе теряется больше всего пользователей?",
+      "intent": "sales",
+      "actual_answer": "На данный момент нет данных по этапам воронки продаж, поэтому невозможно определить, на каком этапе теряется больше всего пользователей.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "Что можно сделать для улучшения конверсии?",
+      "intent": "recommendations",
+      "actual_answer": "На данный момент нет открытых рекомендаций по улучшению конверсии для выбранных фильтров. Также по данным дашборда за последнюю неделю отсутствуют заказы и выручка, что может указывать на отсутствие активности или продаж. Рекомендуется проверить корректность ассортимента, наличие товаров на складе, актуальность цен и привлекательность витрины. Также стоит убедиться, что товары видимы для покупателей и нет технических ограничений, мешающих совершению покупок.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "Сравни текущую воронку с предыдущей неделей.",
+      "intent": "sales",
+      "actual_answer": "Воронка продаж за текущую неделю (2026-07-22 по 2026-07-29) и за предыдущую неделю показывает одинаковые значения: количество заказов — 0, отмен — 0, возвратов — 0, выручка — 0. Изменений по сравнению с предыдущей неделей не зафиксировано.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "Какие товары могут закончиться первыми?",
+      "intent": "stock",
+      "actual_answer": "Нет данных о товарах, которые могут закончиться первыми. По выбранным фильтрам не найдено информации о рисках окончания запасов.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "Какие SKU уже без остатка?",
+      "intent": "stock",
+      "actual_answer": "Нет SKU без остатка на 2026-07-29.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "Какие SKU имеют избыточный запас?",
+      "intent": "stock",
+      "actual_answer": "Нет данных о SKU с избыточным запасом по выбранным фильтрам.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "Сколько выручки находится под риском?",
+      "intent": "priorities",
+      "actual_answer": "На данный момент выручка под риском отсутствует.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "Какие товары нужно пополнить в первую очередь?",
+      "intent": "priorities",
+      "actual_answer": "На текущую дату нет данных о товарах, которые требуют пополнения в первую очередь.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "Какие товары не нужно закупать?",
+      "intent": "stock",
+      "actual_answer": "На данный момент нет товаров, которые не нужно закупать, так как не найдено данных о критических SKU или рисках по остаткам за выбранный период.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "На сколько дней хватит текущего остатка у самого рискованного SKU?",
+      "intent": "stock",
+      "actual_answer": "Нет данных о самом рискованном SKU и его остатке на 2026-07-29, поэтому невозможно рассчитать, на сколько дней хватит текущего остатка.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "Какая доля выручки получена за счёт рекламы?",
+      "intent": "advertising",
+      "actual_answer": "За период с 2026-07-22 по 2026-07-29 доля выручки, полученной за счёт рекламы, составляет 0%.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "Какие кампании имеют высокий ДРР?",
+      "intent": "advertising",
+      "actual_answer": "За период с 22 по 29 июля 2026 года ни одна из кампаний не имеет высокого ДРР, так как по всем кампаниям отсутствуют заказы, доход и расходы на рекламу.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "Где реклама убыточна?",
+      "intent": "ad_loss",
+      "actual_answer": "За период с 2026-07-22 по 2026-07-29 ни одна рекламная кампания не была убыточной: расходы по всем кампаниям составили 0, заказов и выручки также не было.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "Какие кампании стоит сократить?",
+      "intent": "advertising",
+      "actual_answer": "На данный момент все рекламные кампании за период с 22 по 29 июля 2026 года не имеют расходов, заказов и выручки. Нет кампаний с признаками риска или неэффективности, которые требовали бы сокращения. Сокращать кампании не требуется.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "Какие кампании можно масштабировать?",
+      "intent": "advertising",
+      "actual_answer": "На данный момент нет рекламных кампаний, которые можно масштабировать, так как за выбранный период (2026-07-22 — 2026-07-29) ни одна из кампаний не принесла заказов или выручки. Все кампании имеют нулевые показатели по заказам, выручке и расходам.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "Сколько расходов можно потенциально сократить?",
+      "intent": "recommendations",
+      "actual_answer": "На данный момент нет открытых рекомендаций по сокращению расходов с высоким или критическим приоритетом, поэтому невозможно оценить потенциальный объем сокращаемых расходов.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "Какое действие сейчас самое важное?",
+      "intent": "priorities",
+      "actual_answer": "На данный момент нет открытых рекомендаций, критических SKU или критических оповещений, требующих немедленного внимания.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "Почему оно приоритетное?",
+      "intent": "unknown",
+      "actual_answer": "Я не до конца понял, что именно нужно проверить. Могу посмотреть продажи, остатки, рекламу, alert'ы или рекомендации. Например:  Например: - Что проверить сегодня? - Почему упали заказы за последние 7 дней? - Какие товары с риском остатка? - Какие кампании имеют высокий ДРР?",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "Какие SKU затронуты приоритетным действием?",
+      "intent": "priorities",
+      "actual_answer": "На текущую дату нет SKU, затронутых приоритетным действием.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "Помоги выполнить выбранное действие.",
+      "intent": "general_overview",
+      "actual_answer": "На данный момент не указано, какое именно действие требуется выполнить, и отсутствуют фактические данные для предоставления конкретной помощи.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "Что произойдёт, если действие не выполнить?",
+      "intent": "general_overview",
+      "actual_answer": "Вопрос сформулирован слишком обобщённо и не содержит конкретного действия, последствия которого можно было бы проанализировать. Поэтому невозможно дать точный ответ о том, что произойдёт, если действие не выполнить.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "Какие данные нужно проверить перед выполнением?",
+      "intent": "general_overview",
+      "actual_answer": "Перед выполнением задачи рекомендуется проверить следующие данные: корректность исходных данных, актуальность информации, наличие всех необходимых документов или файлов, права доступа, а также соответствие требованиям задачи.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "Какие действия относятся к рекламе?",
+      "intent": "advertising",
+      "actual_answer": "В предоставленном контексте отсутствует конкретный перечень действий, относящихся к рекламе. Данные по рекламной активности на дату 2026-07-29 показывают отсутствие заказов, возвратов, отмен и выручки, что может свидетельствовать об отсутствии рекламных действий за указанный период.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "Какие действия относятся к остаткам?",
+      "intent": "stock",
+      "actual_answer": "На данный момент нет доступных данных о действиях, относящихся к остаткам.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "За какой период выполнен анализ?",
+      "intent": "general_overview",
+      "actual_answer": "Анализ выполнен за период с 2026-07-22 по 2026-07-29.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "С каким периодом проводится сравнение?",
+      "intent": "general_overview",
+      "actual_answer": "В предоставленном контексте отсутствует информация о периоде, с которым проводится сравнение.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "На какую дату актуальны данные?",
+      "intent": "general_overview",
+      "actual_answer": "Данные актуальны на 2026-07-29.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "Какие данные ты использовал для ответа?",
+      "intent": "general_overview",
+      "actual_answer": "Для ответа на этот вопрос не использовались никакие фактические данные, так как в предоставленном контексте отсутствуют конкретные данные или метрики.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "Есть ли ограничения в данных?",
+      "intent": "general_overview",
+      "actual_answer": "В предоставленных данных нет явных ограничений. Данные считаются актуальными на 2026-07-29 и отмечены как 'fresh'. Однако все ключевые показатели (отмены, заказы, возвраты, выручка) равны нулю, что может указывать на отсутствие активности или событий за выбранный период.",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    },
+    {
+      "question": "Насколько уверен ответ?",
+      "intent": "unknown",
+      "actual_answer": "Я не до конца понял, что именно нужно проверить. Могу посмотреть продажи, остатки, рекламу, alert'ы или рекомендации. Например:  Например: - Что проверить сегодня? - Почему упали заказы за последние 7 дней? - Какие товары с риском остатка? - Какие кампании имеют высокий ДРР?",
+      "invalid_tool_plan": false,
+      "hallucination": false,
+      "status": "PASS",
+      "http_status": 200
+    }
+  ],
+  "total": 40
+}

@@ -1,0 +1,712 @@
+{
+  "type": "object",
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "enum": ["aivion_unified_analysis_v1"]
+    },
+    "analysis_meta": { "$ref": "#/$defs/UnifiedAnalysisMetaV1" },
+    "analysis_outcome": {
+      "type": "string",
+      "enum": [
+        "material_actions_found",
+        "no_material_actions",
+        "insufficient_data",
+        "analysis_failed"
+      ]
+    },
+    "dashboard": { "$ref": "#/$defs/UnifiedDashboardV1" },
+    "actions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/UnifiedActionV1" }
+    },
+    "limitations": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "required": [
+    "schema_version",
+    "analysis_meta",
+    "analysis_outcome",
+    "dashboard",
+    "actions",
+    "limitations"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "UnifiedAnalysisMetaV1": {
+      "type": "object",
+      "properties": {
+        "pack_id": { "type": "string" },
+        "pack_hash": { "type": "string" },
+        "metric_date": { "type": "string" }
+      },
+      "required": ["pack_id", "pack_hash", "metric_date"],
+      "additionalProperties": false
+    },
+    "UnifiedRiskDriverV1": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "category": { "type": "string" },
+        "category_label": { "type": "string" },
+        "severity": { "type": "string" },
+        "impact_score": { "type": "integer" },
+        "title": { "type": "string" },
+        "reason": { "type": "string" }
+      },
+      "required": [
+        "id",
+        "category",
+        "category_label",
+        "severity",
+        "impact_score",
+        "title",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "UnifiedAccountSummaryV1": {
+      "type": "object",
+      "properties": {
+        "status": { "type": "string" },
+        "message": { "type": ["string", "null"] },
+        "health_score": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "health_score_delta": { "type": ["integer", "null"] },
+        "severity": { "type": ["string", "null"] },
+        "headline": { "type": ["string", "null"] },
+        "executive_summary": { "type": ["string", "null"] },
+        "improvement_summary": { "type": ["string", "null"] },
+        "risk_drivers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/UnifiedRiskDriverV1" }
+        },
+        "metric_date": { "type": ["string", "null"] }
+      },
+      "required": [
+        "status",
+        "message",
+        "health_score",
+        "health_score_delta",
+        "severity",
+        "headline",
+        "executive_summary",
+        "improvement_summary",
+        "risk_drivers",
+        "metric_date"
+      ],
+      "additionalProperties": false
+    },
+    "UnifiedWhatChangedItemV1": {
+      "type": "object",
+      "properties": {
+        "label": { "type": "string" },
+        "text": { "type": "string" },
+        "highlights": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["label", "text", "highlights"],
+      "additionalProperties": false
+    },
+    "UnifiedWhatChangedGroupV1": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string",
+          "enum": ["worsened", "new_risks", "unchanged_risks", "improved"]
+        },
+        "label": { "type": "string" },
+        "tone": { "type": "string" },
+        "summary": { "type": ["string", "null"] },
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/UnifiedWhatChangedItemV1" }
+        },
+        "empty_text": { "type": ["string", "null"] }
+      },
+      "required": ["key", "label", "tone", "summary", "items", "empty_text"],
+      "additionalProperties": false
+    },
+    "UnifiedWhatChangedV1": {
+      "type": "object",
+      "properties": {
+        "status": { "type": "string" },
+        "message": { "type": ["string", "null"] },
+        "summary": { "type": ["string", "null"] },
+        "main_conclusion": { "type": ["string", "null"] },
+        "groups": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/UnifiedWhatChangedGroupV1" }
+        }
+      },
+      "required": ["status", "message", "summary", "main_conclusion", "groups"],
+      "additionalProperties": false
+    },
+    "UnifiedCategorySummaryV1": {
+      "type": "object",
+      "properties": {
+        "category_id": { "type": ["string", "null"] },
+        "category_name": { "type": "string" },
+        "category_score": { "type": ["integer", "null"] },
+        "score_max": { "type": "integer" },
+        "health_score": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "severity": { "type": ["string", "null"] },
+        "headline": { "type": ["string", "null"] },
+        "key_risk": { "type": ["string", "null"] },
+        "recommended_action": { "type": ["string", "null"] }
+      },
+      "required": [
+        "category_id",
+        "category_name",
+        "category_score",
+        "score_max",
+        "health_score",
+        "severity",
+        "headline",
+        "key_risk",
+        "recommended_action"
+      ],
+      "additionalProperties": false
+    },
+    "UnifiedFunnelStageV1": {
+      "type": "object",
+      "properties": {
+        "key": { "type": "string" },
+        "label": { "type": "string" },
+        "value": { "type": ["integer", "null"] },
+        "conversion_from_previous": { "type": ["number", "null"] },
+        "conversion_from_top": { "type": ["number", "null"] },
+        "previous_day_value": { "type": ["integer", "null"] },
+        "change_vs_previous_day_pct": { "type": ["number", "null"] }
+      },
+      "required": [
+        "key",
+        "label",
+        "value",
+        "conversion_from_previous",
+        "conversion_from_top",
+        "previous_day_value",
+        "change_vs_previous_day_pct"
+      ],
+      "additionalProperties": false
+    },
+    "UnifiedSalesFunnelV1": {
+      "type": "object",
+      "properties": {
+        "status": { "type": "string" },
+        "message": { "type": ["string", "null"] },
+        "stages": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/UnifiedFunnelStageV1" }
+        }
+      },
+      "required": ["status", "message", "stages"],
+      "additionalProperties": false
+    },
+    "UnifiedFunnelAIAnalysisV1": {
+      "type": "object",
+      "properties": {
+        "status": { "type": "string" },
+        "message": { "type": ["string", "null"] },
+        "short_summary": { "type": ["string", "null"] },
+        "trend_vs_yesterday": { "type": ["string", "null"] },
+        "trend_vs_7d": { "type": ["string", "null"] },
+        "related_signals": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "recommended_focus": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "full_analysis": { "type": ["string", "null"] },
+        "summary": { "type": ["string", "null"] },
+        "details": { "type": ["string", "null"] },
+        "main_conclusion": { "type": ["string", "null"] },
+        "action_items": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": [
+        "status",
+        "message",
+        "short_summary",
+        "trend_vs_yesterday",
+        "trend_vs_7d",
+        "related_signals",
+        "recommended_focus",
+        "full_analysis",
+        "summary",
+        "details",
+        "main_conclusion",
+        "action_items"
+      ],
+      "additionalProperties": false
+    },
+    "UnifiedFunnelAnalysisV1": {
+      "type": "object",
+      "properties": {
+        "status": { "type": "string" },
+        "message": { "type": ["string", "null"] },
+        "primary_drop_stage": { "type": ["string", "null"] },
+        "primary_drop_message": { "type": ["string", "null"] },
+        "ai_analysis": { "$ref": "#/$defs/UnifiedFunnelAIAnalysisV1" }
+      },
+      "required": [
+        "status",
+        "message",
+        "primary_drop_stage",
+        "primary_drop_message",
+        "ai_analysis"
+      ],
+      "additionalProperties": false
+    },
+    "UnifiedStockCoverageSegmentV1": {
+      "type": "object",
+      "properties": {
+        "key": { "type": "string" },
+        "label": { "type": "string" },
+        "sku_count": { "type": "integer" },
+        "severity": { "type": "string" }
+      },
+      "required": ["key", "label", "sku_count", "severity"],
+      "additionalProperties": false
+    },
+    "UnifiedStockCoverageNarrativeV1": {
+      "type": "object",
+      "properties": {
+        "status": { "type": "string" },
+        "headline": { "type": ["string", "null"] },
+        "summary": { "type": ["string", "null"] },
+        "next_step": { "type": ["string", "null"] },
+        "tone": { "type": ["string", "null"] }
+      },
+      "required": ["status", "headline", "summary", "next_step", "tone"],
+      "additionalProperties": false
+    },
+    "UnifiedStockCoverageV1": {
+      "type": "object",
+      "properties": {
+        "status": { "type": "string" },
+        "message": { "type": ["string", "null"] },
+        "segments": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/UnifiedStockCoverageSegmentV1" }
+        },
+        "total_skus": { "type": "integer" },
+        "narrative": {
+          "anyOf": [
+            { "$ref": "#/$defs/UnifiedStockCoverageNarrativeV1" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "required": ["status", "message", "segments", "total_skus", "narrative"],
+      "additionalProperties": false
+    },
+    "UnifiedAdEfficiencySummaryV1": {
+      "type": "object",
+      "properties": {
+        "current_drr_pct": { "type": ["number", "null"] },
+        "previous_drr_pct": { "type": ["number", "null"] },
+        "average_drr_7d_pct": { "type": ["number", "null"] },
+        "total_spend_today": { "type": "number" },
+        "total_revenue_today": { "type": "number" },
+        "total_orders_today": { "type": "integer" },
+        "campaigns_high_drr_count": { "type": "integer" },
+        "campaigns_no_orders_count": { "type": "integer" },
+        "high_drr_spend": { "type": "number" },
+        "spend_without_orders": { "type": "number" }
+      },
+      "required": [
+        "current_drr_pct",
+        "previous_drr_pct",
+        "average_drr_7d_pct",
+        "total_spend_today",
+        "total_revenue_today",
+        "total_orders_today",
+        "campaigns_high_drr_count",
+        "campaigns_no_orders_count",
+        "high_drr_spend",
+        "spend_without_orders"
+      ],
+      "additionalProperties": false
+    },
+    "UnifiedAdEfficiencyChecklistItemV1": {
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "text": { "type": "string" },
+        "target": { "type": ["string", "null"] }
+      },
+      "required": ["title", "text", "target"],
+      "additionalProperties": false
+    },
+    "UnifiedAdEfficiencyNarrativeV1": {
+      "type": "object",
+      "properties": {
+        "status": { "type": "string" },
+        "summary": { "type": ["string", "null"] },
+        "checklist": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/UnifiedAdEfficiencyChecklistItemV1" }
+        },
+        "limitations": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["status", "summary", "checklist", "limitations"],
+      "additionalProperties": false
+    },
+    "UnifiedAdEfficiencyV1": {
+      "type": "object",
+      "properties": {
+        "status": { "type": "string" },
+        "message": { "type": ["string", "null"] },
+        "summary": {
+          "anyOf": [
+            { "$ref": "#/$defs/UnifiedAdEfficiencySummaryV1" },
+            { "type": "null" }
+          ]
+        },
+        "narrative": {
+          "anyOf": [
+            { "$ref": "#/$defs/UnifiedAdEfficiencyNarrativeV1" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "required": ["status", "message", "summary", "narrative"],
+      "additionalProperties": false
+    },
+    "UnifiedRiskGroupCountV1": {
+      "type": "object",
+      "properties": {
+        "group": { "type": "string" },
+        "label": { "type": "string" },
+        "count": { "type": "integer" },
+        "severity": { "type": "string" }
+      },
+      "required": ["group", "label", "count", "severity"],
+      "additionalProperties": false
+    },
+    "UnifiedRiskDistributionV1": {
+      "type": "object",
+      "properties": {
+        "status": { "type": "string" },
+        "message": { "type": ["string", "null"] },
+        "groups": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/UnifiedRiskGroupCountV1" }
+        },
+        "total": { "type": "integer" }
+      },
+      "required": ["status", "message", "groups", "total"],
+      "additionalProperties": false
+    },
+    "UnifiedKPICardDeltaV1": {
+      "type": "object",
+      "properties": {
+        "abs": { "type": "number" },
+        "pct": { "type": ["number", "null"] },
+        "label": { "type": "string" },
+        "unit": { "type": ["string", "null"] }
+      },
+      "required": ["abs", "pct", "label", "unit"],
+      "additionalProperties": false
+    },
+    "UnifiedKPICardV1": {
+      "type": "object",
+      "properties": {
+        "key": { "type": "string" },
+        "label": { "type": "string" },
+        "value": { "type": "string" },
+        "delta": {
+          "anyOf": [
+            { "$ref": "#/$defs/UnifiedKPICardDeltaV1" },
+            { "type": "null" }
+          ]
+        },
+        "hint": { "type": ["string", "null"] }
+      },
+      "required": ["key", "label", "value", "delta", "hint"],
+      "additionalProperties": false
+    },
+    "UnifiedTrendDayPointV1": {
+      "type": "object",
+      "properties": {
+        "date": { "type": "string" },
+        "revenue": { "type": ["number", "null"] },
+        "orders": { "type": ["integer", "null"] }
+      },
+      "required": ["date", "revenue", "orders"],
+      "additionalProperties": false
+    },
+    "UnifiedSellerPulseNarrativeV1": {
+      "type": "object",
+      "properties": {
+        "status": { "type": "string" },
+        "tone": { "type": ["string", "null"] },
+        "headline": { "type": "string" },
+        "summary": { "type": ["string", "null"] },
+        "data_quality_note": { "type": ["string", "null"] }
+      },
+      "required": ["status", "tone", "headline", "summary", "data_quality_note"],
+      "additionalProperties": false
+    },
+    "UnifiedSellerPulseV1": {
+      "type": "object",
+      "properties": {
+        "kpis": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/UnifiedKPICardV1" }
+        },
+        "trend_7d": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/UnifiedTrendDayPointV1" }
+        },
+        "narrative": {
+          "anyOf": [
+            { "$ref": "#/$defs/UnifiedSellerPulseNarrativeV1" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "required": ["kpis", "trend_7d", "narrative"],
+      "additionalProperties": false
+    },
+    "UnifiedSKUFocusCardV1": {
+      "type": "object",
+      "properties": {
+        "sku": { "type": ["integer", "null"] },
+        "offer_id": { "type": ["string", "null"] },
+        "product_name": { "type": "string" },
+        "problem": { "type": "string" },
+        "key_metric": { "type": "string" }
+      },
+      "required": ["sku", "offer_id", "product_name", "problem", "key_metric"],
+      "additionalProperties": false
+    },
+    "UnifiedKeySKUCardV1": {
+      "type": "object",
+      "properties": {
+        "sku": { "type": ["integer", "null"] },
+        "offer_id": { "type": ["string", "null"] },
+        "product_name": { "type": "string" },
+        "revenue_share_pct": { "type": ["number", "null"] },
+        "reason": { "type": ["string", "null"] }
+      },
+      "required": ["sku", "offer_id", "product_name", "revenue_share_pct", "reason"],
+      "additionalProperties": false
+    },
+    "UnifiedSKUFocusV1": {
+      "type": "object",
+      "properties": {
+        "order_drop": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/UnifiedSKUFocusCardV1" }
+        },
+        "stock_risk": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/UnifiedSKUFocusCardV1" }
+        },
+        "no_sales_with_stock": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/UnifiedSKUFocusCardV1" }
+        },
+        "slow_turnover": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/UnifiedSKUFocusCardV1" }
+        },
+        "key_skus": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/UnifiedKeySKUCardV1" }
+        }
+      },
+      "required": [
+        "order_drop",
+        "stock_risk",
+        "no_sales_with_stock",
+        "slow_turnover",
+        "key_skus"
+      ],
+      "additionalProperties": false
+    },
+    "UnifiedDashboardV1": {
+      "type": "object",
+      "properties": {
+        "account_summary": { "$ref": "#/$defs/UnifiedAccountSummaryV1" },
+        "what_changed": { "$ref": "#/$defs/UnifiedWhatChangedV1" },
+        "category_summaries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/UnifiedCategorySummaryV1" }
+        },
+        "sales_funnel": { "$ref": "#/$defs/UnifiedSalesFunnelV1" },
+        "funnel_analysis": { "$ref": "#/$defs/UnifiedFunnelAnalysisV1" },
+        "stock_coverage": { "$ref": "#/$defs/UnifiedStockCoverageV1" },
+        "ad_efficiency": { "$ref": "#/$defs/UnifiedAdEfficiencyV1" },
+        "risk_distribution": { "$ref": "#/$defs/UnifiedRiskDistributionV1" },
+        "seller_pulse": { "$ref": "#/$defs/UnifiedSellerPulseV1" },
+        "sku_focus": { "$ref": "#/$defs/UnifiedSKUFocusV1" },
+        "top_action_ids": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "recommended_action_ids": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": [
+        "account_summary",
+        "what_changed",
+        "category_summaries",
+        "sales_funnel",
+        "funnel_analysis",
+        "stock_coverage",
+        "ad_efficiency",
+        "risk_distribution",
+        "seller_pulse",
+        "sku_focus",
+        "top_action_ids",
+        "recommended_action_ids"
+      ],
+      "additionalProperties": false
+    },
+    "UnifiedActionScopeV1": {
+      "type": "object",
+      "properties": {
+        "scope_type": {
+          "type": "string",
+          "enum": ["account", "sku", "campaign", "funnel", "category", "mixed"]
+        },
+        "entity_ids": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["scope_type", "entity_ids"],
+      "additionalProperties": false
+    },
+    "UnifiedActionStepV1": {
+      "type": "object",
+      "properties": {
+        "order": { "type": "integer" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "entity_ids": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["order", "title", "description", "entity_ids"],
+      "additionalProperties": false
+    },
+    "UnifiedCompletionConditionV1": {
+      "type": "object",
+      "properties": {
+        "condition_key": { "type": "string" },
+        "type": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "metric_field": { "type": ["string", "null"] },
+        "operator": { "type": ["string", "null"] },
+        "target_value": { "type": ["number", "null"] },
+        "period_days": { "type": ["integer", "null"] }
+      },
+      "required": [
+        "condition_key",
+        "type",
+        "title",
+        "description",
+        "metric_field",
+        "operator",
+        "target_value",
+        "period_days"
+      ],
+      "additionalProperties": false
+    },
+    "UnifiedActionV1": {
+      "type": "object",
+      "properties": {
+        "analysis_action_id": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": [
+            "stock_replenishment",
+            "stock_redistribution",
+            "slow_turnover_review",
+            "no_sales_with_stock",
+            "sku_orders_drop",
+            "key_sku_protection",
+            "ad_high_drr_review",
+            "ad_spend_no_orders",
+            "ad_budget_reallocation",
+            "funnel_weak_transition",
+            "card_conversion_review",
+            "category_underperformance",
+            "sales_drop_review"
+          ]
+        },
+        "category": {
+          "type": "string",
+          "enum": ["stock", "slow_turnover", "sku", "sales", "advertising", "funnel", "category"]
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["critical", "important", "watch"]
+        },
+        "title": { "type": "string" },
+        "summary": { "type": "string" },
+        "problem": { "type": "string" },
+        "why_now": { "type": "string" },
+        "operational_goal": { "type": "string" },
+        "expected_effect": { "type": "string" },
+        "scope": { "$ref": "#/$defs/UnifiedActionScopeV1" },
+        "steps": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/UnifiedActionStepV1" }
+        },
+        "completion_criteria": { "type": "string" },
+        "completion_conditions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/UnifiedCompletionConditionV1" }
+        },
+        "evidence_summary": { "type": "string" },
+        "limitations": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["high", "medium", "low"]
+        }
+      },
+      "required": [
+        "analysis_action_id",
+        "type",
+        "category",
+        "priority",
+        "title",
+        "summary",
+        "problem",
+        "why_now",
+        "operational_goal",
+        "expected_effect",
+        "scope",
+        "steps",
+        "completion_criteria",
+        "completion_conditions",
+        "evidence_summary",
+        "limitations",
+        "confidence"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

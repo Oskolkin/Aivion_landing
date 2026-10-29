@@ -1,0 +1,3480 @@
+
+1. Что такое Publication в Aivion
+Publication — это:
+неизменяемый зафиксированный результат одного полностью завершённого анализа seller на конкретном sealed Factual Universe.
+Проще:
+Ozon facts
+    ↓
+Sealed Factual Universe
+    ↓
+Landscapes / Materiality
+    ↓
+Discovery
+    ↓
+Evidence
+    ↓
+Deep Analysis
+    ↓
+Validated Findings / Recommendations / Actions
+    ↓
+PUBLICATION
+После того как Publication создана, её содержимое никогда не редактируется.
+Например:
+Publication #108
+analysis_date = 2026-08-20
+
+Finding:
+SKU 417 sales -32%
+
+Recommendation:
+пополнить запас
+
+Action:
+SKU 417 → replenish
+Даже если 21 августа Ozon пересчитал исторические данные, Publication #108 остаётся такой, какой была 20 августа.
+Новые правильные данные дадут:
+Publication #109
+а не переписывание #108.
+
+2. Publication ≠ Analysis Run
+Это принципиальное разделение.
+Analysis Run — технический процесс:
+RUNNING
+Discovery failed
+retry
+Evidence completed
+Deep failed
+retry
+...
+Он может:
+падать;
+повторяться;
+иметь attempts;
+быть aborted;
+никогда не стать публикацией.
+Publication появляется только после полного успешного прохождения pipeline.
+Поэтому я бы не делал:
+publication.status = BUILDING
+publication.status = DEEP_RUNNING
+publication.status = FAILED
+Это состояния Analysis Run, а не Publication.
+Правильнее:
+Analysis Run
+    ↓
+validated release candidate
+    ↓
+atomic publish
+    ↓
+Publication
+То есть само наличие записи Publication уже означает:
+данный результат успешно опубликован.
+
+3. Нельзя публиковать «частично готовый анализ»
+Например:
+Discovery ✅
+Evidence ✅
+Deep ✅
+Actions ✅
+Overview Projection ✅
+Stock Projection ✅
+Advertising Projection ❌
+Publication не должна становиться current.
+Предыдущая Publication остаётся доступной.
+Никакого состояния:
+Новый AI-анализ уже появился на Overview, но Advertising пока старый.
+Это сразу возвращает нас к несогласованному продукту.
+При этом PARTIAL внутри business domain допустим.
+Например:
+Search = PARTIAL
+Finance = UNAVAILABLE
+Funnel = UNAVAILABLE
+это нормальная Publication, потому что Deep анализировал именно такую capability picture.
+Разница:
+DOMAIN PARTIAL
+= корректно известное ограничение данных
+
+PUBLICATION PARTIAL
+= технически недособранный продукт
+Первое разрешено.
+Второе запрещено.
+
+4. Что должна содержать Canonical Publication
+Я предлагаю такую структуру:
+Publication
+│
+├── Identity
+├── Temporal context
+├── Factual Universe refs
+├── Capability / DQ refs
+│
+├── Analysis component refs
+│   ├── Landscape
+│   ├── Materiality
+│   ├── Discovery
+│   ├── Evidence
+│   └── Deep Analysis
+│
+├── Canonical semantic result
+│   ├── Executive Summary
+│   ├── Thread Resolutions
+│   ├── Findings
+│   ├── Recommendations
+│   └── Validated Action Proposals
+│
+├── Contract/version bundle
+├── Artifact/hashes
+└── Projection manifests
+
+5. Publication Identity
+Минимум:
+publication_id
+
+seller_account_id
+
+publication_generation
+
+analysis_date
+
+analysis_cutoff_at
+
+published_at
+publication_generation — монотонный номер публикации seller:
+101
+102
+103
+...
+Он не является analysis_date.
+Потому что для:
+analysis_date = 20 Aug
+теоретически может существовать:
+Publication 108
+Publication 109
+если появился новый factual cutoff или был осознанный reanalysis с новой policy.
+
+6. Ссылка на Factual Universe обязательна
+Publication должна точно знать:
+factual_universe_manifest_id
+factual_universe_hash
+Иначе через полгода мы не сможем ответить:
+На каких именно данных AI сделал этот вывод?
+Из Publication:
+Publication #108
+↓
+Factual Universe FU-891
+↓
+Fact Handle
+↓
+FactRef
+↓
+Canonical data revision
+↓
+Ozon source
+
+7. Publication не должна копировать в себя всю UCDM
+Мы не складываем внутрь Publication:
+90 дней Sales всех 2000 SKU
+все Stock snapshots
+все Finance lines
+...
+Publication хранит ссылку на sealed universe и необходимые immutable artifacts.
+То есть:
+UCDM
+= factual source of truth
+
+Publication
+= immutable result анализа
+Они не дублируют друг друга.
+
+8. Publication должна знать весь analysis contract bundle
+Например:
+factual_api_contract_version
+capability_policy_version
+dq_policy_version
+
+landscape_profile_version
+materiality_policy_version
+materiality_budget_version
+
+discovery_pack_version
+discovery_prompt_version
+discovery_output_schema_version
+discovery_model_policy_version
+
+evidence_catalog_version
+evidence_expansion_policy_version
+
+deep_pack_version
+deep_prompt_version
+deep_output_schema_version
+deep_model_policy_version
+
+action_catalog_version
+action_identity_policy_version
+
+publication_schema_version
+projection_policy_version
+Почему это важно?
+Потому что результат:
+Publication #108
+определяется не только данными.
+Он определяется:
+данные
++
+наши deterministic policies
++
+AI prompts/models/contracts
+Через год мы должны понимать, какой именно алгоритм сформировал Publication.
+
+9. Publication content hash
+После нормализации всей canonical Publication:
+canonical serialization
+↓
+SHA-256
+↓
+publication_content_hash
+Хэш нужен для:
+аудита;
+no-op detection;
+idempotency;
+integrity;
+artifact validation.
+Если один и тот же publish process запустился повторно после crash, он не создаёт новую Publication с тем же canonical content.
+
+10. «Current Publication» — отдельный pointer
+Я категорически не рекомендую искать current publication так:
+ORDER BY published_at DESC LIMIT 1
+Нужен явный:
+seller_current_publication
+Например:
+seller_account_id = 1
+publication_id = 108
+generation = 108
+updated_at = ...
+Это единственная точка, определяющая:
+Какой аналитический snapshot сейчас является текущим для seller.
+
+11. Зачем отдельный pointer
+Представим одновременно работают два Runs:
+Run A
+analysis cutoff = 06:00
+
+Run B
+analysis cutoff = 08:00
+B закончил первым:
+Publication 109
+Потом A наконец заканчивается.
+Мы не должны позволить A сделать себя current поверх более нового B.
+При publish backend проверяет:
+candidate chronology
+vs
+current pointer
+и отклоняет:
+STALE_PUBLISH_CANDIDATE
+
+12. Ordering публикаций
+Обычная логика:
+более поздний analysis_date
+&gt;
+более ранний
+
+при одинаковом analysis_date:
+более поздний valid analysis_cutoff
+&gt;
+более ранний
+Осознанный reanalysis по новой analysis policy/model должен идти отдельным явным режимом.
+Нельзя случайно заменять current Publication только потому, что OpenAI во второй раз сформулировал ответ немного иначе.
+
+13. Same universe + same policies = не публикуем заново
+Например:
+FU hash = ABC
+
+Materiality policy = 7
+Discovery = 4
+Evidence = 2
+Deep = 5
+Action Catalog = 1
+И current Publication уже построена именно на этой комбинации.
+Scheduler случайно запускает анализ снова.
+Результат:
+NO_OP_ANALYSIS
+а не новая Publication.
+AI недетерминирован, но это не причина ежедневно перегенерировать один и тот же factual state.
+
+14. Model upgrade — отдельный случай
+Например:
+deep_model_policy_v5
+→
+deep_model_policy_v6
+Технически тот же factual universe может быть проанализирован заново.
+Но это должно быть явное действие rollout/reanalysis policy, а не случайная публикация.
+
+15. Что именно immutable
+Immutable:
+Publication canonical content
+Factual Universe reference
+Deep result
+Findings
+Recommendations
+Action proposals
+projection snapshot published at that time
+analysis versions
+hashes
+Mutable отдельно:
+current publication pointer
+Action Case user state
+current Action view
+visibility/control state
+Не смешиваем их.
+
+16. Publication visibility/control не должна менять содержимое
+Иногда может понадобиться:
+снять ошибочную Publication с current.
+Например обнаружили баг в projection или severe analysis defect.
+Не делаем:
+UPDATE publication
+SET findings = ...
+Вместо этого нужен control plane:
+publication_release_events
+Например:
+PUBLISHED
+MADE_CURRENT
+SUPERSEDED_AS_CURRENT
+WITHDRAWN
+ROLLBACK_ACTIVATED
+Сам Publication content остаётся неизменным.
+Это схоже с преимуществом immutable history: исходная запись остаётся для аудита, а последующие состояния добавляются отдельно. При этом я не предлагаю переводить весь Aivion на Event Sourcing — Microsoft отдельно подчёркивает, что полноценный Event Sourcing добавляет существенную сложность и оправдан не везде. Нам здесь достаточно append-only release/audit ledger плюс обычная relational business model. Microsoft Learn
+
+17. Projection — что это такое
+Publication уже знает:
+что означает анализ.
+Projection отвечает:
+как этот результат показать конкретному consumer.
+То есть:
+Canonical Publication
+       ↓
+Projection
+       ├─ Overview
+       ├─ Funnel
+       ├─ Stock
+       ├─ Advertising
+       ├─ Categories
+       ├─ SKU
+       ├─ Actions Snapshot
+       └─ Chat Context
+Это очень похоже на materialized read model: источник истины остаётся отдельно, а view оптимизируется под конкретный способ чтения и может быть пересобран. Именно это является одним из стандартных преимуществ CQRS/materialized-view подхода. Microsoft Learn
+
+18. Projection не является новым source of truth
+Например Overview показывает:
+Продажи −12%.
+Эта цифра не должна жить только в:
+overview_projection.revenue_delta
+Source:
+Factual Universe
+Projection лишь подготовила значение к отображению.
+Если projection потеряли:
+rebuild
+из:
+Publication
++
+sealed factual universe
++
+projector version
+Microsoft прямо описывает materialized view как производное представление, которое можно полностью восстановить из источника и которое приложение не должно изменять напрямую. Microsoft Learn
+
+19. Projection полностью deterministic
+Никакого:
+Publication
+↓
+ещё один OpenAI call
+↓
+Dashboard
+Нет.
+Projector:
+pure deterministic application code.
+
+20. Что Projector имеет право делать
+Он может:
+выбрать Findings для нужной страницы;
+сохранить их Deep ordinal;
+сгруппировать Actions;
+подставить labels;
+подготовить карточку;
+сформировать URL entity;
+считать UI-safe delta из двух готовых facts;
+форматировать Money;
+форматировать Percent;
+показать unavailable/partial state;
+
+21. Что Projector не имеет права делать
+Нельзя:
+решить новую причину;
+
+создать Finding;
+
+создать Recommendation;
+
+создать Action;
+
+повысить priority;
+
+решить, что проблема critical;
+
+придумать forecast;
+
+исправить Deep output.
+То есть:
+Deep:
+что это значит
+
+Projector:
+как это показать
+
+22. Projector не должен semantic-rank Findings заново
+Deep уже вернул:
+Finding 1
+Finding 2
+Finding 3
+...
+Если Overview помещает максимум 5:
+берём первые 5,
+которые относятся к допустимому Overview scope.
+Не строим второй ML/score/rule engine:
+severity × GMV × recency.
+
+23. Projection versioning
+Каждая projection имеет:
+projection_type
+projector_version
+projection_schema_version
+view_policy_version
+Например:
+OVERVIEW
+projector_v3
+schema_v5
+
+24. Почему это позволит менять Dashboard без изменения AI
+Сегодня:
+Overview v3
+Завтра дизайнер меняет блоки.
+Мы выпускаем:
+Overview Projector v4
+и используем ту же Canonical Publication.
+AI pipeline менять не нужно.
+
+25. Старые projections можно пересобрать
+Допустим изменился Dashboard contract.
+Мы можем:
+Publication 101
+Publication 102
+...
+Publication 108
+       ↓
+projector v4
+       ↓
+new projections
+При этом исходные Publication не меняются.
+Старые projection artifacts можно сохранить для аудита.
+Это позволяет не поддерживать бесконечно legacy UI schemas, что хорошо сочетается с уже принятой стратегией полного replacement.
+
+26. Projection key
+Детерминированный ключ:
+publication_content_hash
++
+projection_type
++
+projector_version
++
+view_policy_version
+Одинаковый input:
+→ одинаковая projection
+→ одинаковый hash.
+
+27. Projection не должна читать LATEST
+Когда строится Projection исторической Publication #108:
+Factual API mode =
+SEALED_UNIVERSE
+а не:
+LATEST_STABLE.
+Иначе 22 августа мы пересоберём UI 20 августа уже на других данных.
+Это недопустимо.
+
+28. Publication coherence — крайне важное правило
+Это напрямую исправляет старую проблему Aivion:
+AI говорит одно, а цифры на карточке рядом уже другие.
+Если Finding сформирован на:
+Sales current_7d:
+10–16 Aug
+
+Stock snapshot:
+17 Aug 05:00
+то факты рядом с Finding должны соответствовать именно этому universe.
+Нельзя показать Finding:
+Stock = 0, необходимо пополнение.
+а рядом тихо заменить карточку:
+Stock = 180
+из свежего snapshot 6 часов спустя.
+
+29. Но нам всё равно нужны свежие Stock/Price
+Поэтому предлагаю разделить:
+PUBLISHED ANALYTICAL SNAPSHOT
+
+и
+
+LATEST OPERATIONAL OVERLAY
+Например Stock page:
+AI analysis:
+остаток на момент анализа = 0
+as_of = 06:00
+
+Текущий остаток:
+120
+as_of = 14:35
+Это очень полезно.
+Пользователь сразу понимает:
+ситуация изменилась после анализа.
+
+30. Live overlay никогда не заменяет factual basis
+Action:
+Пополнить SKU 417.
+Основание:
+stock = 0
+at analysis cutoff
+остаётся.
+Latest overlay может сказать:
+current stock = 120
+но не переписывает историю:
+оказывается AI анализировал 120.
+
+31. Для каждого UI value нужен source mode
+Концептуально:
+SEALED_PUBLICATION
+LATEST_STABLE
+USER_STATE
+Это не обязательно выводить пользователю техническими словами, но UI/backend должен понимать происхождение.
+
+32. Что я предлагаю для текущего Dashboard
+Основная аналитическая часть:
+SEALED_PUBLICATION
+Особенно:
+Sales comparisons;
+AI Findings;
+Recommendations;
+Action factual basis;
+Search;
+Ads;
+Finance;
+Funnel comparisons.
+Operational components, где свежесть действительно ценна:
+Stock current
+Price current
+Campaign state
+possibly Supply state
+могут иметь отдельный:
+LATEST_STABLE overlay
+с явным as_of.
+
+33. Overview Projection
+Подробный UI contract мы сделаем позже, но уже сейчас источник можно определить:
+Overview Projection
+│
+├── publication identity
+├── analysis date / freshness
+├── core account factual snapshot
+├── executive summary
+├── selected Findings
+├── current limitations
+├── publication Action snapshot
+└── projection metadata
+А current Overview API может сверху добавить:
+live Action Case overlay
+
+34. «Пульс продавца»
+Пульс должен питаться не из AI prose.
+Он строится из:
+sealed canonical Account facts
+того же Factual Universe.
+AI может ссылаться на эти показатели, но не рассчитывает их.
+
+35. «Что изменилось»
+Источник:
+Deep Findings
+отфильтрованные по Overview policy.
+Projector не генерирует новые bullets.
+
+36. «Top Actions»
+Здесь возникает важное различие.
+Historical Publication View
+Показывает:
+Actions recommended at publication time.
+Immutable snapshot.
+Current Dashboard
+Я рекомендую показывать:
+current open Action Cases
+потому что пользователь мог уже:
+DONE
+DISMISS
+часть действий.
+
+37. Поэтому current Dashboard — композиция двух read models
+Концептуально:
+Current Publication Projection
++
+Current Action Case Projection
++
+optional Latest Operational Overlay
+Это нормально.
+Важно только не смешивать их семантически.
+
+38. Например пользователь нажал DONE
+Publication #108 исторически:
+Пополнить 4 SKU.
+Остаётся такой навсегда.
+Но Current Overview через секунду может показать:
+Осталось пополнить 3 SKU.
+Для этого не требуется новый AI analysis.
+Это изменение user/application state, а не semantic publication.
+
+39. Funnel Projection
+Источник:
+sealed Funnel facts
++
+Deep Findings относящиеся к Funnel context
++
+relevant Actions
+Если Funnel unavailable:
+Projection всё равно валидна:
+availability = UNAVAILABLE
+reason = ...
+Никаких пустых broken sections.
+
+40. Stock Projection
+Содержит:
+publication Stock snapshot
+Stock-related Findings
+Recommendations
+Actions
+Action Groups
+и current page может дополнительно получить:
+Latest Stock Overlay.
+
+41. Advertising Projection
+Содержит:
+Campaign facts
+Advertising histories/period comparison
+Campaign/SKU Findings
+Campaign/SKU Actions
+Campaign current state может иметь latest overlay, если отличается от publication.
+
+42. Categories Projection
+Использует только:
+seller-bearing leaf Categories
+как самостоятельные аналитические сущности.
+Parent Categories:
+navigation/path context.
+Это сохраняет наш уже утверждённый Category contract.
+
+43. SKU Projection
+Для SKU:
+canonical SKU context
+publication facts
+domain capability state
+Findings
+Recommendations
+Actions
+related supporting context
+
+44. Не обязательно заранее материализовать detail для 2000 SKU
+Я бы разделил:
+Eager projections
+строятся перед publish:
+Overview
+Funnel
+Stock index
+Advertising index
+Categories index
+SKU index
+Publication Actions snapshot
+Chat publication index
+On-demand deterministic projections
+например:
+SKU Detail
+Category Detail
+Campaign Detail
+строятся/кэшируются при первом запросе.
+Но всегда:
+Publication + sealed universe
+→ deterministic.
+Это позволяет не генерировать тысячи ненужных JSON объектов при каждой публикации.
+
+45. Что должно быть READY до publish
+Несмотря на lazy details, все стандартные page-level projections должны пройти contract validation.
+Например:
+Overview ✅
+Funnel ✅
+Stock ✅
+Advertising ✅
+Categories ✅
+SKU Index ✅
+Actions Snapshot ✅
+Chat Index ✅
+Если Funnel unavailable как business capability:
+Funnel projection = valid unavailable state ✅
+Это не ошибка.
+
+46. Chat Projection
+Я бы не создавал для Chat отдельный огромный data pack.
+Publication даёт компактный:
+ChatPublicationContext
+Например:
+Executive Summary
+Findings index
+Recommendations index
+Action Cases refs
+entity refs
+analysis limitations
+Fact Handles / provenance refs
+Когда пользователь спрашивает:
+Расскажи подробнее про SKU 417.
+Chat может получить:
+Publication context
++
+Factual API
+по тем же canonical contracts.
+
+47. Chat не должен иметь альтернативную правду
+Нельзя:
+Dashboard:
+Finding A
+
+Chat:
+свой отдельный AI pipeline решил Finding B
+Текущая Publication должна быть primary semantic context.
+Ad-hoc анализ Chat может делать дополнительно, но должен явно отличаться от опубликованного Daily Analysis.
+
+48. Historical Chat
+Если пользователь говорит:
+Почему 20 августа ты рекомендовал снизить цену?
+Chat должен использовать:
+Publication 108
++
+FU 891
+а не сегодняшние facts.
+
+49. Action Proposal vs Action Case
+Теперь важная часть Publication.
+Deep выдаёт:
+Action Proposal
+Например:
+SKU417
+SKU_INCREASE_REPLENISHMENT
+recommended_units = 120
+Это immutable recommendation конкретной Publication.
+
+50. Action Case — долгоживущая сущность
+На publish Action Proposal reconcile'ится с существующими Cases.
+Например:
+Publication 108
+A17:
+SKU417 replenish 120
+       ↓
+Action Case C31
+На следующий день:
+Publication 109
+A9:
+SKU417 replenish 150
+       ↓
+тот же Action Case C31
+В Case:
+proposal history:
+
+20 Aug → 120
+21 Aug → 150
+Ничего не перезаписываем.
+
+51. Case identity
+После нашего multi-entity анализа identity должна быть:
+seller
++
+action_type_key
++
+target
++
+normalized_action_context
++
+intent_signature
++
+action_identity_version
+Например:
+seller=1
+action=SKU_ADJUST_AD_BID
+target=SKU417
+context=Campaign58
+intent=DECREASE
+
+52. Почему action type version не всегда должен ломать Case
+Если мы выпустили:
+SKU_ADJUST_PRICE contract v1 → v2
+но business semantics те же, это может оставаться тем же Case.
+Поэтому identity лучше привязать к:
+action_type_key
++
+action_identity_version
+а не ко всякому техническому schema patch.
+
+53. Action reconciliation на publish
+Для каждого validated Action Proposal:
+Есть OPEN Case с тем же identity
+→ REAFFIRM
+→ добавить новый proposal
+→ latest_proposal_ref обновляется
+Нет Case
+→ создать новый Action Case
+Есть противоположный active intent
+Например:
+старый:
+DECREASE_PRICE
+
+новый:
+INCREASE_PRICE
+→ старый SUPERSEDED
+→ новый Case
+Backend не объединяет противоположные intents.
+
+54. Multi-entity Recommendation
+Наша принятая модель полностью сохраняется:
+Recommendation R7
+subjects:
+SKU417
+SKU522
+SKU816
+SKU901
+↓
+4 Atomic Action Proposals
+↓
+4 Action Cases
+↓
+1 Action Group Projection
+
+55. Historical Action Group
+Publication #108 сохраняет:
+Пополнить 4 товара.
+Именно тот состав, который существовал при публикации.
+
+56. Current Action Group
+Через несколько дней:
+417 DONE
+522 OPEN
+816 OPEN
+901 DISMISSED
+Current action projection показывает:
+Пополнить 2 товара.
+Группа не имеет собственного mutable lifecycle.
+Это производная от child Cases.
+
+57. Publication Group и Current Group — разные projections
+publication_action_group
+=
+исторический immutable snapshot
+
+current_action_group
+=
+живой projection current Action Cases
+Это надо прямо разделить в API и БД.
+
+58. Action Group не source of truth
+Не должно быть:
+group.status = DONE
+и отдельно:
+child1 OPEN
+child2 DONE
+с конфликтом.
+Group state всегда вычисляется.
+
+59. Один серьёзный архитектурный пробел, который обнаружился
+Наша persistent Action Case model задаёт вопрос:
+Что делать, если Action был OPEN вчера, а сегодня Deep вообще его не сформировал?
+Мы не можем автоматически считать его решённым.
+Почему?
+Он мог не появиться потому что:
+target не попал в Materiality budget;
+domain стал PARTIAL;
+Evidence unavailable;
+Deep выбрал другие Actions;
+max Actions budget закончился.
+То есть:
+absence of Action
+≠
+problem resolved.
+Это очень важно.
+
+60. Просто оставить Case OPEN навсегда — тоже плохо
+Например:
+20 Aug:
+пополнить SKU417
+
+23 Aug:
+товар пополнен
+
+30 Aug:
+в Current Actions всё ещё висит
+«пополнить SKU417»
+Это плохой продукт.
+Значит нам нужен Action Continuity mechanism.
+
+61. Я рекомендую небольшое расширение Materiality
+Добавить отдельный deterministic lane:
+OPEN_ACTION_CONTINUITY
+Он не говорит:
+этот SKU important because AI thinks so.
+Он говорит:
+у пользователя есть незакрытый Action на этом target, поэтому его состояние нужно повторно оценить.
+
+62. Например
+Вчера открыт:
+Action Case C31
+target SKU417
+replenishment
+Сегодня SKU417 уже не попал бы в top Materiality обычными lanes.
+Но:
+OPEN_ACTION_CONTINUITY
+может сохранить SKU417 среди Material Entities для повторной проверки.
+Таким образом target снова:
+Materiality-selected
+→ Discovery/Deep-visible
+и мы не нарушаем принятое правило Action Target whitelist.
+
+63. Это не должно быть unlimited forced inclusion
+Если seller накопил:
+500 OPEN Actions
+мы не можем засунуть 500 сущностей в Discovery.
+Поэтому continuity имеет свой versioned budget.
+Например:
+continuity_budget
+а внутри отбор deterministic:
+более свежие/open Actions;
+старшие unreconciled;
+action order;
+business exposure.
+Точные коэффициенты — eval/calibration.
+
+64. Cases, которые не вместились
+Получают:
+NOT_REEVALUATED
+а не:
+RESOLVED.
+Они остаются Case history/current state с указанием:
+последнее подтверждение — такая-то Publication.
+
+65. Deep нужно дать существующий Action Context
+Для continuity-selected target Deep должен знать:
+open_case_ref
+
+action_type
+
+last_recommended_parameters
+
+opened_at
+
+last_reaffirmed_at
+Не обязательно всю историю Case.
+
+66. И Deep должен явно оценить существующий Action
+Здесь я рекомендую небольшое расширение Deep Output:
+existing_action_case_assessments[]
+Статусы:
+REAFFIRM
+NO_LONGER_RECOMMENDED
+SUPERSEDE
+INCONCLUSIVE
+
+67. REAFFIRM
+Например:
+запас по-прежнему недостаточен.
+Deep создаёт новый Action Proposal:
+120 → теперь 150
+Он прикрепляется к тому же Case.
+
+68. NO_LONGER_RECOMMENDED
+Например:
+Stock был 0
+Stock теперь 400
+и Deep считает replenishment recommendation больше не актуальной.
+Case закрывается системой:
+closure_reason =
+NO_LONGER_RECOMMENDED
+Это намного честнее, чем выводить разрешение только из отсутствия Action.
+
+69. SUPERSEDE
+Например вчера:
+снизить цену.
+Сегодня:
+повысить цену.
+Старый:
+SUPERSEDED
+новый:
+OPEN.
+
+70. INCONCLUSIVE
+Например:
+Stock capability failed
+Deep не может проверить вчерашний replenishment Action.
+Тогда:
+Case остаётся OPEN
+assessment = INCONCLUSIVE
+Мы не теряем рекомендацию из-за отсутствующих данных.
+
+71. NOT_REEVALUATED
+Этот статус назначает backend, а не Deep, если Case вообще не попал в continuity budget.
+Опять же:
+не проверили
+≠
+решили.
+
+72. Это важное дополнение к уже CLOSED Materiality/Deep
+Я считаю его необходимым именно из-за принятой нами persistent Action Case модели.
+Без него Action Cases будут либо:
+вечными;
+либо автоматически исчезать на ненадёжном основании.
+Оба варианта плохие.
+
+73. Action Case user lifecycle
+Я бы разделил пользовательское закрытие и системную оценку.
+Например current Case имеет:
+user_state:
+OPEN
+DONE
+DISMISSED
+и отдельно:
+latest_assessment:
+REAFFIRMED
+INCONCLUSIVE
+NOT_REEVALUATED
+...
+А system closure reasons:
+NO_LONGER_RECOMMENDED
+SUPERSEDED
+Так мы не смешиваем:
+пользователь сказал «сделал»
+с:
+AI считает рекомендацию больше не актуальной.
+
+74. Почему это лучше одного enum на 15 значений
+Иначе получится:
+OPEN
+DONE
+DISMISSED
+SUPERSEDED
+STALE
+INCONCLUSIVE
+NOT_REEVALUATED
+NO_LONGER_RECOMMENDED
+...
+и станет неясно, что является user action, а что assessment state.
+Лучше ортогональные dimensions.
+
+75. Publish transaction
+Сам момент публикации должен быть атомарным.
+До него всё готовится:
+Canonical Publication artifact
+Projection artifacts
+Action reconciliation plan
+Hashes
+Validation results
+Далее одна DB transaction:
+INSERT Publication
+
+INSERT projection manifests
+
+APPLY Action Case reconciliation
+
+UPDATE current publication pointer
+
+INSERT publication outbox event
+
+COMMIT
+Либо происходит всё.
+Либо ничего.
+
+76. Почему Outbox
+Если сделать:
+COMMIT publication
+↓
+отправить Redis/event
+и процесс упал между двумя шагами, cache/consumers могут не узнать о новой Publication.
+Transactional Outbox решает именно проблему такого dual-write: состояние и event-intent фиксируются одной транзакцией, после чего отдельный relay доставляет событие; доставка обычно at-least-once, поэтому consumers должны быть idempotent. Это стандартный надёжный паттерн. Microsoft Learn
+Для Aivion это можно реализовать достаточно просто поверх PostgreSQL + existing Worker, без новой тяжёлой инфраструктуры.
+
+77. Outbox events
+Например:
+PUBLICATION_PUBLISHED
+CURRENT_PUBLICATION_CHANGED
+
+ACTION_CASE_CREATED
+ACTION_CASE_REAFFIRMED
+ACTION_CASE_SUPERSEDED
+ACTION_CASE_CLOSED
+Не обязательно каждый делать отдельным внешним event — это уже implementation choice.
+Главное:
+stable event_id
+idempotent consumer.
+
+78. После commit
+Consumers могут:
+invalidate Redis cache;
+warm Overview;
+invalidate Chat publication cache;
+send websocket refresh;
+update monitoring;
+Если consumer выполнится дважды:
+same event_id
+→ no duplicate effect.
+
+79. Никакой публикации до сохранения immutable artifacts
+Если MinIO artifact должен быть частью Publication:
+сначала artifact uploaded
+↓
+hash verified
+↓
+только потом DB publish transaction.
+Не наоборот.
+Иначе получится Publication, которая ссылается на отсутствующий artifact.
+
+80. Artifact Manifest
+Publication может иметь:
+publication-manifest.json
+
+deep-analysis-output.json
+
+publication-semantic.json
+
+projection-overview.json
+
+projection-stock.json
+
+projection-advertising.json
+
+projection-categories.json
+
+projection-sku-index.json
+
+projection-actions-snapshot.json
+
+projection-chat-index.json
+Все:
+immutable
+content-addressed/hash verified.
+
+81. Structured Output сам по себе недостаточен
+OpenAI Structured Outputs полезен тем, что output соответствует заданной JSON Schema, но OpenAI отдельно оговаривает: schema adherence не исключает ошибок в значениях и содержательном reasoning. Поэтому перед Publication сохраняются наши technical/relationship/action validators — структура от модели не является автоматическим разрешением публикации. OpenAI
+
+82. Canonical Publication Builder
+Предлагаю отдельный backend service:
+PublicationBuilder
+Он получает:
+AnalysisRun
+FactualUniverse
+ValidatedDeepResult
+ValidatedActions
+и строит:
+PublicationCandidate.
+Не вызывает AI.
+
+83. Publication Validator
+Проверяет минимум:
+same seller across all components
+
+same factual universe
+
+same analysis date/cutoff
+
+Discovery matches run
+
+Evidence references Discovery
+
+Deep references Evidence
+
+all Fact Handles resolve
+
+all Findings valid
+
+all Recommendations valid
+
+all Actions valid
+
+projection hashes valid
+
+contract versions known
+
+no missing required artifacts
+
+84. Cross-stage Universe Gate
+Особенно важный:
+Discovery Universe = FU891
+
+Evidence Universe = FU891
+
+Deep Universe = FU891
+
+Publication Universe = FU891
+Если хоть где-то другое:
+PUBLICATION_UNIVERSE_MISMATCH
+и никакой publish.
+
+85. Cross-stage seller isolation
+То же:
+seller 1 facts
++
+seller 2 campaign
+невозможно.
+Это hard security/integrity gate.
+
+86. Publication projection не содержит PII
+У нас аналитический seller product.
+Не должны случайно проникать:
+customer names
+phones
+addresses
+buyer data
+из raw source.
+Publication schema принимает только approved analytical entities/facts.
+
+87. Projection DQ/Capability handling
+Каждый domain block должен иметь общий envelope:
+readiness
+as_of
+period
+coverage
+limitations
+Но конкретное содержимое typed.
+Так UI сможет корректно показать:
+Нет данных
+
+Данные отстают на 2 дня
+
+Домен недоступен
+
+Данных за период недостаточно
+а не подставлять 0.
+
+88. Dashboard не должен сам угадывать unavailable state
+Frontend получает явное:
+state = UNAVAILABLE
+reason_code = ...
+а не:
+value = null
+и дальше пытается понять, что означает null.
+
+89. Factual cards и AI Findings должны ссылаться на единый entity identity
+Например:
+Finding target:
+sku_417
+
+Stock card:
+sku_417
+
+Action:
+sku_417
+Не должно быть сопоставления по:
+name
+offer_id text
+title
+
+90. Deep prose vs presentation text
+Publication сохраняет Deep:
+Finding.statement
+Recommendation.statement
+Executive Summary
+Projector может добавлять deterministic label:
+«Изменить цену»
+из Action Type presentation registry.
+Но не переписывает:
+Finding statement
+через новый AI.
+
+91. Localized templates
+Для Actions:
+SKU_ADJUST_PRICE
+
+singular:
+«Скорректировать цену товара»
+
+group:
+«Скорректировать цены {N} товаров»
+это backend presentation contract.
+Не AI prose.
+
+92. Action Group title qualifiers
+Наш прошлый принцип сохраняется.
+Если у всех 4 SKU:
+stock = 0
+можно детерминированно:
+Пополнить 4 товара без остатков.
+Если один имеет stock &gt; 0:
+Пополнить 4 товара.
+Projector не делает ложное обобщение.
+
+93. Publication Actions Snapshot
+Historical projection содержит:
+Action Proposal state
+на момент публикации.
+Не mutable user state.
+Можно сохранить:
+case_ref
+proposal_ref
+group_ref
+но сам historical meaning определяется Publication.
+
+94. Current Actions Projection
+Совершенно отдельный read model:
+CurrentActionView
+Источник:
+Action Cases
++
+latest valid proposals
++
+latest assessment
++
+current user states
+
+95. Current Action Group
+Строится той же deterministic grouping policy:
+shared recommendation lineage
+same action type
+same target kind
+compatible normalized context
+Но уже только из подходящих current cases.
+
+96. Когда user ставит DONE
+Мы обновляем:
+Action Case
+и current Action projection.
+Не:
+Publication.
+Это фундаментальная граница.
+
+97. Rollback Publication
+Представим Publication #109 содержит серьёзный дефект.
+Администратор делает:
+current pointer:
+109 → 108
+Но одной смены pointer недостаточно.
+#109 могла породить новые Action Cases.
+
+98. Action compensation при withdrawal
+Если Case:
+создан только Publication109
+и 109 withdrawn:
+case.system_state =
+SOURCE_PUBLICATION_WITHDRAWN
+Он исчезает из Current Actions.
+Но история остаётся.
+
+99. Если Case существовал раньше
+Например:
+P108 → C31 recommendation 120
+P109 → C31 recommendation 150
+Если P109 withdrawn:
+latest valid proposal:
+возвращается к P108 → 120
+Case не удаляется.
+
+100. User events не откатываем
+Если пользователь успел нажать:
+DONE
+мы не должны делать rollback его действия автоматически.
+В audit:
+user marked DONE
+based on publication 109
+остаётся.
+Это очень важно.
+
+101. Projection bug ≠ Publication semantic withdrawal
+Допустим Finding правильный, но:
+Overview Projector v4
+неправильно показал currency.
+Тогда:
+исправляем Projector
+→ reproject Publication
+Publication отзывать не надо.
+
+102. Semantic/factual corruption — другая ситуация
+Если оказалось:
+Deep references wrong seller
+или:
+invalid factual universe
+тогда Publication должна быть withdrawn.
+
+103. Source historical correction ≠ corruption Publication
+Ozon 22 августа поправил данные за 18 августа.
+Publication 20 августа не становится «неправильной задним числом».
+Она:
+отражает то, что Aivion знал при cutoff.
+Следующая Publication использует corrected canonical revision.
+
+104. Exact historical replay
+Чтобы открыть Publication #108 через год:
+Publication #108
++
+FU891
++
+projector compatible version
+даёт ту же смысловую картину.
+Если нужен exact UI artifact:
+используем сохранённый original projection artifact.
+
+105. Current UI после redesign
+Если приложение больше не поддерживает старый Overview schema:
+Publication108
+↓
+current Projector
+↓
+current compatible view
+Так мы не тащим legacy frontend бесконечно.
+Original projection остаётся для audit/debug.
+
+106. Physical tables: Publication
+Я бы закладывал примерно:
+analysis.publication_builds
+analysis.publications
+analysis.publication_components
+analysis.publication_contract_versions
+analysis.current_publications
+analysis.publication_release_events
+analysis.publication_projections
+analysis.publication_projection_artifacts
+analysis.publication_outbox
+
+107. publication_builds
+Mutable technical entity.
+id
+analysis_run_id
+status
+
+candidate_hash
+
+validation_status
+failure_code
+
+created_at
+completed_at
+Можно удалить/архивировать после retention.
+Это не business Publication.
+
+108. publications
+id
+seller_account_id
+
+generation
+
+analysis_date
+analysis_cutoff_at
+published_at
+
+factual_universe_manifest_id
+
+deep_analysis_run_id
+
+publication_schema_version
+contract_bundle_hash
+
+content_hash
+
+previous_publication_id
+После insert:
+business content immutable.
+
+109. publication_components
+Например:
+publication_id
+
+component_type
+
+component_ref
+artifact_uri
+artifact_hash
+schema_version
+Types:
+FACTUAL_UNIVERSE
+CAPABILITIES
+DQ
+LANDSCAPE
+MATERIALITY
+DISCOVERY
+EVIDENCE
+DEEP
+SEMANTIC_RESULT
+ACTION_SNAPSHOT
+
+110. current_publications
+seller_account_id PK
+
+publication_id
+generation
+
+updated_at
+Одна строка на seller.
+
+111. publication_release_events
+Append-only:
+id
+
+publication_id
+seller_id
+
+event_type
+
+actor_type
+reason_code
+
+occurred_at
+
+112. publication_projections
+id
+publication_id
+
+projection_type
+projector_version
+schema_version
+view_policy_version
+
+scope_kind
+scope_id
+
+payload_hash
+artifact_uri
+
+created_at
+Unique:
+publication
++
+projection type
++
+scope
++
+projector version.
+
+113. Payload в PostgreSQL или MinIO?
+Я рекомендую:
+небольшие frequently-served page projections → JSONB в PostgreSQL + artifact hash;
+полные immutable artifact copies → MinIO.
+То есть PostgreSQL оптимизирован для чтения API.
+MinIO — audit/recovery artifact.
+
+114. Нельзя хранить только MinIO
+Иначе каждый Dashboard request превращается в object-storage read + deserialize.
+
+115. Нельзя хранить только JSONB
+Тогда теряем удобный immutable artifact trail, который у Aivion уже хорошо себя показал.
+
+116. Action physical model
+Продолжаем:
+analysis.action_cases
+analysis.action_case_proposals
+analysis.action_case_user_events
+analysis.action_case_assessments
+analysis.action_case_relations
+
+117. action_cases
+id
+seller_id
+
+occurrence_no
+
+action_type_key
+action_identity_version
+
+target_kind
+target_id
+
+context_hash
+intent_signature
+
+opened_at
+
+user_state
+
+latest_proposal_id
+latest_assessment
+
+closed_at
+system_closure_reason
+
+superseded_by_case_id
+
+118. action_case_proposals
+id
+action_case_id
+
+publication_id
+deep_action_proposal_id
+
+parameters_jsonb
+
+proposal_ordinal
+
+created_at
+Immutable.
+
+119. action_case_user_events
+Например:
+MARKED_DONE
+DISMISSED
+REOPEN_REQUESTED
+Append-only audit.
+Current user_state можно денормализовать в action_cases.
+
+120. action_case_assessments
+case_id
+publication_id
+
+assessment:
+REAFFIRM
+NO_LONGER_RECOMMENDED
+SUPERSEDE
+INCONCLUSIVE
+NOT_REEVALUATED
+
+related_proposal_id
+
+created_at
+
+121. Не превращаем Action Case в полноценный Event Sourcing aggregate
+Храним:
+current state
++
+immutable history/events
+обычной relational моделью.
+Это проще.
+
+122. Publication semantic storage
+Deep Findings/Recommendations уже существуют в:
+deep_findings
+deep_recommendations
+...
+Publication не обязана создавать вторую копию.
+Она может ссылаться на:
+validated deep result version.
+Но я бы дополнительно сохранял:
+publication-semantic.json
+как canonical immutable artifact.
+
+123. Почему две формы
+DB:
+queryable
+Artifact:
+exact reproducibility/audit.
+
+124. Publish state machine
+Полностью:
+ANALYSIS RUN VALID
+        ↓
+BUILD_PUBLICATION_CANDIDATE
+        ↓
+BUILD_REQUIRED_PROJECTIONS
+        ↓
+BUILD_ACTION_RECONCILIATION_PLAN
+        ↓
+VALIDATE_PUBLICATION
+        ↓
+VERIFY_ARTIFACT_HASHES
+        ↓
+ACQUIRE SELLER PUBLISH LOCK
+        ↓
+CHECK CURRENT POINTER
+        ↓
+ATOMIC PUBLISH TRANSACTION
+        ↓
+COMMIT
+        ↓
+OUTBOX RELAY
+        ↓
+CURRENT UI REFRESH
+
+125. Seller publish lock
+На момент commit я бы обеспечивал сериализацию публикаций для одного seller.
+Можно:
+PostgreSQL advisory lock;
+row lock current_publications;
+optimistic generation CAS.
+Конкретный implementation можно выбрать позже.
+Invariant:
+два Analysis Runs одного seller не могут одновременно успешно сделать себя current.
+
+126. Compare-and-swap pointer
+Например candidate ожидал:
+current = 108
+Перед commit оказалось:
+current = 109.
+Candidate повторно проходит ordering check.
+Не слепо overwrites.
+
+127. Publish transaction не вызывает внешние сервисы
+Внутри транзакции:
+не:
+MinIO upload
+OpenAI call
+Redis call
+Ozon call.
+Только transactional DB operations.
+Это уменьшает lock time и crash surface.
+
+128. Что происходит при DB crash до commit
+Ничего опубликованного нет.
+Current:
+108.
+
+129. Crash сразу после commit
+Publication:
+109 current.
+Outbox relay потом догонит cache/UI notifications.
+Публикация не потеряется.
+
+130. API Serving
+Например:
+GET current dashboard
+Backend:
+current_publications
+↓
+publication projection
+↓
+current Action overlay
+↓
+optional latest operational overlay
+
+131. Не искать Analysis Run
+Frontend не должен знать:
+run 182
+attempt 3
+Это внутреннее.
+UI знает:
+Publication.
+
+132. Publication freshness
+UI должен получить:
+analysis_date
+published_at
+analysis_cutoff_at
+но не обязательно показывать все три пользователю.
+Важно не писать просто:
+обновлено сейчас
+если Sales фактически по вчерашнему дню.
+
+133. Domain-specific freshness
+Например:
+Sales through 20 Aug
+Stock as_of 21 Aug 05:10
+Search through 18 Aug
+Projection должна сохранять эту информацию.
+Нельзя создать один ложный:
+all data current as of 21 Aug.
+
+134. Что делать до первой Publication
+Мы уже утвердили минимум:
+14 полных дней Core Sales Demand
+до первого normal AI analysis.
+Значит seller может находиться в состоянии:
+CONNECTED_NO_ANALYZABLE_DATA
+или:
+INSUFFICIENT_ANALYSIS_HISTORY
+и не иметь current Publication вообще.
+
+135. Dashboard до первой Publication
+Это отдельный:
+Pre-Analysis Product State
+Он может показывать доступные factual data:
+Catalog
+Stock
+Price
+connection status
+history progress
+но без попытки симулировать Daily AI Publication.
+Это важно.
+
+136. Не создавать «пустую Publication», только чтобы UI что-то показал
+Publication означает:
+AI Daily Analysis действительно состоялся.
+Если его ещё нельзя сделать:
+это отдельный product state.
+
+137. Publication acceptance gates
+Я бы ввёл следующий набор:
+Gate
+Проверка
+publication_run_complete_gate
+Все обязательные stages завершены
+publication_universe_consistency_gate
+Один sealed universe
+publication_seller_isolation_gate
+Один seller
+publication_temporal_consistency_gate
+Date/cutoff совместимы
+publication_deep_valid_gate
+Deep output validated
+publication_action_valid_gate
+Все Actions прошли contract
+publication_fact_grounding_gate
+Все Fact Handles разрешаются
+publication_capability_manifest_gate
+Frozen capability manifest существует
+publication_dq_manifest_gate
+DQ frozen
+publication_required_projection_gate
+Все required projections valid
+publication_projection_determinism_gate
+hashes reproducible
+publication_artifact_integrity_gate
+artifacts существуют и hashes совпадают
+publication_noop_gate
+Не дублируем same analytical state
+publication_stale_candidate_gate
+Старый run не заменяет новый
+publication_action_reconciliation_gate
+reconciliation plan валиден
+publication_atomic_commit_gate
+Publication/current/actions/outbox consistent
+publication_no_ai_projection_gate
+Projection не вызывает AI
+publication_no_latest_in_replay_gate
+Historical projection не читает latest
+publication_pii_gate
+Нет запрещённых данных
+publication_contract_bundle_gate
+Все versions frozen
+publication_current_pointer_gate
+Один current per seller
+
+138. Projection gates
+Дополнительно:
+projection_source_mode_gate
+projection_unavailable_state_gate
+projection_missing_zero_gate
+projection_domain_asof_gate
+projection_action_group_gate
+projection_entity_ref_gate
+projection_no_semantic_generation_gate
+projection_live_overlay_separation_gate
+
+139. Action continuity gates
+Если принимаем предложенное расширение:
+open_action_continuity_selection_gate
+action_case_assessment_coverage_gate
+action_absence_not_resolution_gate
+action_reaffirm_same_identity_gate
+action_supersession_gate
+action_inconclusive_preservation_gate
+action_not_reevaluated_preservation_gate
+
+140. E2E сценарий: обычная публикация
+20 августа:
+FU891 sealed
+↓
+Discovery
+↓
+Evidence
+↓
+Deep
+↓
+3 Findings
+2 Recommendations
+4 Actions
+↓
+Projection
+↓
+Publication108
+↓
+current = 108
+UI переключается целиком.
+
+141. E2E: новый Stock пришёл во время Deep
+Deep работает на:
+FU891
+Во время AI-вызова Ozon прислал новый Stock:
+canonical DB revision 922.
+Ничего не меняется.
+Publication108:
+FU891.
+Новый Stock может попасть в:
+Latest Operational Overlay
+или следующую Publication.
+Но никогда не подмешивается в Deep/Projection108.
+
+142. E2E: один Optional Domain упал
+Sales READY
+Stock READY
+Ads FAILED
+Search PARTIAL
+Если core gate позволяет analysis:
+Deep получает limitation.
+Publication валидна.
+Advertising projection:
+state = FAILED/UNAVAILABLE
+а не предыдущие advertising data, замаскированные как текущие.
+
+143. E2E: Projection crash
+Deep успешен.
+Overview успешен.
+Stock projector panic.
+Результат:
+Analysis Run / Publication Build FAILED
+Current остаётся:
+107.
+После retry:
+тот же semantic result
+→ rebuild projection
+→ publish 108.
+OpenAI повторно вызывать не нужно.
+
+144. E2E: OpenAI Deep retry
+Deep attempt 1 invalid.
+Attempt 2 valid.
+Publication использует только:
+validated attempt 2.
+Attempt 1 остаётся audit artifact.
+
+145. E2E: stale concurrent run
+Run A cutoff:
+06:00
+Run B:
+08:00.
+B публикуется первым.
+A доходит до publish.
+Gate:
+STALE_PUBLISH_CANDIDATE
+A не влияет:
+на current pointer;
+Action Cases;
+current Dashboard.
+
+146. E2E: grouped Actions
+Deep:
+Recommendation:
+пополнить 4 SKU
+
+4 atomic Actions
+Publish:
+4 Action Proposals
+↓
+4 Cases
+↓
+Publication Action Group:
+4 SKU
+Current UI:
+Пополнить 4 товара.
+
+147. После DONE
+Пользователь закрывает SKU417.
+Publication108:
+4 товара.
+Current:
+3 товара.
+Никакого переписывания Publication.
+
+148. E2E: Recommendation больше не актуальна
+Если мы принимаем Action Continuity:
+следующий анализ повторно проверяет SKU417.
+Deep:
+NO_LONGER_RECOMMENDED.
+Case закрывается системно.
+Это не зависит от того, создал ли Deep новый Action.
+
+149. E2E: Deep не может проверить Case
+Stock API failure.
+Deep:
+INCONCLUSIVE.
+Case:
+не закрывается.
+UI может показать:
+Последнее подтверждение: 20 августа. Текущая проверка ограничена отсутствием Stock data.
+Это гораздо честнее.
+
+150. Publication Model — итоговый контракт
+Я бы зафиксировал его так:
+Publication Aivion является immutable release snapshot одного полностью завершённого Daily Analysis над одним sealed Factual Universe. Analysis Run является mutable orchestration entity и не становится Publication до успешного прохождения всех AI, validation, Action и required Projection stages. Частичная техническая Publication запрещена; partial/unavailable business capabilities являются допустимым содержимым полноценной Publication.
+Publication фиксирует seller, analysis date/cutoff, factual universe, capabilities/DQ, exact analysis component references, canonical semantic result, validated Action Proposals, contract/version bundle, artifact hashes и projection manifests. Исторические provider revisions не переписывают опубликованные результаты.
+Текущая Publication определяется отдельным per-seller atomic pointer. Standard publish не может заменить current более старым analysis date/cutoff. Same factual universe + same effective analysis contract не порождает новую Publication без явного reanalysis intent. Rollback/withdrawal изменяет control plane, но не содержимое Publication.
+Publication Projection является deterministic, rebuildable read model над Canonical Publication и её sealed Factual Universe. Projector не вызывает AI/provider APIs, не создаёт новых Findings/Recommendations/Actions и не осуществляет semantic repair. UI redesign изменяет versioned Projector, а не AI contract.
+Publication-linked analytical values обязаны сохранять temporal coherence с sealed universe. Более свежие operational facts могут предоставляться current UI только отдельным explicitly timestamped Latest Overlay и не заменяют factual basis опубликованных Findings/Recommendations/Actions.
+Historical Publication Action Snapshot и mutable Current Action View являются разными read models. Publication сохраняет то, что Aivion рекомендовал на момент анализа; Current Actions отражает persistent Action Cases с пользовательскими DONE/DISMISSED состояниями и новейшими valid proposals. Action Groups остаются deterministic projections над atomic Action Cases/Proposals и не имеют собственного mutable lifecycle.
+Publish выполняется атомарно относительно Publication record, Action Case reconciliation, current pointer и transactional outbox intent. Required immutable artifacts создаются и hash-валидируются до DB commit. Downstream cache/UI notifications работают at-least-once и idempotently.
+
+151. Два продуктовых решения, которые действительно нужно утвердить
+Вопрос 1 — publication snapshot vs live данные
+Я рекомендую гибрид, описанный выше:
+Основные Dashboard facts, непосредственно связанные с AI-анализом, всегда показываются из Publication snapshot. Для действительно operational данных вроде Stock/Price/Campaign State можно дополнительно показывать более свежее текущее значение, но строго отдельным current/latest значением с timestamp.
+Например:
+На момент анализа:
+остаток 0
+06:10
+
+Сейчас:
+остаток 120
+14:25
+А не незаметно менять 0 → 120 рядом со старой AI-рекомендацией.
+На мой взгляд, именно это лучше всего решает конфликт между целостностью анализа и операционной свежестью.
+
+Вопрос 2 — Action Continuity
+Я рекомендую обязательно добавить:
+OPEN_ACTION_CONTINUITY
+в Materiality и:
+existing_action_case_assessments
+в Deep.
+Иначе persistent Actions невозможно корректно закрывать автоматически.
+То есть вчерашний незавершённый Action становится отдельной причиной повторно показать соответствующий target AI, а Deep явно говорит:
+REAFFIRM
+NO_LONGER_RECOMMENDED
+SUPERSEDE
+INCONCLUSIVE
+При этом continuity budget ограничен, поэтому он не может вытеснить весь обычный Materiality.
+Это небольшое расширение двух уже закрытых блоков, но архитектурно оно очень важное.
+Ещё один lifecycle нюанс можно определить вместе с этим
+Если пользователь нажал DONE, а следующий достаточно свежий и полностью evaluable анализ снова говорит ровно то же самое — создавать ли новый Action Case сразу или дать небольшой guard period.
+Я рекомендую не открывать новый Case немедленно после DONE/DISMISSED. Нужен versioned recurrence policy, чтобы provider lag не создавал ситуацию:
+пользователь:
+«Выполнено»
+
+на следующий день Aivion:
+«Сделайте это ещё раз»
+Точные правила recurrence/cooldown можно закрепить уже внутри Action Case lifecycle после решения по Action Continuity.
+Если ты подтверждаешь гибридный snapshot/latest подход и Action Continuity, я бы считал Publication Model + Projection архитектурно закрытым. После этого следующий блок — полный Pipeline Orchestration / Run Lifecycle, где мы уже соберём весь созданный нами механизм в один физический end-to-end процесс.
+Да. После твоего уточнения я бы существенно усилил Action Continuity и оформил это отдельным обязательным дополнением к Publication / Deep / Action Contract.
+Ключевая идея теперь такая:
+Каждая новая генерация не просто создаёт новые Actions. Она обязана сначала переоценить Actions предыдущей генерации на новом sealed factual state и переносит в новую Publication только те Actions, для которых ВСЕ необходимые основания по-прежнему подтверждаются.
+Это намного строже и чище прежней модели.
+Дополнение к ТЗ: межгенерационная переоценка Actions
+Цель
+Обеспечить, чтобы раздел Actions после каждой новой генерации отражал только актуальные на момент нового анализа рекомендации и никогда не содержал устаревшие действия только потому, что они были сформированы вчера.
+При этом необходимо сохранить:
+immutable историю старых Publications;
+persistent Action Cases;
+группировку нескольких Actions;
+независимую проверку каждого SKU/Category/Campaign;
+корректное поведение при частичном изменении ситуации;
+защиту от случайного DONE;
+временную защиту от постоянного повторного появления действий, которые система сама признала неактуальными;
+отсутствие semantic rule engine в backend.
+
+1. Главное правило
+Предыдущая Publication:
+Publication 108
+
+Action Group:
+«Пополнить 4 товара»
+
+SKU417
+SKU522
+SKU816
+SKU901
+При формировании Publication 109 система не копирует эту группу автоматически.
+Она заново проверяет:
+SKU417 → основания всё ещё актуальны?
+SKU522 → основания всё ещё актуальны?
+SKU816 → основания всё ещё актуальны?
+SKU901 → основания всё ещё актуальны?
+Предположим результат:
+SKU417 → уже пополнен       ❌
+SKU522 → основания актуальны ✅
+SKU816 → основания актуальны ✅
+SKU901 → основания актуальны ✅
+Тогда новая Publication:
+Publication 109
+
+Action Group:
+«Пополнить 3 товара»
+
+SKU522
+SKU816
+SKU901
+А Publication 108 навсегда остаётся:
+Пополнить 4 товара.
+Мы не изменяем историю.
+
+2. Старое действие не переносится — оно подтверждается заново
+Это очень важное уточнение.
+Даже если все четыре SKU по-прежнему требуют пополнения, мы технически не должны просто скопировать вчерашние Action Proposals.
+Должно происходить:
+Publication 108
+A1 → SKU417
+A2 → SKU522
+A3 → SKU816
+A4 → SKU901
+
+            ↓
+новый анализ текущих фактов
+            ↓
+
+Publication 109
+A21 → SKU417
+A22 → SKU522
+A23 → SKU816
+A24 → SKU901
+Но:
+A1 и A21
+могут относиться к одному persistent:
+Action Case C1
+То есть для пользователя действие «продолжается».
+Но factual basis у него уже новый.
+Получается:
+Action Case C1
+│
+├── Proposal P108
+│   └── facts на 20.08
+│
+└── Proposal P109
+    └── facts на 21.08
+Это правильно.
+
+3. Поэтому разделяем три сущности
+Action Proposal
+=
+рекомендация конкретной Publication
+
+Action Case
+=
+долгоживущий lifecycle одного действия
+
+Action Group
+=
+группировка нескольких актуальных Actions для UI
+Например:
+Recommendation:
+«Пополнить товары с недостаточным запасом»
+
+        ↓
+
+4 Action Proposals
+        ↓
+4 Action Cases
+        ↓
+1 Action Group
+На следующий день это может превратиться в:
+3 новых Action Proposals
+        ↓
+3 тех же Action Cases
+        ↓
+1 новая Action Group на 3 SKU
+
+4. Action Group вообще не имеет межгенерационной идентичности
+Это следствие нашей модели.
+Не нужно пытаться сохранять:
+Group #37
+и менять:
+members:
+4 → 3 → 2.
+Группа — projection конкретного состояния.
+Publication 108:
+Group G108-1
+members = 4
+Publication 109:
+Group G109-1
+members = 3
+Это разные immutable projection objects.
+Persistent являются Action Cases, а не группы.
+Это соответствует нормальной архитектуре materialized views: read-view является производным представлением и может пересоздаваться из source state, а не становиться отдельным источником истины. Microsoft Learn
+
+5. Все Actions предыдущей генерации должны обязательно проверяться
+Здесь я изменяю прежнюю идею с:
+OPEN_ACTION_CONTINUITY
+→ по возможности включать в Materiality
+на более сильное правило:
+Все atomic Actions, представленные в предыдущей current Publication, обязаны войти в Continuity Revalidation Set следующего анализа.
+Не:
+если хватит места.
+А:
+обязательно.
+Почему это реализуемо?
+Потому что количество публикуемых Actions у нас само ограничено:
+max_atomic_actions_per_publication
+Следовательно мы можем заранее гарантировать:
+continuity_revalidation_capacity
+&gt;=
+max_atomic_actions_per_publication
+Это очень важный invariant.
+
+6. То есть Materiality теперь имеет два потока
+Условно:
+Material Entity Selection
+│
+├── Mandatory Continuity Set
+│
+│   └── targets предыдущих Actions
+│
+└── Fresh Materiality Selection
+    └── новые значимые сущности
+Например вчера были Actions:
+SKU417
+SKU522
+Campaign58
+Сегодня обычный Materiality выбрал бы:
+SKU100
+SKU200
+SKU300
+Campaign77
+В Deep должны попасть:
+continuity:
+SKU417
+SKU522
+Campaign58
+
++
+
+fresh:
+SKU100
+SKU200
+SKU300
+Campaign77
+То есть старые Actions не конкурируют с новой аналитикой за один общий ranking.
+
+7. Но Continuity не означает, что сущность снова считается material
+Например SKU417 сегодня уже маленький и стабильный.
+Он включён не потому, что:
+это один из самых material SKU кабинета.
+А потому что:
+вчера Aivion предложил по нему действие, и теперь обязан проверить, остаётся ли рекомендация актуальной.
+Нужно сохранять:
+selection_reason =
+ACTION_CONTINUITY_RECHECK
+отдельно от обычных Materiality lanes.
+
+8. Что именно система должна перепроверять
+Твоя формулировка:
+«Оставляем только в том случае, если все основания для действия актуальны до сих пор».
+Я считаю её правильной.
+Но здесь нужно технически определить, что такое «все основания».
+Иначе завтра получится:
+backend решил, что stock &gt; 0 — значит Action больше не нужен,
+хотя Deep первоначально рекомендовал его не только из-за stock=0.
+Поэтому у каждого Action Proposal должен появиться отдельный:
+Action Support Basis
+
+9. Action Support Basis
+Когда Deep впервые создаёт Action, он должен явно зафиксировать:
+какие Findings являются обязательными основаниями именно для этого Action.
+Например:
+Action:
+SKU_INCREASE_REPLENISHMENT
+SKU417
+Основания:
+B1:
+текущий sellable stock недостаточен
+относительно недавнего спроса
+
+B2:
+недавний спрос остаётся существенным
+
+B3:
+доступное Supply context
+не показывает достаточного ожидаемого пополнения
+У каждого основания есть:
+basis_statement
+source_finding_refs
+fact_handles
+basis_role
+
+10. Не все факты Action являются обязательными основаниями
+Например Action дополнительно знает:
+SKU category = Coffee
+Price = 2190
+Search +5%
+Но они могут быть просто context.
+Поэтому нужны роли:
+REQUIRED_SUPPORT
+CONTEXT
+COUNTEREVIDENCE
+Для сохранения Action между генерациями проверяются именно:
+REQUIRED_SUPPORT.
+
+11. Backend не определяет эти основания сам
+Это принципиально.
+Backend не пишет:
+if actionType == REPLENISHMENT {
+    required = stock == 0 &amp;&amp; sales &gt; 0
+}
+Иначе мы снова построим semantic rules engine.
+Deep, который сформировал Recommendation, сам определяет:
+какие Findings являются обязательными для этой рекомендации.
+Backend только требует:
+каждый Action имеет &gt;=1 REQUIRED_SUPPORT
+и сохраняет их.
+
+12. В следующей генерации Deep обязан перепроверить каждое основание
+Например вчера:
+B1 stock shortage
+B2 demand
+B3 no sufficient inbound
+Сегодня Deep получает current Evidence и выдаёт:
+B1 → STILL_SUPPORTED
+B2 → STILL_SUPPORTED
+B3 → STILL_SUPPORTED
+Тогда:
+Action → FULLY_SUPPORTED
+и может сохраниться.
+
+13. Если хотя бы одно обязательное основание перестало быть актуально
+Например:
+B1 → STILL_SUPPORTED
+B2 → STILL_SUPPORTED
+B3 → NO_LONGER_SUPPORTED
+Тогда старый Action не имеет права автоматически переноситься.
+Потому что:
+all REQUIRED_SUPPORT
+больше не выполняется.
+Это буквально реализует твоё правило.
+
+14. Я предлагаю пять результатов Action Revalidation
+Результат
+Значение
+Что происходит
+FULLY_SUPPORTED
+Все обязательные основания всё ещё подтверждены
+Старый Case reaffirm, в новой Publication создаётся новый Proposal
+PARTIALLY_SUPPORTED
+Часть оснований сохранилась, часть нет
+Старый Proposal не переносится; Deep может создать новый Action на новых основаниях
+NOT_SUPPORTED
+Рекомендация больше не имеет необходимых оснований
+Action убирается, Case системно закрывается
+UNVERIFIABLE
+Невозможно подтвердить все основания из-за отсутствующих данных
+Action не показывается в новой Publication, но Case не считается решённым
+SUPERSEDED
+Текущие факты обосновывают другое/противоположное действие
+Старый Case закрывается, новый Action создаётся сразу
+
+15. FULLY_SUPPORTED
+Пример.
+20 августа:
+Stock = 0
+Demand = 10/day
+Inbound = 0
+
+Action:
+replenish
+21 августа:
+Stock = 0
+Demand = 11/day
+Inbound = 0
+Все основания сохраняются.
+Тогда:
+Case C1
+↓
+REAFFIRMED
+Но новый Proposal может быть:
+20 Aug:
+recommended_units = 120
+
+21 Aug:
+recommended_units = 150
+Изменение параметров не означает новый Case, если сама сущность, контекст и intent сохранились.
+
+16. PARTIALLY_SUPPORTED
+Это особенно важный случай.
+Например старое действие было основано на:
+Stock deficit
++
+positive demand
++
+no inbound
+Сегодня:
+Stock deficit ✅
+positive demand ✅
+no inbound ❌
+
+появилась Supply на 30 единиц,
+но её всё равно недостаточно.
+Старое основание:
+inbound отсутствует
+больше неверно.
+Следовательно старый Action нельзя просто reaffirm.
+Но Deep может на текущих данных всё равно решить:
+пополнение требуется, потому что ожидаемой поставки недостаточно.
+Тогда:
+старый Action Case
+→ закрываем как BASIS_CHANGED
+
+новый Action Case occurrence
+→ открываем
+Даже если:
+action_type
+target
+intent
+формально те же.
+Почему?
+Потому что ты задал сильное продуктовое правило:
+действие сохраняется только при сохранении всех оснований.
+Это значит, что изменение существенного reasoning должно создавать новый occurrence, а не молча менять старый.
+
+17. Это отличается от изменения одного recommended parameter
+Например:
+основания те же
+
+recommended_units:
+120 → 150
+Тот же Case.
+А:
+одно из обязательных оснований исчезло
++
+появилась новая причина
+Новый Case.
+Очень полезное различие для истории.
+
+18. NOT_SUPPORTED
+Например вчера:
+stock = 0
+Сегодня:
+stock = 500
+demand = 8/day
+Deep:
+stock shortage basis
+→ NO_LONGER_SUPPORTED
+И других оснований для replenishment нет.
+Результат:
+Action Case
+→ SYSTEM_RESOLVED
+
+reason =
+NO_LONGER_RECOMMENDED
+В Publication 109 Action отсутствует.
+
+19. UNVERIFIABLE
+Это нужно отдельно от NOT_SUPPORTED.
+Например Stock domain сегодня недоступен.
+Мы не знаем:
+stock shortage
+устранён или нет.
+По твоему правилу:
+показываем только если все основания актуальны.
+Следовательно вчерашнее действие нельзя продолжать показывать как актуальное.
+Но и говорить:
+проблема решена
+нельзя.
+Поэтому:
+Case → SUSPENDED_UNVERIFIED
+и в Current Actions его не показываем как актуальный Action.
+В истории остаётся:
+Последняя подтверждённая рекомендация была 20 августа; 21 августа её невозможно было перепроверить.
+
+20. Когда данные снова становятся доступны
+Например 22 августа Stock снова READY.
+Suspended Case обязательно возвращается в:
+Continuity Revalidation Set
+и Deep заново решает:
+FULLY_SUPPORTED
+NOT_SUPPORTED
+PARTIALLY_SUPPORTED
+...
+То есть временная проблема с Ozon API не теряет Case навсегда.
+
+21. SUPERSEDED
+Например вчера:
+уменьшить цену.
+Сегодня текущий анализ говорит:
+наоборот, увеличить цену.
+Старый:
+DECREASE
+→ SUPERSEDED
+Новый:
+INCREASE
+→ new Action Case
+Никакого cooldown здесь быть не должно.
+Это не повтор старой рекомендации — это другое управленческое решение.
+
+22. Теперь твой пример «4 SKU → 3 SKU»
+Он становится очень чистым.
+Publication 108:
+Recommendation R8:
+Пополнить 4 SKU
+
+Actions:
+A1 SKU417
+A2 SKU522
+A3 SKU816
+A4 SKU901
+В следующем Deep:
+A1 / SKU417:
+NOT_SUPPORTED
+
+A2 / SKU522:
+FULLY_SUPPORTED
+
+A3 / SKU816:
+FULLY_SUPPORTED
+
+A4 / SKU901:
+FULLY_SUPPORTED
+Результат:
+C417 → closed
+C522 → reaffirmed
+C816 → reaffirmed
+C901 → reaffirmed
+Deep формирует новую Recommendation:
+R19:
+Пополнить 3 SKU
+
+subjects:
+522
+816
+901
+И новую Publication:
+Publication 109
+Group:
+Пополнить 3 товара
+Никакой специальной логики:
+group 4 remove member
+вообще не нужно.
+
+23. Если все четыре по-прежнему актуальны
+4 × FULLY_SUPPORTED
+Тогда:
+4 Cases reaffirmed
+и новая Publication опять содержит:
+Пополнить 4 товара.
+Для пользователя это выглядит как сохранённое действие.
+Но внутри:
+новая Recommendation
++
+4 новых Action Proposals
++
+новый factual grounding
+То есть система действительно перепроверила его.
+
+24. Если пополнили два из четырёх
+Новая Publication:
+Пополнить 2 товара.
+
+25. Если пополнили все четыре
+Новая Publication:
+никакого replenishment group
+Все Cases:
+NO_LONGER_RECOMMENDED.
+
+26. Если по одному SKU невозможно проверить Stock
+Например:
+417 supported
+522 supported
+816 supported
+901 unverifiable
+Новая Action Group:
+Пополнить 3 товара.
+SKU901 не показывается как актуальная рекомендация.
+Но Case901:
+SUSPENDED_UNVERIFIED
+а не resolved.
+
+27. Это правило работает не только для SKU
+Точно так же для Campaign.
+Вчера:
+Снизить бюджеты 3 кампаний.
+Сегодня:
+Campaign12 → still supported
+Campaign18 → efficiency recovered
+Campaign27 → still supported
+Новая Publication:
+Снизить бюджеты 2 кампаний.
+
+28. То же для Categories
+Вчера:
+Пересмотреть пополнение 3 категорий.
+Сегодня:
+Category A supported
+Category B supported
+Category C no longer supported
+Новая Publication:
+Пересмотреть пополнение 2 категорий.
+
+29. Account Action
+Account у seller один, поэтому здесь просто:
+FULLY_SUPPORTED
+→ остаётся
+
+NOT_SUPPORTED
+→ исчезает
+без multi-entity grouping.
+
+30. Что должен получать Discovery
+Здесь есть важное изменение.
+Нельзя надеяться, что Discovery самостоятельно вспомнит:
+надо перепроверить вчерашний Action.
+В Discovery Pack нужно явно добавлять:
+continuity_context
+с предыдущими Actions.
+Но я не хочу, чтобы проверка существующих Actions зависела от того, создаст ли Discovery для них новый Thread.
+Это слишком ненадёжно.
+
+31. Continuity Evidence должно быть обязательным
+У Evidence Expansion теперь появляется два допустимых источника запросов:
+DISCOVERY_REQUESTED
+
+CONTINUITY_REQUIRED
+Первый уже утверждён.
+Второй — новое дополнение.
+
+32. Что такое CONTINUITY_REQUIRED
+Action Catalog уже знает:
+Action Type
+→ какие factual domains/context нужны для корректного решения
+Например:
+SKU_INCREASE_REPLENISHMENT
+
+→ Stock
+→ Sales
+→ Supply context
+Следовательно для вчерашнего open/action proposal Evidence Expansion автоматически собирает current evidence, необходимое для его revalidation.
+AI не должен специально просить:
+пожалуйста, дай мне данные, чтобы проверить вчерашний Action.
+Это системное обязательство.
+
+33. При этом Evidence остаётся закрытым и deterministic
+Ничего из прежнего Evidence Contract не нарушается.
+По-прежнему:
+no live Ozon
+no SQL from AI
+same sealed universe
+closed Evidence Catalog
+bounded evidence
+Просто появился второй легальный request origin.
+
+34. Очень важный принцип: current evidence, old reasoning
+Deep получает одновременно:
+PRIOR ACTION
+
+что было рекомендовано;
+какие REQUIRED_SUPPORT были;
+какие факты это поддерживали;
+какие parameters были;
+
++
+
+CURRENT FACTUAL CONTEXT
+
+что происходит сейчас.
+И отвечает:
+поддерживается ли старая рекомендация сейчас?
+
+35. Deep Output расширяется
+Предлагаю:
+previous_action_assessments[]
+Для каждого Action предыдущей генерации:
+previous_action_ref
+action_case_ref
+
+basis_assessments[]
+
+overall_assessment
+
+replacement_action_ref | null
+
+36. Полнота проверки — hard gate
+Если в предыдущей Publication было:
+12 atomic Actions
+новый Deep должен вернуть:
+12 PreviousActionAssessments
+Ровно.
+Не 11.
+Не:
+один забыли.
+Gate:
+previous_action_assessment_coverage_gate
+Если хоть одно предыдущее действие не оценено:
+Deep Output invalid.
+
+37. Это относится и к Actions, которые пользователь успел отметить DONE
+Вот здесь твоё замечание про менеджера особенно важно.
+Например:
+20 Aug:
+Action A1
+
+20 Aug 15:00:
+manager → DONE
+При следующей генерации сам факт DONE не исключает A1 из revalidation.
+Почему?
+Потому что:
+DONE
+=
+user statement
+
+не
+=
+factual proof that recommendation is no longer needed.
+
+38. Поэтому DONE не suppress'ит AI
+Следующая генерация показывает:
+все основания всё ещё актуальны.
+Тогда:
+старый Case C1:
+DONE
+
+новый occurrence C2:
+OPEN
+и пользователь снова увидит действие.
+Это именно тот вариант, который ты предложил.
+
+39. Если пользователь действительно всё сделал
+Текущие facts это покажут.
+Например после DONE:
+stock = 500
+Deep:
+NOT_SUPPORTED.
+Новое действие не создаётся.
+То есть source of truth:
+текущие факты + AI analysis
+а не пользовательская кнопка.
+
+40. Это важный продуктовый принцип
+User status влияет на lifecycle конкретного Action Case, но не имеет права скрывать будущую объективно обоснованную рекомендацию.
+Я считаю это очень правильным для Aivion.
+
+41. Что происходит после NO_LONGER_RECOMMENDED
+Здесь сохраняем твоё другое решение:
+не показывать такое же действие снова немедленно.
+Появляется:
+Recurrence Suppression
+
+42. Но suppression только после system resolution
+То есть:
+DONE by user
+→ NO suppression
+А:
+NO_LONGER_RECOMMENDED by Deep
+→ recurrence suppression
+Это принципиально.
+
+43. Причина
+В первом случае мы не знаем:
+действительно ли ситуация решена.
+Во втором сама система получила факты и сказала:
+основания действия исчезли.
+Поэтому второй случай заслуживает anti-flapping механизма.
+
+44. Recurrence Policy
+Я бы не фиксировал единый:
+30 дней
+для всех Action Types.
+Вместо этого Action Catalog должен иметь:
+recurrence_policy_version
+Например концептуально:
+Action
+Возможная логика
+Stock replenishment
+короткий cooldown, потому что stock может снова закончиться быстро
+Price adjustment
+более длинный cooldown
+Campaign strategy
+более длинный
+Campaign pause/state
+отдельная политика
+Promotion participation
+зависит от Promotion context
+Catalog state
+более длинный
+Конкретные интервалы калибруем на реальных данных.
+Твой «месяц» можно использовать как один из initial policy values, но не как универсальный invariant.
+
+45. Что происходит во время cooldown
+Предположим:
+1 Sep:
+Action system-resolved
+
+cooldown until:
+1 Oct
+Даже если 15 сентября ordinary Materiality снова замечает похожую ситуацию:
+same Action identity
+Action пользователю не публикуется.
+При этом Finding может существовать.
+То есть:
+Finding ✅
+Recommendation возможно ✅
+Action suppressed
+с internal reason:
+RECURRENCE_COOLDOWN.
+
+46. После окончания cooldown
+Нельзя просто надеяться, что сущность случайно снова попадёт в Materiality.
+Я бы добавил:
+RECURRENCE_ELIGIBLE_RECHECK
+После истечения cooldown target снова становится eligible для обязательной/приоритетной проверки.
+Если основания существуют:
+new Action Case occurrence
+Если нет:
+ничего не происходит.
+
+47. Cooldown не переписывает историю
+Старый Case:
+SYSTEM_RESOLVED
+остаётся.
+Новый:
+occurrence_no = 2
+создаётся отдельно.
+
+48. Action Case identity уточняется
+У нас сохраняется business signature:
+seller
++
+action_type
++
+target
++
+normalized_context
++
+intent_signature
+Но это не unique primary key навсегда.
+Нужен ещё:
+occurrence_no
+Например:
+SKU417
+REPLENISH
+occurrence 1
+→ resolved
+
+через месяц
+
+SKU417
+REPLENISH
+occurrence 2
+→ open
+
+49. Active uniqueness
+Одновременно может существовать максимум один active Case с одинаковой:
+business action signature.
+Но исторических occurrences может быть сколько угодно.
+
+50. Если основания Action поменялись в текущей генерации
+Как я писал выше:
+PARTIALLY_SUPPORTED
+старый Case закрывается.
+Но если Deep в той же генерации считает новое действие обоснованным по новым основаниям:
+new occurrence
+создаётся сразу.
+Здесь recurrence cooldown не применяется.
+Потому что действие фактически не перестало быть актуальным — изменилось его reasoning.
+
+51. Cooldown применяется только к реальному разрешению
+То есть только когда:
+NOT_SUPPORTED
++
+no replacement Action
+Тогда:
+system genuinely believes
+action is no longer needed.
+Вот здесь suppression оправдан.
+
+52. Что происходит с UNVERIFIABLE
+Никакого cooldown.
+Case:
+SUSPENDED_UNVERIFIED
+Как только данные возвращаются:
+mandatory recheck.
+Если support появился:
+может вернуться тот же Case, потому что он никогда не был resolved.
+
+53. Publication остаётся полностью immutable
+Это особенно важно с твоей формулировкой:
+«старое действие убирается из публикации».
+Технически правильная формулировка для ТЗ должна быть:
+Action не переносится в следующую Publication.
+Не:
+удаляется из старой.
+Publication 108:
+4 SKU
+остаётся 4.
+Publication 109:
+3 SKU.
+Текущий Dashboard переключился на Publication109 и поэтому пользователь больше не видит четвёртый.
+
+54. Это полностью соответствует materialized projection pattern
+Read-view должна отражать актуальный source state конкретного snapshot и быть rebuildable; её не следует превращать в mutable source of truth. Microsoft Learn
+
+55. Общий алгоритм новой генерации
+Теперь end-to-end это выглядит так:
+CURRENT Publication N
+        ↓
+Extract previous Action Snapshot
+        ↓
+Build Continuity Revalidation Set
+        ↓
+Build new sealed Factual Universe
+        ↓
+Build current Landscapes
+        ↓
+Materiality:
+  mandatory continuity
+  +
+  fresh materiality
+        ↓
+Discovery
+        ↓
+Evidence:
+  Discovery-requested
+  +
+  Continuity-required
+        ↓
+Deep
+        │
+        ├─ new Findings
+        ├─ new Recommendations
+        ├─ new Actions
+        │
+        └─ assessment of EVERY previous Action
+        ↓
+Action Reconciliation
+        ↓
+Build NEW current Action Snapshot
+        ↓
+Group current atomic Actions
+        ↓
+Build Publication N+1
+        ↓
+Atomic publish
+
+56. Action Reconciliation становится отдельным deterministic stage
+После Deep:
+ActionReconciler
+Он не принимает бизнес-решения.
+Он просто применяет результаты Deep.
+Например:
+FULLY_SUPPORTED
+→ same Case + new Proposal
+
+PARTIALLY_SUPPORTED
+→ close old basis occurrence
+→ use new Action if Deep created one
+
+NOT_SUPPORTED
+→ system resolve
+
+UNVERIFIABLE
+→ suspend
+
+SUPERSEDED
+→ close old + link new
+
+57. Backend не имеет права изменить assessment
+Если Deep сказал:
+FULLY_SUPPORTED
+backend не решает:
+мне кажется stock уже большой.
+И наоборот.
+Backend проверяет только согласованность:
+все basis assessments присутствуют;
+references valid;
+replacement exists when claimed;
+Case identity consistent;
+
+58. Но backend может проверить hard factual impossibility
+Как и в Action Contract.
+Например Deep хочет reaffirm:
+JOIN_PROMOTION
+при этом canonical state прямо говорит:
+SKU already participant.
+Тогда:
+Action invalid
+из-за technical/state contract.
+Это не semantic repair.
+
+59. Multi-entity Recommendations пересобираются после revalidation
+Это важный порядок.
+Не:
+вчера Group4
+→ удалить SKU417
+→ Group3
+А:
+4 independent atomic assessments
+↓
+3 current valid Actions
+↓
+Deep/current Recommendation set
+↓
+Projector
+↓
+Group3
+То есть grouping происходит после atomic continuity evaluation.
+
+60. Группы могут не только уменьшаться
+Они могут увеличиваться.
+Вчера:
+Пополнить 3 SKU.
+Сегодня эти 3 подтверждены и появился новый material SKU999:
+3 old supported
++
+1 new Action
+Если Deep сформировал одну общую multi-entity Recommendation:
+Пополнить 4 SKU,
+Projector создаёт группу из 4.
+
+61. Группы могут объединяться
+Вчера:
+Group A:
+SKU1 SKU2
+
+Group B:
+SKU3 SKU4
+Сегодня Deep считает все четыре частью одной управленческой Recommendation.
+Новая Publication может иметь одну группу:
+SKU1 SKU2 SKU3 SKU4
+История старых групп остаётся.
+
+62. Группы могут разделяться
+Вчера:
+4 SKU
+one recommendation
+Сегодня:
+2 SKU need replenishment
+2 SKU need promotion instead
+Новая Publication:
+Group 1:
+Replenish 2 SKU
+
+Group 2:
+Promotion action 2 SKU
+Это нормально.
+Потому что group — не persistent business entity.
+
+63. Publication/current Action consistency
+Перед publish должен быть gate:
+publication_action_snapshot_consistency_gate
+Он проверяет:
+каждый visible Action
+имеет current factual support;
+
+каждый retained previous Action
+имеет FULLY_SUPPORTED assessment;
+
+ни один NOT_SUPPORTED/
+UNVERIFIABLE Action
+не попал в current snapshot;
+
+каждый Action Group состоит
+только из current valid atomic Actions.
+
+64. Нельзя строить новый Current Actions view отдельно от Publication
+Я бы здесь тоже ужесточил прошлую модель.
+Основной набор AI Actions текущего Dashboard должен происходить из current Publication Action Snapshot.
+Mutable user statuses могут накладываться поверх:
+Publication Action Snapshot
++
+Action Case user state
+Но нельзя иметь ситуацию:
+Publication говорит 4 Actions
+
+backend самостоятельно решил показывать 7
+без новой генерации.
+
+65. DONE — отдельный overlay
+Например Publication109:
+A1
+A2
+A3
+Пользователь нажал:
+A1 DONE
+До следующей генерации Current Actions UI может скрыть A1:
+visible:
+A2
+A3
+Но Publication109 исторически всё равно содержит A1.
+На Publication110 A1 снова будет независимо переоценён.
+
+66. Это значит, что user state действует между генерациями, но не влияет на analytical truth
+Очень чистая модель:
+Publication
+=
+что Aivion считает актуальным
+
+User state
+=
+что пользователь сообщил о работе с Action
+На следующей генерации factual analysis снова главный.
+
+67. DQ/capability failure
+Представим предыдущий Action зависит от:
+Stock
+Sales
+Supply.
+Сегодня:
+Stock READY
+Sales READY
+Supply FAILED
+Если Supply был REQUIRED_SUPPORT, невозможно сказать:
+все основания актуальны.
+Следовательно:
+UNVERIFIABLE
+и Action не переносится.
+Это строго соответствует твоей логике.
+
+68. Если Supply был только CONTEXT
+Тогда отсутствие Supply не обязательно мешает:
+FULLY_SUPPORTED.
+Именно поэтому distinction:
+REQUIRED_SUPPORT
+vs
+CONTEXT
+так важно.
+
+69. Action basis должен быть bounded
+AI нельзя позволять писать:
+27 required grounds
+на каждое действие.
+Нужно versioned:
+max_required_support_claims_per_action
+Например небольшое число, которое определим через evals.
+Это делает revalidation контекст контролируемым.
+
+70. Action basis не должен копировать Evidence целиком
+Basis:
+sellable stock insufficient relative to recent demand.
+Grounding:
+ef_12
+ef_17
+Не:
+весь JSON stock history.
+Current Evidence уже предоставит новые факты отдельно.
+
+71. Deep не должен сравнивать Fact Handles между публикациями как identity
+f_017 publication108
+и:
+f_021 publication109
+разные handles.
+Deep сравнивает meaning/claim, а не строковый handle.
+Каждый handle разрешается внутри своего Factual Universe.
+
+72. Физическая модель basis
+Предлагаю добавить:
+analysis.deep_action_proposal_basis
+Концептуально:
+action_proposal_id
+
+basis_ordinal
+
+basis_statement
+
+basis_role
+
+source_finding_ref
+И отдельно:
+analysis.deep_action_basis_fact_refs
+для grounding.
+
+73. Revalidation persistence
+Добавляем:
+analysis.action_revalidation_runs
+analysis.action_revalidation_results
+analysis.action_basis_assessments
+Хотя сами результаты Deep можно хранить и внутри deep output, отдельная queryable projection здесь полезна для Action lifecycle/audit.
+
+74. action_revalidation_results
+Например:
+publication_id
+previous_action_proposal_id
+action_case_id
+
+assessment
+
+replacement_action_proposal_id
+
+reason_summary
+
+75. action_basis_assessments
+revalidation_result_id
+
+previous_basis_ref
+
+status:
+STILL_SUPPORTED
+NO_LONGER_SUPPORTED
+UNVERIFIABLE
+
+current_support_fact_handles[]
+current_counter_fact_handles[]
+Так через полгода можно ответить:
+Почему Aivion перестал показывать это действие?
+
+76. Очень полезный UX-аудит
+Например история Case:
+20 Aug
+Recommended:
+replenish 120
+
+21 Aug
+Reaffirmed:
+replenish 150
+
+22 Aug
+No longer recommended:
+stock restored
+Это значительно лучше чёрного ящика:
+карточка просто исчезла.
+Даже если в v1 seller не видит полную историю, backend должен её иметь.
+
+77. Action disappearance reason
+В current UI, если необходимо, можно позже показывать:
+Resolved automatically
+
+Reason:
+conditions no longer apply
+Но это уже UI contract.
+Publication architecture должна сохранить данные для этого.
+
+78. No-op Publication
+Важно: изменение Action support само по себе может быть причиной новой Publication, даже если Sales headline почти не изменился.
+Например:
+Factual Universe changed
+и Action group 4 → 3.
+Новая Publication meaningful.
+
+79. А если Factual Universe не изменился
+Не запускаем AI повторно и не revalidate Actions просто потому, что scheduler сработал ещё раз.
+Same:
+universe hash
++
+policies
+→ no-op.
+
+80. Action continuity и retries
+Если Deep retry:
+attempt 1 invalid
+attempt 2 valid
+Action reconciliation выполняется только после validated Deep result.
+Никаких изменений Cases между attempts.
+
+81. Action reconciliation и atomic publication
+Action Case changes и Publication должны commit'иться вместе:
+Publication110
++
+new Action Proposals
++
+Case reaffirm/resolve/create
++
+current pointer
++
+outbox
+одной транзакцией.
+Иначе возможна ситуация:
+Publication110 current,
+но Cases ещё от Publication109.
+Transactional outbox/idempotent delivery остаются правильным паттерном для последующих уведомлений/кэша после commit. Microsoft Learn
+
+82. Если publish transaction failed
+Никакие Cases не изменились.
+Publication109 остаётся current.
+Это обязательно.
+
+83. Если новая Publication withdrawn
+Наша ранее описанная compensation logic остаётся:
+Action Cases должны переключиться на последний valid Proposal либо получить состояние, отражающее withdrawal source.
+Но historical results не удаляются.
+
+84. Новые Acceptance Gates
+К уже описанным Publication/Action gates нужно добавить следующий пакет:
+previous_action_full_coverage_gate
+continuity_mandatory_inclusion_gate
+continuity_capacity_gate
+
+action_required_basis_gate
+action_basis_grounding_gate
+action_basis_bounded_gate
+
+action_revalidation_evidence_gate
+action_revalidation_same_universe_gate
+
+action_full_support_gate
+action_partial_support_no_carry_gate
+action_unverifiable_no_display_gate
+action_not_supported_no_display_gate
+
+action_replacement_link_gate
+action_same_basis_reaffirm_gate
+action_changed_basis_new_occurrence_gate
+
+previous_group_atomic_revalidation_gate
+new_group_current_members_only_gate
+
+user_done_no_suppression_gate
+system_resolution_recurrence_gate
+
+action_case_active_uniqueness_gate
+action_occurrence_history_gate
+
+publication_action_reconciliation_atomicity_gate
+
+85. Критически важный тест: 4 → 3
+Input:
+previous group = 4 SKU
+
+current:
+1 resolved
+3 still supported
+Expected:
+1 Case system-resolved
+3 Cases reaffirmed
+3 new Proposals
+1 new group with 3 members
+FAIL:
+старый group modified in place.
+
+86. Тест: 4 → 4
+Все основания актуальны.
+Expected:
+4 reaffirm assessments
+4 new Proposals
+same 4 Cases
+new Publication group of 4
+
+87. Тест: пользователь нажал DONE, но проблема осталась
+Expected:
+old Case = DONE
+current Deep = fully supported
+new Case occurrence = OPEN
+Action снова виден.
+
+88. Тест: DONE и проблема действительно решена
+Expected:
+no new Action.
+
+89. Тест: Action стал неактуален
+Expected:
+system resolved
+recurrence suppression starts
+
+90. Тест: cooldown закончился, проблема вернулась
+Expected:
+new occurrence.
+
+91. Тест: один обязательный факт недоступен
+Expected:
+UNVERIFIABLE
+Action absent from new Publication
+Case suspended
+no system resolution
+no recurrence cooldown.
+
+92. Тест: одно старое основание исчезло, но возникло новое
+Expected:
+PARTIALLY_SUPPORTED
+
+old occurrence closed because basis changed
+
+new occurrence allowed immediately
+if Deep still recommends the action
+on new current basis.
+Это очень важный edge case.
+
+93. Тест: противоположное действие
+Expected:
+old SUPERSEDED
+new Action immediate
+no cooldown.
+
+94. Тест: Action Group split
+Previous:
+4 × replenish
+Current Deep:
+2 × replenish
+2 × promotion
+Expected:
+2 groups.
+
+95. Тест: Action Groups merge
+Previous:
+two separate recommendations
+Current Deep:
+one current recommendation
+four supported Actions
+Expected:
+one new group.
+
+96. Обновлённый архитектурный контракт
+Я бы добавил в ТЗ следующий нормативный блок:
+Каждая новая Daily Analysis generation обязана выполнить continuity revalidation всех atomic Action Proposals, представленных в предыдущей current Publication, независимо от их текущего пользовательского статуса. Действия предыдущей Publication не копируются в новую Publication автоматически. Каждое из них должно быть повторно подтверждено на новом sealed Factual Universe.
+При первоначальном формировании Action Deep Analysis обязан выделить bounded набор REQUIRED_SUPPORT — семантических оснований Action, grounded на Findings и Fact Handles. Backend не определяет бизнес-основания самостоятельно. В следующей генерации Deep должен отдельно оценить актуальность каждого REQUIRED_SUPPORT на current factual context.
+Предыдущий Action может быть reaffirmed и связан с тем же persistent Action Case только в случае FULLY_SUPPORTED, то есть когда все его REQUIRED_SUPPORT по-прежнему подтверждены. Изменение recommended parameters при неизменных основаниях не создаёт новый Case.
+Если хотя бы одно REQUIRED_SUPPORT перестало быть актуальным, предыдущий Action не переносится в новую Publication как прежний occurrence. Если текущий Deep Analysis всё равно формирует аналогичное действие на ином наборе оснований, прежний occurrence закрывается, а новый Action Case occurrence создаётся немедленно.
+При NOT_SUPPORTED Action отсутствует в новой Publication, соответствующий Action Case системно закрывается как NO_LONGER_RECOMMENDED, после чего применяется versioned Action Recurrence Policy. После завершения suppression period новый occurrence разрешён, если новый анализ снова обнаруживает достаточные основания.
+При UNVERIFIABLE, когда из-за capability/DQ limitations невозможно подтвердить все обязательные основания, Action не отображается как актуальный в новой Publication, но Case не считается разрешённым и переводится в состояние ожидания повторной проверки. Recurrence cooldown в этом случае не применяется.
+Пользовательский DONE закрывает только конкретный Action Case occurrence и не является доказательством исчезновения factual основания. Action из предыдущей Publication всё равно проходит следующую continuity revalidation; если основания сохраняются, Deep может немедленно сформировать новый occurrence того же Action.
+Multi-entity Action Group не переоценивается как единое действие. Каждый atomic member переоценивается независимо. Новая Action Group строится детерминированно исключительно из текущих validated atomic Actions новой Publication. Поэтому изменение 4 SKU → 3 SKU является не изменением старой группы, а формированием нового immutable group snapshot из трёх reaffirmed/current Actions.
+Continuity revalidation является обязательной частью двухэтапного AI pipeline, но не создаёт третий AI-вызов. Current context для предыдущих Actions подготавливается Evidence Expansion через closed CONTINUITY_REQUIRED recipes, а итоговая semantic revalidation выполняется существующим Deep Analysis call.
+Количество публикуемых atomic Actions должно быть ограничено таким образом, чтобы архитектура гарантировала возможность полной переоценки Actions предыдущей генерации в следующем run. Непроверенное действие не может считаться сохранённым или разрешённым.
+Что я считаю особенно важным
+Твоя формулировка фактически меняет философию Actions в лучшую сторону:
+Action
+не живёт сам по себе между генерациями.
+Живёт:
+Action Case history.
+А актуальность Action каждый раз должна быть доказана заново.
+Поэтому current Actions — это не список накопленных задач:
+вчера AI что-то придумал
+→ висит до ручного закрытия.
+А:
+новая генерация
+→ заново проверили факты
+→ заново подтвердили основания
+→ показали только то,
+  что актуально сейчас.
+Именно такую модель я бы считал правильной для Aivion.
+Остаётся один реальный продуктовый вопрос, который этот алгоритм не закрывает: что делать с DISMISSED / Отклонить. Для DONE ты уже определил правило — оно ничего не suppress'ит. Для NO_LONGER_RECOMMENDED — системный временный cooldown. Для сознательного пользовательского DISMISSED я бы рекомендовал отдельный versioned suppression period, иначе пользователь сегодня нажмёт «Не хочу выполнять», а завтра получит ровно ту же рекомендацию. Но это решение лучше явно утвердить отдельно.
+Да, фиксируем именно так.
+Если менеджер нажимает «Неактуально / DISMISSED», то для этого конкретного действия запускается 30-дневный suppression period. В течение этих 30 дней такое же действие по той же сущности не показываем, даже если промежуточные генерации снова находят основания.
+Например:
+21 августа
+SKU417
+SKU_INCREASE_REPLENISHMENT
+→ менеджер нажал «Неактуально»
+
+21 августа – 19 сентября
+такое же действие не отображаем
+
+20 сентября и далее
+если новая генерация снова подтверждает основания
+→ создаём новый Action Case occurrence
+→ действие снова показывается
+При этом suppression относится именно к той же business action identity:
+seller
++
+action_type
++
+target
++
+normalized context
++
+intent
+Поэтому если менеджер отклонил:
+SKU417
+ADJUST_PRICE
+intent = DECREASE
+это не должно блокировать, например:
+SKU417
+INCREASE_REPLENISHMENT
+или противоположное:
+SKU417
+ADJUST_PRICE
+intent = INCREASE
+если текущий анализ реально пришёл уже к другому управленческому решению.
+Для групповых действий всё остаётся атомарным. Если пользователь на группе:
+Пополнить 4 товара
+нажимает «Неактуально для всех», backend фактически делает DISMISSED для четырёх отдельных Action Cases:
+SKU417 → suppressed 30d
+SKU522 → suppressed 30d
+SKU816 → suppressed 30d
+SKU901 → suppressed 30d
+Сама Action Group никакого собственного cooldown не получает.
+Итого теперь lifecycle хорошо разделяется:
+DONE
+→ закрыли конкретный occurrence
+→ никакого cooldown
+→ если завтра действие снова обосновано,
+  можем показать его снова
+
+DISMISSED / НЕАКТУАЛЬНО
+→ закрыли occurrence
+→ same action suppressed 30 дней
+→ после 30 дней можно снова показать,
+  если основания есть
+
+NO_LONGER_RECOMMENDED
+→ система сама установила,
+  что основания исчезли
+→ также применяется recurrence suppression
+  согласно принятой policy
+
+SUPERSEDED
+→ появилось другое/противоположное действие
+→ новое можно показать сразу
+То есть менеджер действительно может через месяц снова получить ту же рекомендацию и, если по его бизнес-контексту она всё ещё не нужна, снова нажать «Неактуально» ещё на 30 дней. Это понятное и предсказуемое поведение.

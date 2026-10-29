@@ -1,0 +1,14 @@
+{
+  "model": "gpt-4.1",
+  "metadata": {
+    "prompt_hash": "9b0fd12db06cb28acf3505d254b47b73303cdbd6c6b7c876142d58ff807e3308",
+    "aivion_run_id": "195",
+    "pipeline_mode": "unified_analysis",
+    "prompt_profile": "analysis",
+    "prompt_version": "unified_analyst_v1_26"
+  },
+  "container_id": "cntr_6a608722e99c8191b9ea8c24e293a55809d2f47f574939b0",
+  "pipeline_mode": "unified_analysis",
+  "prompt_version": "unified_analyst_v1_26",
+  "container_file_id": "cfile_6a6087238aa88191814b72d3c3786d28"
+}

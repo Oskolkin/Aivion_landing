@@ -1,0 +1,42 @@
+[
+  {
+    "conclusion": "success",
+    "createdAt": "2026-08-03T12:09:00Z",
+    "databaseId": 30812372597,
+    "event": "push",
+    "headSha": "4d210dcb8ca48823566895646450709531c177ff",
+    "name": "Secret Scan",
+    "status": "completed",
+    "url": "https://github.com/Oskolkin/Aivion/actions/runs/30812372597"
+  },
+  {
+    "conclusion": "success",
+    "createdAt": "2026-08-03T12:09:00Z",
+    "databaseId": 30812372605,
+    "event": "push",
+    "headSha": "4d210dcb8ca48823566895646450709531c177ff",
+    "name": "Docker CI",
+    "status": "completed",
+    "url": "https://github.com/Oskolkin/Aivion/actions/runs/30812372605"
+  },
+  {
+    "conclusion": "success",
+    "createdAt": "2026-08-03T12:09:00Z",
+    "databaseId": 30812372595,
+    "event": "push",
+    "headSha": "4d210dcb8ca48823566895646450709531c177ff",
+    "name": "Frontend CI",
+    "status": "completed",
+    "url": "https://github.com/Oskolkin/Aivion/actions/runs/30812372595"
+  },
+  {
+    "conclusion": "success",
+    "createdAt": "2026-08-03T12:09:00Z",
+    "databaseId": 30812372600,
+    "event": "push",
+    "headSha": "4d210dcb8ca48823566895646450709531c177ff",
+    "name": "Backend CI",
+    "status": "completed",
+    "url": "https://github.com/Oskolkin/Aivion/actions/runs/30812372600"
+  }
+]

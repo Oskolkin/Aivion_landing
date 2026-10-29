@@ -1,0 +1,13 @@
+# Packages that implement the boundary itself and therefore may combine the
+# factualapi contracts with persistence. New business consumers are not exempt.
+internal/collection # canonical writers and orchestration, never a business read consumer
+internal/dbgen # generated persistence implementation
+internal/factualapi # contract package; persistence/provider imports are separately forbidden
+internal/factual # canonical PostgreSQL adapter behind factualapi.API
+internal/readiness # DQ/readiness evidence persistence and context resolver
+internal/analysis/postgres # sole persistence adapter for analysis and factual-universe metadata
+internal/analysis/universe # validated sealed-universe boundary; no canonical business-table SQL
+internal/analysis/runtime # analysis executor; reads facts only via injected factualapi handlers
+internal/analysis/resolve # Prompt 8.1 RESOLVE_CONTEXT: freezes readiness watermarks/capabilities/DQ AS KNOWN AT (not UCDM fact rows)
+internal/chatv2 # Chat v2: chat_* persistence + Factual API injection; tools do not query canonical business tables
+cmd/devtools # explicit diagnostics adapters for collection/readiness/factual smoke

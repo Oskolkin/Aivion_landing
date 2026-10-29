@@ -1,0 +1,40 @@
+{
+  "name": "frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "dev:clean": "node ./scripts/clean-next.mjs && next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "snapshot:funnel": "npx tsx lib/funnel-ai-ui-snapshot.test.tsx",
+    "snapshot:funnel:live": "npx tsx lib/funnel-ai-ui-snapshot.test.tsx",
+    "pretest": "npx tsx lib/prompt14-dashboard.test.ts",
+    "test": "npx tsx lib/prompt14-dashboard.test.ts && npx tsx lib/overview-view-model.test.tsx && npx tsx lib/dashboard-routes.test.ts && npx tsx lib/as-array.test.ts && npx tsx lib/server-request-headers.test.ts && npx tsx lib/chat-display.test.ts && npx tsx lib/chat-view.test.ts && npx tsx lib/chat-action-handoff.test.ts && npx tsx lib/chat-stabilization.test.tsx && npx tsx lib/live-review-ui.test.ts && npx tsx components/chat/action-chat-header.test.tsx && npx tsx components/chat/general-chat-header.test.tsx && npx tsx components/chat/chat-components.test.tsx",
+    "test:smoke": "npx tsx lib/api-connectivity.test.ts",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install chromium"
+  },
+  "dependencies": {
+    "@sentry/nextjs": "^10.45.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.17.0",
+    "next": "16.2.0",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "tailwind-merge": "^3.6.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.51.1",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.0",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}

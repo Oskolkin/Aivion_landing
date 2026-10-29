@@ -1,0 +1,16 @@
+﻿ publication_id 
+----------------
+             74
+(1 row)
+
+ id  |       status       | error_code |    prompt_version     | provider_attempt_count 
+-----+--------------------+------------+-----------------------+------------------------
+ 202 | publication_failed |            | unified_analyst_v1_27 |                      1
+(1 row)
+
+ id |       status       | run_id 
+----+--------------------+--------
+ 74 | published          |    162
+ 90 | publication_failed |    202
+(2 rows)
+

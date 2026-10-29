@@ -1,0 +1,123 @@
+name: Manual Production Promotion
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-promotion-manual
+  cancel-in-progress: false
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_sha:
+        description: "Commit SHA of the staging-proven release to promote"
+        required: true
+      confirm:
+        description: 'Type "promote-app" to confirm'
+        required: true
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate confirm input
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event.inputs.confirm }}" != "promote-app" ]; then
+            echo "::error::confirm must equal exactly 'promote-app'"
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Normalize image_sha
+        id: sha
+        run: |
+          set -euo pipefail
+          RAW="${{ github.event.inputs.image_sha }}"
+          RAW="$(echo "$RAW" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+          if ! echo "$RAW" | grep -Eq '^[0-9a-f]{7,40}$'; then
+            echo "::error::image_sha must be a hex commit SHA"
+            exit 1
+          fi
+          git fetch origin main --prune
+          RESOLVED="$(git rev-parse --verify "${RAW}^{commit}")"
+          if ! git merge-base --is-ancestor "$RESOLVED" origin/main; then
+            echo "::error::image_sha $RESOLVED is not an ancestor of origin/main"
+            exit 1
+          fi
+          echo "full=$RESOLVED" >> "$GITHUB_OUTPUT"
+          echo "WARNING: Production promotion requires explicit owner approval."
+
+      - name: Print promotion checklist
+        run: |
+          set -euo pipefail
+          SHA="${{ steps.sha.outputs.full }}"
+          {
+            echo "## Production promotion checklist"
+            echo ""
+            echo "> **WARNING:** Owner approval is required before promoting app.aivion.pro."
+            echo ""
+            echo "### Preconditions"
+            echo "- [ ] Staging has been smoke-tested on SHA \`${SHA}\`"
+            echo "- [ ] Backend CI / Frontend CI / Docker CI / Secret Scan green for this SHA"
+            echo "- [ ] GHCR images published:"
+            echo "  - \`ghcr.io/oskolkin/aivion-backend:${SHA}\`"
+            echo "  - \`ghcr.io/oskolkin/aivion-worker:${SHA}\`"
+            echo "  - \`ghcr.io/oskolkin/aivion-frontend:${SHA}\`"
+            echo "- [ ] Backups taken (postgres + config)"
+            echo "- [ ] Owner explicitly approved promotion"
+            echo ""
+            echo "### Promotion action"
+            echo "On the server (as deploy user):"
+            echo "\`\`\`"
+            echo "/opt/aivion/deploy/scripts/promote-app.sh"
+            echo "\`\`\`"
+            echo ""
+            echo "This switches Caddy so \`app.aivion.pro\` serves the application (exits maintenance)."
+            echo "This workflow does **not** auto-promote on push."
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "=============================================="
+          echo "OWNER APPROVAL REQUIRED before production cutover"
+          echo "=============================================="
+          echo "Target SHA: ${SHA}"
+          echo "Manual command: /opt/aivion/deploy/scripts/promote-app.sh"
+
+      - name: Run promote-app.sh via SSH (if secrets configured)
+        env:
+          STAGING_SSH_HOST: ${{ secrets.STAGING_SSH_HOST }}
+          STAGING_SSH_USER: ${{ secrets.STAGING_SSH_USER }}
+          STAGING_SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          SHA="${{ steps.sha.outputs.full }}"
+
+          if [ -z "${STAGING_SSH_HOST:-}" ] || [ -z "${STAGING_SSH_USER:-}" ] || [ -z "${STAGING_SSH_KEY:-}" ]; then
+            echo "SSH secrets not configured. Promotion must be run manually:"
+            echo "  ssh aivion-staging"
+            echo "  /opt/aivion/deploy/scripts/promote-app.sh"
+            echo ""
+            echo "Documented target SHA: ${SHA}"
+            exit 0
+          fi
+
+          KEY_FILE="$(mktemp)"
+          trap 'rm -f "$KEY_FILE"' EXIT
+          umask 077
+          printf '%s\n' "$STAGING_SSH_KEY" > "$KEY_FILE"
+          chmod 600 "$KEY_FILE"
+
+          echo "Running promote-app.sh on ${STAGING_SSH_HOST} (key material not logged)"
+          mkdir -p "$HOME/.ssh"
+          chmod 700 "$HOME/.ssh"
+          ssh -i "$KEY_FILE" \
+            -o StrictHostKeyChecking=accept-new \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -o IdentitiesOnly=yes \
+            "${STAGING_SSH_USER}@${STAGING_SSH_HOST}" \
+            "/opt/aivion/deploy/scripts/promote-app.sh"

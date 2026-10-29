@@ -1,0 +1,3 @@
+check,status,entity_id,expected,actual,detail
+dashboard_signal_duplicate,warning,$.dashboard.seller_pulse.narrative.important_facts[1],,,related signal fingerprint across seller_pulse_key_point and seller_pulse_important
+ai_output_grounded,ok,,valid=true,valid=true errors=0 warnings=1 actions=0,outputvalidator.Validate over the frozen AI output against the run's Pack facts registry

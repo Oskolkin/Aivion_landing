@@ -1,0 +1,19 @@
+{
+  "status": "DEFERRED_BY_OWNER",
+  "severity": "P0_SECURITY_EXCEPTION",
+  "owner": "project owner",
+  "required_before": "real seller production onboarding",
+  "old_key_revoked": false,
+  "old_key_mask": "sk-proj-...zpsA",
+  "doc": "docs/security/deferred-openai-key-rotation.md",
+  "required_future_actions": [
+    "Check usage of the old key",
+    "Revoke the old key",
+    "Create a new project-scoped key",
+    "Place the new key outside Git",
+    "Confirm old key returns 401/403",
+    "Confirm new key succeeds",
+    "Review logs and costs",
+    "Close exception with separate evidence"
+  ]
+}

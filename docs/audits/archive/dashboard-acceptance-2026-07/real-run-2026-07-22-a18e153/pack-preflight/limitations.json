@@ -1,0 +1,75 @@
+{
+  "schema_version": "aivion_analysis_pack_v1",
+  "limitations": [
+    {
+      "code": "campaign_sku_spend_not_attributed",
+      "severity": "medium",
+      "description": "campaign_sku.csv records campaign-to-SKU links only; per-pair spend/revenue/orders are not available and are left null.",
+      "affected_tables": [
+        "campaign_sku.csv"
+      ]
+    },
+    {
+      "code": "product_attribute_completion_unknown",
+      "severity": "low",
+      "description": "Attribute completion percentage is not computed by any upstream source; the field is left null.",
+      "affected_tables": [
+        "sku_summary.csv",
+        "product_enrichment.csv"
+      ]
+    },
+    {
+      "code": "product_content_score_unavailable",
+      "severity": "low",
+      "description": "Content score is not computed by any upstream source; the field is left null.",
+      "affected_tables": [
+        "sku_summary.csv",
+        "product_enrichment.csv"
+      ]
+    },
+    {
+      "code": "product_enrichment_unavailable",
+      "severity": "high",
+      "description": "Ozon product/stock enrichment sync failed or has not run for this metric date.",
+      "affected_tables": [
+        "sku_summary.csv",
+        "product_enrichment.csv"
+      ]
+    },
+    {
+      "code": "sku_ad_spend_not_attributed",
+      "severity": "medium",
+      "description": "Advertising spend/revenue/orders are tracked at campaign level only; per-SKU attribution is not distributed and is left null.",
+      "affected_tables": [
+        "sku_summary.csv"
+      ]
+    },
+    {
+      "code": "sku_funnel_metrics_unavailable",
+      "severity": "medium",
+      "description": "Per-SKU funnel metrics (impressions, views, add_to_cart) are not tracked; only account-level funnel data is available.",
+      "affected_tables": [
+        "sku_summary.csv",
+        "sku_daily.csv"
+      ]
+    },
+    {
+      "code": "sku_order_quality_unavailable",
+      "severity": "medium",
+      "description": "Per-SKU delivered/cancelled/returns breakdown is not tracked; only order count and revenue are available at SKU granularity.",
+      "affected_tables": [
+        "sku_summary.csv",
+        "sku_daily.csv"
+      ]
+    },
+    {
+      "code": "sku_reserved_stock_unknown",
+      "severity": "low",
+      "description": "Reserved stock is not tracked as a distinct field; only available and in-transit stock are known.",
+      "affected_tables": [
+        "sku_summary.csv",
+        "sku_daily.csv"
+      ]
+    }
+  ]
+}

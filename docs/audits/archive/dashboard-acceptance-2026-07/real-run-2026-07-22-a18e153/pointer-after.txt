@@ -1,0 +1,8 @@
+﻿       k       |     publication_id      
+---------------+-------------------------
+ pointer       | 74
+ run201_status | publication_blocked
+ run201_error  | output_contract_invalid
+ pub74_status  | published
+(4 rows)
+

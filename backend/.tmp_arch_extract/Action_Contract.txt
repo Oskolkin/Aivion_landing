@@ -1,0 +1,2471 @@
+
+1. Что такое Action в Aivion
+Предлагаю зафиксировать:
+Action — конкретное управленческое действие, которое Deep Analysis считает обоснованным Findings и доступными facts и которое пользователь может выполнить в отношении одного разрешённого Action Target.
+У нас четыре Action Target:
+ACCOUNT
+LEAF_CATEGORY
+SKU
+CAMPAIGN
+И только они.
+Цепочка всегда:
+Facts
+↓
+Finding
+↓
+Recommendation
+↓
+Action
+Нельзя:
+Facts
+↓
+Action
+и тем более:
+AI intuition
+↓
+Action
+
+2. Recommendation и Action — не одно и то же
+Например Deep пришёл к выводу:
+Search у SKU ухудшился, но данные отстают на два дня и Funnel недоступен.
+Это может дать:
+Recommendation:
+понаблюдать ещё несколько периодов
+Но:
+Action:
+нет
+Другой пример:
+Текущий остаток SKU покрывает два дня спроса, открытого пополнения нет.
+Recommendation:
+Пополнить запас.
+Action:
+SKU_INCREASE_REPLENISHMENT
+target = SKU 417
+То есть Action создаётся только для Recommendation:
+ACTIONABLE_NOW
+Если Recommendation:
+MONITOR
+INSUFFICIENT_EVIDENCE
+Action запрещён.
+
+3. V1 остаётся полностью read-only
+Это принципиально.
+Даже если Ozon API технически позволяет менять что-либо, Aivion v1 ничего самостоятельно не меняет.
+Action:
+SKU_ADJUST_PRICE
+recommended_price = 2190 ₽
+означает:
+Aivion рекомендует продавцу установить 2 190 ₽.
+А не:
+Aivion отправляет POST в Ozon.
+Это отдельный будущий слой:
+Action Recommendation
+↓
+User confirmation
+↓
+Fresh-state revalidation
+↓
+Execution Adapter
+↓
+Ozon write API
+Причём Action из вчерашней Publication никогда нельзя будет просто отправить в Ozon сегодня без повторной проверки текущего состояния.
+
+4. Почему taxonomy всё равно сверяем с Ozon API
+Хотя v1 read-only, полезно не проектировать действия, которые вообще оторваны от реальных рычагов seller.
+Текущий Seller API подтверждает наличие write-операций для изменения цены (/v1/product/import/prices) и FBS/rFBS stock quantity (/v2/products/stocks). Для FBO при этом существует отдельный полноценный supply workflow: создание draft/supply order, изменение состава заявки и работа с timeslot. То есть FBO replenishment и “обновить остаток” — принципиально разные действия, и будущий executor не должен смешивать их. GitHub
+Текущие Ozon promotion API также позволяют добавлять/убирать товары из акций; отдельная beta-family seller actions умеет создавать/обновлять seller-managed акции и менять их активность. GitHub
+Performance API сейчас позволяет менять параметры Campaign, активировать/деактивировать её, добавлять/удалять товары и изменять product-level bids. При этом API быстро эволюционирует: в мае 2026 dailyBudget был помечен deprecated, а в июне менялись bid-related параметры. Поэтому Action называется CAMPAIGN_ADJUST_BUDGET, а не именем конкретной API-ручки или поля. GitHub
+
+5. Action Catalog — закрытый
+Deep не получает инструкцию:
+«Придумай действие».
+Backend передаёт:
+Action Menu
+Например для конкретного SKU:
+SKU_ADJUST_PRICE
+SKU_INCREASE_REPLENISHMENT
+SKU_ADJUST_AD_BID
+SKU_JOIN_PROMOTION
+...
+И AI может выбрать только существующий Action Type.
+Если в Catalog нет:
+SKU_CHANGE_IMAGES
+модель не может предложить это как Action.
+Она может упомянуть что-то в Recommendation только если данные это поддерживают, но отдельной Action-card не возникнет.
+
+6. Почему это особенно важно для Funnel / Content
+Сейчас у нас нет полноценного Content Quality domain и Evidence.
+Поэтому я не включаю в Action Catalog v1:
+IMPROVE_PRODUCT_CARD
+CHANGE_TITLE
+CHANGE_IMAGES
+CHANGE_DESCRIPTION
+SEO_OPTIMIZATION
+Даже если AI знает из общих знаний, что плохая карточка может снижать conversion.
+У него нет factual evidence по карточке seller.
+Это хороший пример того, как закрытый Action Catalog защищает нас от галлюцинаций.
+
+7. Структура Action Type
+Каждый Action Type имеет versioned contract:
+action_type_key
+version
+
+target_kind
+
+action_family
+source_domain
+
+allowed_related_entities
+
+parameter_schema
+
+required_capabilities
+required_factual_context
+
+conflict_group
+
+execution_support
+
+execution_risk
+
+validation_policy
+
+8. Action Family
+Я бы использовал стабильные семейства:
+PRICING
+INVENTORY
+ADVERTISING
+PROMOTION
+ASSORTMENT
+ACCOUNT_HEALTH
+Не:
+SEARCH
+FINANCE
+FUNNEL
+Почему?
+Search, Finance и Funnel в основном являются диагностическими domains.
+Они помогают понять, что произошло, но сами по себе не являются управленческими рычагами.
+Например Funnel может поддержать:
+SKU_ADJUST_PRICE
+SKU_ADJUST_AD_BID
+но мы не создаём:
+SKU_FIX_FUNNEL
+потому что это бессмысленное действие.
+
+9. ACCOUNT Actions v1
+Здесь я рекомендую быть очень консервативным.
+ACCOUNT_RATING_REMEDIATION
+Target:
+ACCOUNT
+Используется, когда Ozon Account Health показывает конкретную provider-defined проблему.
+Например:
+provider rating:
+FBS delays = CRITICAL
+
+provider error events:
+SELLER_DELAY
+Action:
+Снизить количество задержек FBS, влияющих на рейтинг Ozon.
+Parameters:
+primary_rating_key
+related_rating_keys[]
+provider_error_types[]
+Все keys должны реально существовать в Account Health Evidence.
+
+10. Почему пока только один Account Action
+Я не рекомендую сразу вводить десяток размытых типов:
+OPTIMIZE_ACCOUNT
+IMPROVE_FINANCE
+IMPROVE_BUSINESS
+IMPROVE_SUPPLY
+Это превратится в мусорный Action Catalog.
+Если проблема может быть адресована конкретной:
+Category
+SKU
+Campaign
+лучше адресовать её туда.
+Account Action нужен там, где сама проблема действительно account-level.
+
+11. CATEGORY Actions v1
+Category Actions — по природе координированные планы, а не прямые Ozon API команды.
+Мы уже специально сделали Category полноценным Action Target, поэтому я предлагаю пять типов.
+CATEGORY_REPRICING_PLAN
+Например:
+Пересмотреть ценовую позицию категории «Кофемашины», где снижение сосредоточено среди SKU с недавним повышением цены.
+Parameters:
+direction:
+LOWER
+RAISE
+MIXED
+
+affected_material_sku_refs[]
+
+CATEGORY_REPLENISHMENT_PLAN
+Например:
+Увеличить пополнение категории, поскольку несколько значимых SKU имеют низкое покрытие.
+Parameters:
+direction:
+INCREASE
+DECREASE
+MIXED
+
+affected_material_sku_refs[]
+
+CATEGORY_ADVERTISING_REALLOCATION
+Например:
+Перераспределить рекламную нагрузку внутри категории.
+Parameters:
+intent:
+INCREASE
+DECREASE
+REALLOCATE
+
+related_material_campaign_refs[]
+affected_material_sku_refs[]
+
+CATEGORY_PROMOTION_PLAN
+intent:
+EXPAND_PARTICIPATION
+REDUCE_PARTICIPATION
+CHANGE_TERMS
+MIXED
+
+CATEGORY_ASSORTMENT_RATIONALIZATION
+Для ситуации, когда Category-level evidence показывает структурную проблему ассортимента.
+intent:
+REDUCE_ACTIVE_SET
+REACTIVATE_ARCHIVED
+MIXED
+Но не:
+CREATE_NEW_UNKNOWN_SKUS
+У нас нет данных, чтобы придумывать seller новые товары.
+
+12. Важное правило Category Actions
+Если ситуация полностью сводится к одному SKU:
+SKU 417
+не надо создавать одновременно:
+CATEGORY_REPRICING_PLAN
+
+и
+
+SKU_ADJUST_PRICE
+только ради количества Actions.
+Category Action нужен, когда Deep действительно видит coordinated category pattern.
+Если проблема локальная — SKU Action лучше.
+Это semantic правило prompt/evals, а не backend rule.
+
+13. SKU Actions — основной operational catalog
+Именно здесь будет большая часть Actions.
+
+14. SKU_ADJUST_PRICE
+Target:
+SKU
+Parameters:
+recommended_price: Money
+Я предлагаю обязательно требовать конкретную цену.
+Если AI способен сказать только:
+Возможно, стоит пересмотреть цену,
+это Recommendation.
+Не Action.
+Action появляется, когда он готов сказать:
+Рекомендованная цена — 2 190 ₽.
+
+15. Почему не передаём direction
+Если:
+current_price = 2300
+recommended_price = 2190
+backend сам знает:
+direction = DECREASE
+delta = -110
+delta_pct = -4.78%
+AI не должен одновременно отправлять:
+direction = DECREASE
+recommended_price = 2190
+delta = -110
+и создавать три источника возможной арифметической ошибки.
+
+16. Price validation
+Backend проверяет:
+recommended_price &gt; 0
+
+currency = current currency
+
+recommended_price != current_price
+Если известна provider min-price floor:
+recommended_price &gt;= min_allowed_price
+Если AI рекомендует:
+1 500 ₽
+при известном:
+min_allowed = 1 800 ₽
+Action invalid.
+Это техническая валидация, не semantic repair.
+
+17. SKU_INCREASE_REPLENISHMENT
+Для:
+текущий запас мал относительно спроса
++
+пополнение отсутствует/недостаточно
+Parameters:
+recommended_units: integer | null
+Число не обязательно.
+Например:
+Action:
+увеличить пополнение SKU
+может быть полезным даже если данных недостаточно для честного расчёта конкретного количества.
+Если AI считает количество обоснованным:
+recommended_units = 180
+может его дать.
+Но это:
+рекомендованное количество,
+не:
+оптимальное количество.
+
+18. SKU_REDUCE_REPLENISHMENT
+Используется только когда существует factual replenishment/inbound context, который реально можно сократить.
+Parameters:
+recommended_units_reduction: integer | null
+Нельзя создать его просто потому, что:
+Stock высокий
+если никакого будущего replenishment вообще нет.
+Тогда нужна другая Recommendation, например Price/Promotion/Monitor.
+
+19. Очень важная будущая execution-граница
+SKU_INCREASE_REPLENISHMENT никогда нельзя автоматически переводить в вызов /v2/products/stocks, чтобы просто нарисовать seller больший FBS stock.
+Stock API должен отражать реально имеющийся физический запас, а не желаемое количество.
+Для FBO replenishment существует отдельный Supply workflow. GitHub
+Поэтому semantic Action:
+INCREASE_REPLENISHMENT
+и provider command:
+UPDATE_STOCK
+не являются одним и тем же.
+
+20. SKU_ADJUST_AD_BID
+Target:
+SKU
+Related:
+CAMPAIGN
+Parameters:
+campaign_ref
+recommended_bid
+Action допустим только если:
+SKU действительно связан с Campaign;
+bid semantics для данного типа Campaign известна;
+current/minimum/provider limits доступны в canonical facts;
+Advertising capability usable.
+Current Performance API имеет отдельные методы для минимальных/конкурентных ставок и product-level bid updates, но эти contracts меняются, поэтому bid action будет capability-gated. GitHub
+
+21. SKU_CHANGE_AD_PARTICIPATION
+Parameters:
+campaign_ref
+
+desired_state:
+ENABLED
+DISABLED
+Например:
+Отключить SKU 417 от Campaign 58.
+или:
+Добавить SKU 417 в Campaign 58.
+Но Campaign должна реально существовать в Deep factual context.
+
+22. SKU_JOIN_PROMOTION
+Related:
+PROMOTION
+Parameters:
+promotion_ref
+recommended_action_price: Money | null
+Backend проверяет:
+SKU = candidate/eligible
+SKU != already participant
+Candidate ≠ Participant — остаётся фундаментальным invariant.
+Текущий Ozon API действительно разделяет candidates и participating products и предоставляет отдельные write-операции добавления товара в акцию. GitHub
+
+23. SKU_LEAVE_PROMOTION
+Related:
+PROMOTION
+Backend требует:
+current membership = PARTICIPANT.
+Нельзя предложить выйти из акции, в которой SKU не участвует.
+
+24. SKU_ADJUST_PROMOTION_PRICE
+Related:
+PROMOTION
+Parameters:
+recommended_action_price
+И особенно важно:
+promotion_action_price
+≠
+canonical current_price.
+Backend и schema не позволяют их перепутать.
+
+25. SKU_CHANGE_CATALOG_STATE
+Вместо отдельных:
+ARCHIVE_SKU
+UNARCHIVE_SKU
+я бы сделал один стабильный semantic Action:
+desired_state:
+ACTIVE
+ARCHIVED
+Backend обнаруживает no-op.
+Например:
+current = ARCHIVED
+desired = ARCHIVED
+→ INVALID_NOOP.
+Current Seller API действительно имеет отдельные archive/unarchive operations, поэтому semantic action хорошо соответствует реальному рычагу seller. GitHub
+
+26. Итого SKU v1
+SKU_ADJUST_PRICE
+
+SKU_INCREASE_REPLENISHMENT
+SKU_REDUCE_REPLENISHMENT
+
+SKU_ADJUST_AD_BID
+SKU_CHANGE_AD_PARTICIPATION
+
+SKU_JOIN_PROMOTION
+SKU_LEAVE_PROMOTION
+SKU_ADJUST_PROMOTION_PRICE
+
+SKU_CHANGE_CATALOG_STATE
+Это уже довольно мощный набор.
+
+27. Что я сознательно НЕ включаю для SKU
+Пока нет:
+CHANGE_TITLE
+CHANGE_DESCRIPTION
+CHANGE_IMAGES
+
+OPTIMIZE_CARD
+IMPROVE_SEO
+
+CHANGE_CATEGORY
+
+MOVE_TO_WAREHOUSE
+MOVE_TO_CLUSTER
+
+CHANGE_FINANCE
+
+FIX_FUNNEL
+
+CHANGE_RATING
+Потому что либо:
+нет соответствующей factual architecture;
+это supporting entity, а не Action Target;
+это не настоящий управленческий рычаг;
+либо семантика пока недостаточно надёжна.
+
+28. CAMPAIGN Actions
+Campaign — второй основной operational Action Target.
+
+29. CAMPAIGN_ADJUST_BUDGET
+Parameters:
+recommended_budget: Money
+
+budget_period:
+WEEKLY
+PROVIDER_DEFINED
+Я бы не строил contract вокруг dailyBudget, потому что Performance API в мае 2026 уже пометил его deprecated, в то время как weeklyBudget существует в campaign contracts. GitHub
+Semantic Action остаётся:
+ADJUST_BUDGET
+а execution adapter позже знает конкретный provider field.
+
+30. CAMPAIGN_CHANGE_STATE
+Parameters:
+desired_state:
+ACTIVE
+PAUSED
+Backend проверяет:
+current != desired.
+Current Performance API имеет отдельные activate/deactivate operations. GitHub
+
+31. CAMPAIGN_ADJUST_STRATEGY
+Parameters:
+desired_strategy
+Но здесь принципиальное ограничение:
+desired_strategy не является свободной строкой AI.
+Action Menu для конкретной Campaign формирует допустимый enum из canonical Campaign capability/provider contract.
+Если стратегия Campaign не поддерживает безопасное изменение:
+CAMPAIGN_ADJUST_STRATEGY
+вообще отсутствует в Action Menu.
+
+32. CAMPAIGN_ADJUST_PRODUCT_SET
+Parameters:
+add_sku_refs[]
+remove_sku_refs[]
+Условия:
+at least one list non-empty
+
+add ∩ remove = ∅
+Current Performance API действительно имеет separate add/update/delete product methods для Campaign. GitHub
+
+33. Очень важное правило для child SKU
+Если Action:
+CAMPAIGN_ADJUST_PRODUCT_SET
+хочет удалить:
+SKU 417
+то SKU 417 должен тоже быть:
+Materiality-selected main Entity
++
+present in Discovery/Deep Pack
+Почему?
+Иначе мы формально обойдём уже принятое правило:
+Evidence-only SKU не может внезапно стать объектом управления.
+Хотя target карточки будет Campaign, по факту мы всё равно меняем состояние SKU.
+
+34. То же правило универсально
+Я предлагаю зафиксировать:
+Если Action parameter содержит другую main Action Entity и предполагает изменение её состояния, эта entity тоже должна пройти Materiality.
+Supporting entities:
+Promotion
+Supply
+Search Query
+Warehouse
+могут использоваться как context без Materiality.
+Но если мы реально меняем SKU/Campaign:
+он должен быть main material entity.
+
+35. Итого Campaign v1
+CAMPAIGN_ADJUST_BUDGET
+CAMPAIGN_CHANGE_STATE
+CAMPAIGN_ADJUST_STRATEGY
+CAMPAIGN_ADJUST_PRODUCT_SET
+Product-level bid остаётся SKU Action.
+Это намного чище.
+
+36. Полный Action Catalog v1
+В итоге я рекомендую начать всего с 19 стабильных Action Types:
+Target
+Action Types
+Account
+ACCOUNT_RATING_REMEDIATION
+Category
+CATEGORY_REPRICING_PLAN, CATEGORY_REPLENISHMENT_PLAN, CATEGORY_ADVERTISING_REALLOCATION, CATEGORY_PROMOTION_PLAN, CATEGORY_ASSORTMENT_RATIONALIZATION
+SKU
+SKU_ADJUST_PRICE, SKU_INCREASE_REPLENISHMENT, SKU_REDUCE_REPLENISHMENT, SKU_ADJUST_AD_BID, SKU_CHANGE_AD_PARTICIPATION, SKU_JOIN_PROMOTION, SKU_LEAVE_PROMOTION, SKU_ADJUST_PROMOTION_PRICE, SKU_CHANGE_CATALOG_STATE
+Campaign
+CAMPAIGN_ADJUST_BUDGET, CAMPAIGN_CHANGE_STATE, CAMPAIGN_ADJUST_STRATEGY, CAMPAIGN_ADJUST_PRODUCT_SET
+Я специально предлагаю не раздувать v1 Catalog.
+Добавить новый Action Type впоследствии легко.
+Удалить 60 плохо спроектированных типов намного сложнее.
+
+37. Action Proposal Schema
+Deep фактически возвращает примерно:
+{
+  "action_type": "SKU_ADJUST_PRICE",
+
+  "target": {
+    "kind": "SKU",
+    "id": "417"
+  },
+
+  "parameters": {
+    "recommended_price": {
+      "amount": "2190",
+      "currency": "RUB"
+    }
+  },
+
+  "recommendation_ordinal": 2,
+
+  "finding_ordinals": [1],
+
+  "fact_handles": [
+    "f_021",
+    "ef_007",
+    "ef_012"
+  ]
+}
+
+38. Никаких system IDs от AI
+Модель не придумывает:
+action_id
+finding_id
+recommendation_id
+Она использует local ordinals внутри своего structured output:
+finding #1
+recommendation #2
+После validation backend создаёт настоящие IDs.
+
+39. Action Proposal не содержит отдельный title
+Например AI не нужно ещё раз писать:
+title:
+"Снизьте цену!"
+У нас уже есть:
+Action Type
+Recommendation statement
+Recommendation rationale
+Parameters
+Publication Projector позже может детерминированно показать:
+Скорректировать цену SKU
+и рядом:
+2 300 ₽ → 2 190 ₽.
+Это уменьшает лишний generated prose.
+
+40. Target-state лучше delta
+Для любых числовых Actions я предпочитаю:
+recommended_price = 2190
+а не:
+decrease_price_by = 4.78%
+Campaign:
+recommended_weekly_budget = 70000
+а не:
+increase_budget_by = 20%.
+Bid:
+recommended_bid = 25
+а не:
++5.
+Почему?
+Target state:
+однозначен;
+легче валидируется;
+легче отображается;
+безопаснее для будущего executor;
+не зависит от того, изменилось ли исходное значение между расчётами.
+
+41. Delta всегда считает backend
+Например:
+current price:
+2300
+
+recommended:
+2190
+Backend формирует:
+absolute_delta = -110
+pct_delta = -4.78%
+AI не пересчитывает.
+
+42. Numerical recommendations — только там, где schema разрешает
+Можно:
+SKU_ADJUST_PRICE
+→ recommended_price
+
+CAMPAIGN_ADJUST_BUDGET
+→ recommended_budget
+
+SKU_ADJUST_AD_BID
+→ recommended_bid
+Не нужно позволять числовое поле каждому Action на всякий случай.
+Например:
+ACCOUNT_RATING_REMEDIATION
+не имеет:
+recommended_rating = 96.4
+если seller напрямую этот rating не устанавливает.
+
+43. Не допускаем expected business outcome
+Action schema не содержит:
+expected_revenue_uplift
+expected_orders_growth
+expected_roi
+expected_profit
+success_probability
+Потому что у нас нет causal forecasting model.
+AI может сформулировать intended outcome в Recommendation:
+увеличить доступность товара.
+Но не:
+это принесёт +320 000 ₽.
+
+44. Required Evidence Policy
+Каждый Action Type имеет metadata:
+required_domains
+required_capabilities
+required_fact_classes
+allowed_readiness
+Например:
+SKU_ADJUST_PRICE
+минимально требует:
+current Price usable
+Sales Demand usable
+Price factual context
+
+SKU_INCREASE_REPLENISHMENT
+current Stock usable
+Sales Demand usable
+Supply context:
+required if applicable/available
+
+SKU_ADJUST_AD_BID
+Advertising READY/PARTIAL allowed by policy
+Campaign↔SKU relation known
+bid semantics known
+
+SKU_JOIN_PROMOTION
+Promotion capability usable
+candidate eligibility known
+
+45. Но backend не проверяет «правильность бизнес-решения»
+Это принципиально.
+Он не пишет:
+if coverageDays &lt; 3 {
+    allow replenishment
+}
+или:
+if drr &gt; 30 {
+    allow bid decrease
+}
+Это опять был бы semantic rule engine.
+Backend проверяет:
+есть ли данные, необходимые для такого решения?
+AI решает:
+оправдано ли само решение?
+
+46. Action Menu формируется run-specific
+Глобально у нас:
+19 types.
+Но конкретному seller/run Deep может увидеть только:
+12.
+Например:
+Promotions unavailable → promo actions исключены;
+Advertising unavailable → ad actions исключены;
+Campaign strategy unknown → strategy action исключён;
+SKU archived → desired_state=ARCHIVED недоступен как no-op;
+Promotion participant → JOIN недоступен, но LEAVE доступен.
+То есть Deep получает только фактически применимые действия.
+
+47. Это гораздо лучше, чем валидировать всё после
+Если:
+SKU 417 already participates in Promotion 91
+зачем вообще показывать AI:
+SKU_JOIN_PROMOTION Promotion 91
+Backend может заранее убрать невозможную комбинацию.
+
+48. Run-specific parameters тоже возможны
+Например для:
+CAMPAIGN_ADJUST_STRATEGY
+Action Menu может сказать:
+allowed desired_strategy:
+AUTO
+MANUAL
+только если такие transitions реально разрешены для этой Campaign.
+
+49. Conflict Groups
+Каждый Action Type должен знать, с чем он конфликтует.
+Например:
+SKU_REPLENISHMENT:{sku}
+не может одновременно содержать:
+INCREASE_REPLENISHMENT
+REDUCE_REPLENISHMENT
+
+50. Campaign State conflict
+Нельзя:
+CAMPAIGN_CHANGE_STATE → ACTIVE
+
+и
+
+CAMPAIGN_CHANGE_STATE → PAUSED
+в одном Deep output.
+
+51. Promotion membership
+Для:
+SKU 417 + Promotion 91
+нельзя одновременно:
+JOIN
+LEAVE.
+
+52. Price
+На один SKU:
+только один SKU_ADJUST_PRICE
+в одной Publication.
+
+53. Action normalized key
+Концептуально:
+action_type
++
+target
++
+action_context
+Например:
+SKU_ADJUST_AD_BID
++
+SKU 417
++
+Campaign 58
+или:
+SKU_JOIN_PROMOTION
++
+SKU 417
++
+Promotion 91.
+
+54. Exact duplicates — техническая ошибка
+Если Deep вернул два одинаковых:
+SKU_ADJUST_PRICE
+SKU 417
+2190 ₽
+мы не semantic-dedupe.
+Output:
+DUPLICATE_ACTION_PROPOSAL.
+Rerun — по bounded retry policy.
+
+55. Конфликтные Actions — тоже invalid
+Например:
+SKU_ADJUST_PRICE:
+2190
+
+SKU_ADJUST_PRICE:
+2500
+Backend не выбирает лучший.
+Не усредняет:
+2345.
+И не спрашивает модель repair-loop'ом.
+Output invalid.
+
+56. Action Grounding
+Каждый Action обязан иметь:
+1 Recommendation
+≥1 Finding
+≥1 Fact Handle
+И Recommendation должна иметь:
+actionability = ACTIONABLE_NOW.
+
+57. Fact Handles должны существовать именно в Deep Pack
+Нельзя:
+"по данным, которых в Pack нет"
+Все:
+f_*
+ef_*
+валидируются.
+
+58. Main target whitelist
+Мы уже утвердили:
+Action Target может быть только Materiality-selected main Entity из Discovery Pack.
+То есть:
+Evidence обнаружил SKU 999
+Deep может:
+упомянуть его;
+использовать как explanation;
+показать его вклад.
+Но:
+Action Target = SKU 999
+запрещён.
+
+59. И теперь добавляем child-state rule
+Если Action target:
+Campaign
+но parameters говорят:
+remove SKU 999
+то SKU 999 тоже должен пройти Materiality.
+Иначе это просто обход whitelist через parameters.
+
+60. Supporting entities — исключение
+Можно:
+SKU_JOIN_PROMOTION
+target = SKU 417
+promotion_ref = Promotion 91
+хотя Promotion 91 не Material Entity.
+Потому что Promotion не является самостоятельным Action Target.
+То же:
+Supply
+Search Query
+Warehouse
+может быть context.
+
+61. Action order = semantic priority
+Я не рекомендую ещё один:
+HIGH
+MEDIUM
+LOW
+или:
+priority_score = 87.
+Deep возвращает Actions в порядке:
+1
+2
+3
+...
+Первый — наиболее важное предлагаемое действие.
+Это достаточно.
+
+62. Почему не вводим severity
+У нас уже есть:
+Materiality;
+Finding ordering;
+Recommendation;
+Action ordering.
+Если ещё добавить:
+severity
+priority
+importance_score
+urgency_score
+получим пять конкурирующих систем важности.
+Не нужно.
+
+63. Timing можно добавить позже
+Например:
+within 24h
+within 7d
+но сейчас я бы не включал это в v1 Action Contract.
+Пока нет достаточно хорошей методологии, как AI должен выбирать срок.
+Исключение — provider explicit deadline, который можно показать как factual context.
+
+64. Actions не должны быть привязаны к UI
+Deep Action Proposal:
+SKU_ADJUST_PRICE
+target SKU417
+recommended_price 2190
+Publication Projector позже решит, как показать:
+Top Actions
+или:
+SKU page
+или:
+Actions page.
+
+65. Actions и Ozon write endpoints — раздельные contracts
+Я предлагаю сразу предусмотреть отдельный будущий registry:
+Action Type
+↓
+Execution Mapping
+↓
+Provider Command
+Например:
+SKU_ADJUST_PRICE v1
+↓
+OZON_SELLER_PRICE_EXECUTOR_v3
+↓
+POST /v1/product/import/prices
+Но Execution Mapping не входит в Deep Analysis Contract.
+
+66. Почему versioned execution mapping обязателен
+Performance API хорошо демонстрирует проблему: методы/поля Campaign меняются, bid contracts обновляются, dailyBudget становится deprecated. Если AI Action называется по текущему API field, придётся менять AI architecture при каждом Ozon release. GitHub
+Правильно:
+CAMPAIGN_ADJUST_BUDGET
+стабилен.
+А:
+Performance API mapping v7
+может меняться.
+
+67. Future Execution Safety
+Даже когда появятся write-actions, я бы зафиксировал уже сейчас:
+Published Action никогда не является готовой командой Ozon.
+Перед write:
+user explicitly confirms
+↓
+fetch current state
+↓
+revalidate capability
+↓
+revalidate provider constraints
+↓
+compare current vs analysis state
+↓
+build provider command
+↓
+execute
+↓
+read-after-write confirmation
+Иначе stale AI recommendation может изменить уже изменившийся кабинет.
+
+68. High-impact Actions
+Особенно:
+archive SKU
+pause Campaign
+leave Promotion
+reduce replenishment
+в будущем должны иметь более строгую confirmation policy.
+Но это execution-layer metadata, не AI semantic priority.
+
+69. execution_support
+В Catalog я бы сразу хранил:
+MANUAL_ONLY
+API_PATH_VERIFIED
+API_PATH_POSSIBLE
+Например:
+SKU_ADJUST_PRICE
+→ API_PATH_VERIFIED
+
+CAMPAIGN_CHANGE_STATE
+→ API_PATH_VERIFIED
+
+CATEGORY_REPRICING_PLAN
+→ MANUAL_ONLY
+Но в v1:
+execution_enabled = false
+для всех.
+
+70. Deep не нужно знать, какой endpoint существует
+AI должен решить:
+какое управленческое действие обосновано?
+Не:
+какой REST endpoint вызвать?
+
+71. Action Type Registry
+Физически:
+analysis.action_type_definitions
+analysis.action_type_versions
+analysis.action_catalog_versions
+
+72. action_type_definitions
+id
+action_type_key
+target_kind
+action_family
+Stable.
+
+73. action_type_versions
+action_type_definition_id
+
+version
+
+parameter_schema
+
+allowed_related_entity_kinds
+
+required_capability_policy
+
+required_context_policy
+
+conflict_group
+
+execution_support
+
+execution_risk
+
+validation_policy
+
+effective_from
+
+74. Catalog Version
+Bundle:
+action_catalog_v1
+содержит exact Action Type versions, разрешённые конкретному Deep Prompt generation.
+Deep Run уже хранит:
+action_catalog_version.
+
+75. Future execution mapping отдельно
+Например:
+integration.action_execution_mappings
+Fields:
+action_type_version
+
+provider
+provider_contract_version
+
+executor_key
+
+capability_required
+
+status
+Не смешивать с analytical catalog.
+
+76. Deep Action Proposal persistence
+Мы уже предусмотрели:
+analysis.deep_action_proposals
+Добавим нормализованные relations:
+analysis.deep_action_proposal_findings
+analysis.deep_action_proposal_fact_basis
+analysis.deep_action_proposal_related_entities
+Type-specific parameters можно хранить:
+parameters_jsonb
+но строго валидировать против immutable action_type_version.parameter_schema.
+Это один из немногих случаев, где JSONB оправдан: payload genuinely varies by closed Action Type, а schema versioned.
+
+77. Никакой generic arbitrary JSON
+Разница:
+Плохо:
+{
+  "action_type": "anything",
+  "params": {
+    "whatever": "whatever"
+  }
+}
+Правильно:
+Action Type = known version
+↓
+strict parameter JSON Schema
+↓
+validated JSONB
+
+78. Action Validator Layers
+Я вижу пять последовательных validation levels.
+Level 1 — Schema
+JSON соответствует Structured Output contract.
+Level 2 — References
+Target/Finding/Recommendation/Facts существуют.
+Level 3 — Catalog
+Action Type доступен target.
+Level 4 — State/parameters
+Текущий factual state совместим.
+Level 5 — Cross-action invariants
+Нет duplicates/conflicts.
+
+79. Что backend НЕ делает
+Он не решает:
+эта рекомендация слишком агрессивная;
+это плохая цена;
+лучше не выключать рекламу;
+SKU заслуживает архивирования.
+Это semantic judgment Deep.
+
+80. Что backend делает
+Например:
+AI recommends price 0 ₽
+INVALID.
+AI recommends Campaign PAUSED,
+но Campaign already PAUSED
+INVALID_NOOP.
+AI wants JOIN Promotion,
+but SKU already participant
+INVALID_STATE.
+AI wants bid 5 ₽,
+known provider minimum = 10 ₽
+INVALID_PROVIDER_BOUND.
+Вот это корректные технические validations.
+
+81. Provider-defined limits важны
+Performance API сейчас имеет методы для получения limit/min/competitive bid context, поэтому в будущем known provider constraints можно использовать для technical Action validation. GitHub
+Но:
+конкурентная ставка Ozon
+не означает:
+Aivion обязан рекомендовать именно её.
+Это всего лишь provider fact/bound/context.
+
+82. Example: Price Action
+Facts:
+current Price:
+2300
+
+min allowed:
+1800
+
+Price changed:
+2000 → 2300
+
+Sales:
+100 → 70
+
+Deep Finding:
+Price is a plausible contributor,
+but not proven cause.
+Recommendation:
+Рассмотреть частичный возврат цены.
+Deep Action:
+{
+  "action_type": "SKU_ADJUST_PRICE",
+  "target": "SKU:417",
+  "parameters": {
+    "recommended_price": "2190 RUB"
+  }
+}
+Backend:
+2190 &gt; 0 ✅
+2190 &gt;= 1800 ✅
+2190 != 2300 ✅
+SKU material ✅
+Price capability READY ✅
+Finding exists ✅
+Recommendation actionable ✅
+→ VALID.
+
+83. Example: invalid Price Action
+AI:
+recommended_price = 1700
+Known:
+min_allowed = 1800.
+Backend:
+INVALID_PROVIDER_BOUND
+Не исправляет на:
+1800.
+
+84. Stock example
+Facts:
+Sales:
+10 units/day
+
+Stock:
+20
+
+open inbound:
+0
+Recommendation:
+Пополнить SKU.
+Action:
+SKU_INCREASE_REPLENISHMENT
+
+recommended_units:
+150
+Допустимо.
+Но это означает:
+AI рекомендует пополнение 150 единиц.
+Не:
+математически оптимальный запас = 150.
+
+85. Advertising example
+Campaign 58:
+SKU 417 bid = 30
+
+provider min bid = 10
+
+Ads history...
+Deep:
+SKU_ADJUST_AD_BID
+
+campaign = 58
+
+recommended_bid = 24
+Backend проверяет bounds и Campaign↔SKU relation.
+
+86. Promotion example
+SKU:
+candidate Promotion 91
+not participant
+
+action price context:
+1990
+Action:
+SKU_JOIN_PROMOTION
+promotion = 91
+recommended_action_price = 1990
+Валидно.
+Если SKU уже participant:
+INVALID_STATE.
+
+87. Category example
+Category «Кофемашины»:
+несколько значимых SKU:
+Sales ↓
+
+у нескольких одновременно:
+Price ↑
+Deep считает ситуацию coordinated.
+Action:
+CATEGORY_REPRICING_PLAN
+
+direction = LOWER
+
+affected_material_skus:
+417
+522
+816
+Это одна category-level Action.
+При этом Deep может дополнительно сформировать конкретные SKU price Actions только там, где хватает Evidence для exact price.
+
+88. Campaign example
+Campaign 58
+
+weekly budget:
+100 000 ₽
+
+spend:
+растёт
+
+attributed performance:
+снижается
+Deep может вернуть:
+CAMPAIGN_ADJUST_BUDGET
+
+recommended_budget:
+75 000 ₽ / week
+или:
+CAMPAIGN_CHANGE_STATE
+→ PAUSED
+Но не оба одновременно без ясной semantic необходимости; prompt/evals должны избегать бессмысленной redundancy.
+
+89. Pause + Budget conflict
+Я бы не делал технически их mutually exclusive.
+Почему?
+Модель теоретически может рекомендовать:
+приостановить сейчас и при повторном запуске использовать меньший budget.
+Но поскольку мы не моделируем action sequencing v1, в v1 лучше prompt'ом требовать выбрать одно непосредственное действие.
+Если такие конфликты начнут систематически появляться в evals, добавим sequence только тогда.
+Не стоит сейчас переусложнять.
+
+90. Action Contract не поддерживает sequences v1
+Нет:
+Step 1
+Step 2
+Step 3
+Один Action = одно управленческое изменение/план.
+Если требуется несколько независимых:
+несколько Actions.
+
+91. Не поддерживаем conditional Actions
+Не:
+Если завтра продажи не вырастут — уменьшить цену.
+Это скорее future automation/rule.
+V1 Action — действие, которое Deep считает ACTIONABLE_NOW.
+
+92. Не поддерживаем automatic recurring Actions
+Например:
+каждый понедельник увеличивать bid.
+Нет.
+Другой продуктовый слой.
+
+93. Actions могут быть positive-opportunity driven
+Например:
+SKU Sales +100%
+Stock coverage 3 days
+Action:
+SKU_INCREASE_REPLENISHMENT.
+То есть Actions не равны «исправлению проблем».
+Это обязательно должно быть в Deep evals.
+
+94. Finance/Funnel/Search как evidence for Actions
+Например Search ухудшился.
+Это может поддерживать:
+SKU_ADJUST_AD_BID
+или Promotion/Price recommendation.
+Но нет:
+SEARCH_ACTION.
+Finance может поддержать решение сократить неэффективную Campaign, но нет:
+FINANCE_ACTION.
+Это сохраняет управленческую taxonomy чистой.
+
+95. Action contract и Publication
+После validation получаем:
+ValidatedActionProposal
+И только он может попасть в:
+Publication.
+Raw invalid AI Action никогда не появляется пользователю.
+
+96. Publication Projector затем создаёт UI
+Например validated:
+SKU_ADJUST_PRICE
+SKU417
+2300 → 2190
+Projection:
+Изменить цену SKU 417
+
+Сейчас: 2 300 ₽
+Рекомендуется: 2 190 ₽
+
+Почему:
+...
+Текст «почему» берётся из Recommendation/Finding.
+Не генерируется новым AI.
+
+97. Chat использует те же Actions
+Chat может ответить:
+Какие действия самые важные?
+из:
+Published Actions.
+Не запускает другой Action-generation prompt.
+
+98. Один источник истины для Actions
+Deep Analysis
+→ Validated Action Proposals
+→ Publication
+Dashboard, Actions page и Chat лишь читают это.
+
+99. Acceptance Gates
+Я бы ввёл:
+Gate
+Что защищает
+action_closed_catalog_gate
+AI не придумывает type
+action_target_whitelist_gate
+только 4 target kinds
+action_material_target_gate
+target прошёл Materiality
+action_child_materiality_gate
+изменяемые child entities тоже Material
+action_recommendation_chain_gate
+Action → Recommendation
+action_finding_chain_gate
+Recommendation → Finding
+action_fact_grounding_gate
+Action grounded
+action_actionable_now_gate
+Monitor не создаёт Action
+action_parameter_schema_gate
+typed params
+action_provider_bound_gate
+известные limits соблюдены
+action_noop_gate
+действие реально меняет state
+action_state_applicability_gate
+JOIN/LEAVE и т.п. валидны
+action_duplicate_gate
+нет exact duplicate
+action_conflict_gate
+нет противоположных Actions
+action_currency_gate
+Money корректны
+action_no_forecast_gate
+нет unsupported uplift
+action_no_content_v1_gate
+нет card optimization без Content
+action_no_warehouse_target_gate
+warehouse/cluster не target
+action_stock_supply_semantics_gate
+replenishment ≠ stock fake update
+action_execution_disabled_v1_gate
+никакого write в Ozon
+action_catalog_version_gate
+exact contract reproducible
+
+100. Отдельный synthetic test — маленький SKU
+SKU:
+Sales:
+100 ₽ → 20 ₽
+
+Price changed
+Если он каким-то образом оказался в Deep как related Evidence, но не Material main:
+Action Target = SKU
+должен быть отвергнут.
+
+101. Evidence-only SKU test
+Category Evidence раскрывает SKU 999.
+Deep:
+Finding:
+SKU999 contributed to category movement.
+VALID.
+Deep:
+Action:
+SKU999 adjust price.
+INVALID_TARGET_NOT_MATERIAL.
+Это как раз наше последнее зафиксированное решение.
+
+102. Unsupported Content test
+Funnel deteriorates.
+Deep:
+Recommendation:
+возможна проблема PDP, но Content Evidence отсутствует.
+Допустимо с limitation.
+Action:
+CHANGE_IMAGES
+невозможен: такого type просто нет.
+
+103. Stable seller test
+Нет meaningful recommendations.
+Expected:
+actions = []
+Это валидно.
+
+104. Action Catalog расширяется только вместе с Evidence
+Новый Action Type нельзя добавить просто потому, что:
+было бы полезно.
+Например хотим:
+SKU_IMPROVE_CONTENT
+Сначала должны появиться:
+Canonical Content domain
+↓
+Factual API
+↓
+Landscape/Evidence
+↓
+Deep evals
+и только потом Action.
+Это я бы сделал фундаментальным governance rule.
+
+105. Архитектурный контракт Action Taxonomy / Contract
+Предлагаю зафиксировать:
+Action Aivion является закрытым, versioned и fact-grounded управленческим предложением, создаваемым исключительно Deep Analysis из Recommendation со статусом ACTIONABLE_NOW. V1 Actions являются read-only recommendations и никогда непосредственно не вызывают provider write API. Action Proposal не является executable command; будущая execution architecture обязана отдельно подтвердить пользователя, перечитать current state и повторно проверить provider constraints.
+Action Target v1 ограничен Account, seller-bearing leaf Category, SKU и Campaign. Target должен быть Materiality-selected main entity и присутствовать в Discovery Pack. Entity, раскрытая только Evidence, может участвовать в Findings, но не может стать Action Target. Если Action параметр фактически изменяет другую main Action Entity, эта entity также должна пройти Materiality; supporting entities Promotion/Supply/Search Query/Warehouse могут использоваться только как factual/context refs.
+Deep получает run-specific Action Menu, построенное backend из versioned Action Catalog, Target type, Capabilities и factual state. AI не может изобретать Action Types или произвольные parameters. Каждый Action Type имеет stable business-semantic key, target kind, action family, typed parameter schema, applicability/capability requirements, conflict group и optional future execution metadata. Ozon endpoint names не являются Action identities.
+V1 Catalog intentionally small: Account Health remediation; coordinated Category pricing/replenishment/advertising/promotion/assortment plans; concrete SKU price/replenishment/advertising/promotion/catalog-state actions; Campaign budget/state/strategy/product-set actions. Content/SEO, warehouse/cluster, arbitrary Finance/Funnel/Search actions отсутствуют до появления соответствующей canonical factual architecture.
+Числовые Actions используют recommended target state, а не дублируют current/delta calculations. Current values и deltas принадлежат backend. Known provider bounds, currency, state transitions, membership/eligibility и no-op conditions валидируются технически. Backend не решает, является ли бизнес-рекомендация хорошей, не меняет recommended values и не semantic-repair'ит output.
+Каждый Action имеет обязательную chain Action → Recommendation → Finding → Fact Handles → Factual API provenance. Action не хранит unsupported quantitative expected effect, revenue uplift, ROI или self-reported confidence. Actions globally ordered Deep Analysis, но отдельные HIGH/MEDIUM/LOW severity/priority scores v1 не вводятся.
+Action Type и Provider Execution Mapping являются разными versioned layers. Текущие Ozon write capabilities подтверждают наличие будущих execution paths для Price, Campaign, Promotion и Supply операций, однако API contracts быстро меняются; semantic Action остаётся стабильным, execution adapter эволюционирует независимо.
+
+Один продуктовый вопрос я бы сейчас действительно закрыл
+Он уже относится не к AI reasoning, а к тому, как Actions будут жить между ежедневными публикациями.
+Пример:
+20 августа Aivion создаёт:
+SKU 417
+SKU_INCREASE_REPLENISHMENT
+21 августа новый анализ снова приходит к:
+SKU 417
+SKU_INCREASE_REPLENISHMENT
+Я не рекомендую показывать пользователю две разные одинаковые карточки:
+20.08 Пополнить SKU 417
+21.08 Пополнить SKU 417
+Я предлагаю будущую модель:
+Action Case
+SKU417 + INCREASE_REPLENISHMENT
+        │
+        ├─ Proposal 20.08
+        ├─ Proposal 21.08
+        └─ Proposal 22.08
+Пользователь видит одно открытое действие, а новые Publications обновляют его factual basis и последнюю рекомендацию.
+Если пользователь отметил его:
+DONE
+а через некоторое время ситуация снова возникла, тогда создаётся новый occurrence, а не оживляется старая выполненная задача.
+То же для:
+DISMISSED
+— старую карточку не переписываем задним числом; новая действительно возникшая ситуация может позднее породить новый occurrence.
+Я рекомендую именно такую persistent Action Case модель вместо независимого списка Actions каждой ежедневной Publication. Если согласен — зафиксируем это вместе с Action Contract, и следующим этапом можно проектировать Publication Model + Projection, где как раз свяжем Deep Result, Actions и будущие Dashboard blocks.
+Я согласился с рекомендацией
+Да, этот момент требует отдельного дополнения к ТЗ. После более критического разбора я бы немного уточнил предыдущую модель: объединение нескольких SKU должно существовать, но не на уровне канонического Action. Канонический Action остаётся атомарным, а общий смысл объединяется на уровне multi-entity Recommendation, после чего Publication формирует из связанных Actions Action Group для пользователя.
+Это принципиально важное различие.
+Дополнение к ТЗ: Multi-entity Recommendations и группировка Actions
+Цель доработки
+Обеспечить корректную обработку ситуаций, когда Deep Analysis формирует одно общее управленческое решение, применимое сразу к нескольким однотипным сущностям, например:
+пополнить 4 SKU с отсутствующим остатком;
+снизить цены у 3 SKU;
+увеличить рекламные ставки у 5 SKU одной кампании;
+исключить несколько SKU из одной акции;
+архивировать группу неактуальных SKU.
+При этом необходимо сохранить:
+независимое factual grounding каждого SKU;
+отдельные рекомендуемые параметры;
+отдельный жизненный цикл каждого действия;
+корректную дедупликацию Actions между публикациями;
+возможность частичного выполнения;
+возможность будущего batch execution через Ozon API;
+удобное отображение пользователю без десятков однотипных карточек.
+
+1. Основной архитектурный принцип
+Необходимо различать три уровня:
+Recommendation
+    ↓
+Atomic Actions
+    ↓
+Action Group / UI Projection
+Например Deep Analysis определил:
+SKU 417 → остаток 0 → пополнить 120 шт.
+SKU 522 → остаток 0 → пополнить 40 шт.
+SKU 816 → остаток 0 → пополнить 250 шт.
+SKU 901 → остаток 0 → пополнить, qty определить нельзя
+Смысловая рекомендация одна:
+Пополнить четыре значимых SKU с отсутствующим sellable stock и сохраняющимся спросом.
+Но канонически создаются четыре Actions:
+SKU_INCREASE_REPLENISHMENT → SKU 417
+SKU_INCREASE_REPLENISHMENT → SKU 522
+SKU_INCREASE_REPLENISHMENT → SKU 816
+SKU_INCREASE_REPLENISHMENT → SKU 901
+А пользователю они могут отображаться одной карточкой:
+Пополнить 4 товара без остатков
+с раскрывающимся списком конкретных SKU.
+
+2. Один Action по-прежнему имеет ровно один основной target
+Уже утверждённое правило необходимо сохранить:
+Action.target = exactly 1 Action Target
+Допустимые target:
+ACCOUNT
+LEAF_CATEGORY
+SKU
+CAMPAIGN
+Поэтому запрещён контракт вида:
+{
+  "action_type": "SKU_INCREASE_REPLENISHMENT",
+  "targets": [
+    "SKU417",
+    "SKU522",
+    "SKU816",
+    "SKU901"
+  ]
+}
+Для обычного SKU Action.
+Почему это важно: у каждого SKU собственные данные, Recommendation parameters, Action Case и eventual execution result.
+
+3. Почему нельзя хранить «пополнить 4 SKU» одним Action
+Сегодня:
+SKU 417 → нужно +120
+SKU 522 → нужно +40
+SKU 816 → нужно +250
+SKU 901 → quantity неизвестно
+Завтра:
+SKU 417 → уже пополнен
+SKU 522 → всё ещё требует пополнения
+SKU 816 → всё ещё требует пополнения
+SKU 901 → пользователь отклонил рекомендацию
+Если всё было одним Action, возникает неразрешимая неоднозначность:
+Action выполнен или нет?
+Для четырёх атомарных Actions ответ очевиден.
+
+4. Изменение Deep Analysis Recommendation Contract
+Вот здесь предыдущий контракт нужно расширить.
+Ранее Recommendation фактически подразумевала один target_entity.
+Этого недостаточно.
+Recommendation должна поддерживать:
+scope_type:
+SINGLE_ENTITY
+ENTITY_SET
+При SINGLE_ENTITY:
+subject_entities = [SKU417]
+При ENTITY_SET:
+subject_entities = [
+    SKU417,
+    SKU522,
+    SKU816,
+    SKU901
+]
+
+5. Ограничение ENTITY_SET v1
+Я рекомендую в v1 разрешить только однородный набор сущностей.
+Например:
+4 × SKU
+или:
+3 × Campaign
+но не:
+SKU417
+Campaign58
+Category12
+в одной multi-entity Recommendation.
+Если бизнес-ситуация связывает несколько типов сущностей, Deep может создать несколько Findings/Recommendations, связанных общим reasoning.
+Это существенно упрощает контракт.
+
+6. Все участники ENTITY_SET должны пройти Materiality
+Наше последнее правило полностью сохраняется.
+Например Deep хочет сформировать:
+Пополнить SKU 417, 522, 816 и 999.
+Backend проверяет:
+417 → Material Entity ✅
+522 → Material Entity ✅
+816 → Material Entity ✅
+999 → появился только Evidence ❌
+Такой набор недопустим.
+SKU 999 можно использовать в Finding как related evidence, но нельзя включать в управленческую Recommendation/Action.
+
+7. Multi-entity Recommendation не является Action
+Например:
+Recommendation R7
+
+scope = ENTITY_SET
+
+subjects:
+SKU417
+SKU522
+SKU816
+SKU901
+
+statement:
+«Пополнить товары с отсутствующим запасом
+и сохраняющимся спросом»
+
+actionability:
+ACTIONABLE_NOW
+Из неё могут появиться:
+A1 → SKU417
+A2 → SKU522
+A3 → SKU816
+A4 → SKU901
+Все четыре ссылаются:
+recommendation_ref = R7
+Но каждый имеет собственные:
+finding_refs
+fact_handles
+parameters
+target
+
+8. Grounding остаётся индивидуальным
+Общий Recommendation не означает, что можно перестать доказывать необходимость каждого SKU.
+Например:
+Action A1:
+SKU417
+recommended_units = 120
+
+facts:
+stock=0
+recent demand=...
+coverage=0
+Action A2:
+SKU522
+recommended_units = 40
+
+facts:
+stock=0
+recent demand=...
+coverage=0
+И так далее.
+Общая формулировка:
+Пополнить товары без остатков
+не заменяет individual factual basis.
+
+9. Один Recommendation может ссылаться на несколько Findings
+Например:
+Finding F1 → SKU417
+Finding F2 → SKU522
+Finding F3 → SKU816
+Finding F4 → SKU901
+Recommendation:
+R7
+→ F1
+→ F2
+→ F3
+→ F4
+А каждый Action дополнительно указывает те Findings, которые относятся именно к его target.
+
+10. Action Group не должен становиться новым Action Target
+Это особенно важно.
+Не вводим:
+Action Target = SKU_GROUP
+или:
+Action Target = PRODUCT_SET
+У нас по-прежнему только четыре разрешённых target.
+Action Group — контейнер/проекция над уже существующими Actions.
+
+11. Где формируется Action Group
+Я предлагаю не заставлять AI возвращать отдельный ActionGroup object.
+Deep уже сказал всё необходимое:
+Recommendation R7
+    ↓
+A1
+A2
+A3
+A4
+Publication Projector детерминированно видит:
+один Recommendation
++
+одинаковый Action Type
++
+несколько targets
+и создаёт:
+Action Group
+Таким образом backend ничего семантически не придумывает.
+
+12. Условия автоматической группировки
+Actions объединяются в одну группу только при одновременном выполнении следующих условий:
+same Recommendation
++
+same Action Type
++
+same target kind
++
+compatible action context
++
+member count &gt;= 2
+Это очень важное правило.
+
+13. Почему недостаточно просто одинакового Action Type
+Допустим есть:
+SKU417 → снизить цену
+потому что Price выросла перед снижением Sales.
+И:
+SKU999 → снизить цену
+потому что товар участвует в другой ценовой механике и текущая цена выбивается из недавнего контекста.
+Это две разные Recommendations.
+Даже если обе имеют:
+SKU_ADJUST_PRICE
+их не надо автоматически объединять в:
+Снизить цены 2 товаров.
+Иначе пользователь потеряет смысл, почему каждое действие появилось.
+Поэтому главный grouping anchor:
+shared recommendation_ref
+
+14. Нельзя делать semantic grouping в backend
+Backend не должен пытаться определить:
+Эти четыре рекомендации похожи по тексту на 89%, объединим.
+Никаких embeddings, similarity или rules по словам.
+Deep сам формирует общую Recommendation, если действительно считает Actions частью одного управленческого решения.
+Backend лишь реализует эту структуру.
+
+15. Совместимый Action Context
+Некоторые Actions требуют дополнительного context.
+Например:
+SKU_ADJUST_AD_BID
+должен иметь:
+campaign_ref
+Поэтому:
+SKU417 → Campaign58
+SKU522 → Campaign58
+можно сгруппировать.
+Но:
+SKU417 → Campaign58
+SKU522 → Campaign79
+в одной Action Group я бы не объединял.
+Несмотря на одинаковый Action Type.
+
+16. Promotion Actions
+Для:
+SKU_JOIN_PROMOTION
+одна группа должна относиться к одной Promotion.
+Можно:
+Добавить 5 товаров в акцию «Распродажа августа».
+Нельзя:
+Добавить 5 товаров в акции
+если фактически:
+3 → Promotion91
+2 → Promotion105
+Это две группы.
+
+17. Catalog state
+Для:
+SKU_CHANGE_CATALOG_STATE
+одинаковым должен быть desired_state.
+Можно:
+Архивировать 5 товаров.
+Но нельзя одной группой:
+3 → ARCHIVED
+2 → ACTIVE
+
+18. Price Actions
+Для Price группировать можно даже при разных recommended prices.
+Например:
+SKU417:
+2300 → 2190
+
+SKU522:
+1490 → 1390
+
+SKU816:
+5900 → 5490
+UI:
+Скорректировать цены 3 товаров
+А внутри пользователь видит индивидуальное значение для каждого.
+
+19. Replenishment
+Аналогично:
+Пополнить 4 товара
+может содержать:
+SKU417 → 120 шт.
+SKU522 → 40 шт.
+SKU816 → 250 шт.
+SKU901 → quantity не определено
+Группа не требует одинаковых parameters.
+Она требует одинакового управленческого намерения.
+
+20. Не группируем разные Action Types
+Даже если Recommendation одна.
+Например Deep сформировал Recommendation:
+Усилить поддержку быстрорастущих товаров.
+И создал:
+SKU417 → INCREASE_REPLENISHMENT
+SKU522 → INCREASE_REPLENISHMENT
+
+SKU417 → ADJUST_AD_BID
+SKU522 → ADJUST_AD_BID
+Это не одна гигантская карточка.
+Publication формирует:
+Group 1:
+Пополнить 2 товара
+
+Group 2:
+Изменить рекламные ставки 2 товаров
+Обе могут ссылаться на один Recommendation.
+Так гораздо понятнее.
+
+21. Не вводим вложенные группы
+V1:
+Action Group
+    ↓
+Atomic Actions
+и всё.
+Никаких:
+Category Group
+  ↓
+Replenishment Group
+    ↓
+Subgroup by warehouse
+      ↓
+Actions
+Это быстро сделает Actions UI неуправляемым.
+
+22. Разница между Action Group и Category Action
+Это один из самых важных моментов.
+Grouped SKU Actions
+Пополнить SKU417, SKU522, SKU816, SKU901.
+Смысл:
+выполнить однотипное действие отдельно над четырьмя конкретными SKU.
+Поэтому:
+4 × SKU Actions
+
+Category Action
+Пересмотреть стратегию пополнения категории «Кофемашины».
+Это уже решение уровня:
+Category
+и поэтому:
+1 × CATEGORY_REPLENISHMENT_PLAN
+
+23. Как выбирать между ними
+Если Recommendation можно полностью разложить:
+что сделать с SKU417
+что сделать с SKU522
+что сделать с SKU816
+и каждый пункт имеет самостоятельное выполнение — это SKU Actions + Group.
+Если смысл рекомендации:
+изменить управленческий подход к категории в целом,
+то это Category Action.
+
+24. Не надо создавать оба уровня без необходимости
+Плохой output:
+CATEGORY_REPLENISHMENT_PLAN
+Category X
+
++
+
+SKU_INCREASE_REPLENISHMENT 417
+SKU_INCREASE_REPLENISHMENT 522
+SKU_INCREASE_REPLENISHMENT 816
+если Category Action просто повторяет три SKU Actions.
+Deep prompt должен избегать такой redundancy.
+Category Action нужен, когда в нём действительно есть дополнительный category-level смысл.
+Это semantic quality rule, который проверяем evals, а не backend.
+
+25. Campaign Action — отдельный случай
+Например:
+CAMPAIGN_ADJUST_PRODUCT_SET
+имеет:
+target = Campaign58
+
+remove_skus:
+417
+522
+816
+Это один Action, несмотря на три SKU.
+Почему?
+Потому что непосредственно изменяемый бизнес-объект — Campaign.
+Управленческая операция:
+изменить product set Campaign58.
+SKU здесь являются параметрами Campaign Action.
+
+26. При этом child Materiality rule сохраняется
+Если Campaign Action меняет SKU:
+417
+522
+816
+все они должны быть Material Entities.
+Иначе Campaign Action превращается в обход Materiality.
+
+27. Persistent Action Case остаётся атомарным
+Это ещё одна фундаментальная часть.
+Для примера:
+Action Case C1:
+SKU417 + INCREASE_REPLENISHMENT
+
+C2:
+SKU522 + INCREASE_REPLENISHMENT
+
+C3:
+SKU816 + INCREASE_REPLENISHMENT
+
+C4:
+SKU901 + INCREASE_REPLENISHMENT
+Не создаём один:
+Action Case:
+SKUs [417,522,816,901]
+
+28. Action Group не имеет собственного независимого lifecycle
+Это изменение относительно самого первого упрощённого объяснения, и я считаю его правильным.
+Canonical statuses существуют у child Action Cases.
+Например:
+SKU417 → DONE
+SKU522 → OPEN
+SKU816 → OPEN
+SKU901 → DISMISSED
+Группа лишь отображает:
+2 из 4 требуют действия.
+Не существует отдельной истины:
+group.status = ?
+которая могла бы конфликтовать с дочерними Actions.
+
+29. Статус группы вычисляется
+Для UI можно показать:
+4 actions
+
+2 open
+1 done
+1 dismissed
+Но это derived projection.
+Не отдельный mutable business state.
+
+30. Состав группы может меняться между Publications
+Это очень важный кейс.
+20 августа:
+Group:
+417
+522
+816
+901
+21 августа:
+417 → уже не требует Action
+522 → требует
+816 → требует
+901 → требует
+Текущая проекция:
+Пополнить 3 товара.
+При этом историческая Publication 20 августа остаётся неизменной и продолжает показывать четыре.
+
+31. Поэтому Action Group не надо делать долгоживущей canonical сущностью
+Это важный результат анализа.
+Долгоживущая сущность:
+Action Case
+Группа:
+Publication/UI Projection
+Потому что её membership естественным образом зависит от текущей Publication.
+
+32. Нужна корректировка идентичности Action Case
+Многосущностный сценарий выявляет ещё одну важную деталь.
+Недостаточно идентифицировать Case только:
+target + action_type
+Например:
+SKU417 + SKU_ADJUST_AD_BID
+может относиться к:
+Campaign58
+или:
+Campaign79.
+Это совершенно разные Actions.
+Поэтому canonical Action Case identity должна быть:
+seller
++
+action_type
++
+target
++
+normalized_action_context
++
+intent_signature
+
+33. Что такое normalized_action_context
+Например:
+SKU_ADJUST_AD_BID:
+campaign=58
+SKU_JOIN_PROMOTION:
+promotion=91
+Для обычной Price Action:
+context = none
+
+34. Что такое intent_signature
+Нужно также различать противоположные рекомендации.
+Например сегодня:
+SKU_ADJUST_PRICE:
+2300 → 2190
+а через неделю:
+SKU_ADJUST_PRICE:
+2100 → 2400
+Это уже не продолжение старого Action Case в нормальном продуктовом смысле.
+Поэтому backend может детерминированно вычислять:
+PRICE:
+INCREASE / DECREASE
+
+BUDGET:
+INCREASE / DECREASE
+
+BID:
+INCREASE / DECREASE
+
+CAMPAIGN_STATE:
+ACTIVE / PAUSED
+
+CATALOG_STATE:
+ACTIVE / ARCHIVED
+
+35. Зачем это нужно
+Если recommendation остаётся:
+price decrease
+но число меняется:
+2190 → 2150
+это тот же Action Case с обновлённым proposal.
+Если направление полностью поменялось:
+DECREASE
+→
+INCREASE
+старый Case не должен незаметно превратиться в противоположное действие.
+Это уже новый occurrence.
+
+36. Для такого случая нужен system state SUPERSEDED
+Я рекомендую предусмотреть его при проектировании полного Action Case lifecycle.
+Например:
+old Action Case:
+Decrease price
+→ SUPERSEDED
+
+new Action Case:
+Increase price
+→ OPEN
+Это лучше, чем переписывать историю старого Action.
+Сам полный lifecycle логичнее окончательно закрыть на Publication/Actions persistence этапе.
+
+37. Как Deep должен возвращать multi-entity Recommendation
+Упрощённо:
+{
+  "scope_type": "ENTITY_SET",
+  "subject_entities": [
+    "SKU417",
+    "SKU522",
+    "SKU816",
+    "SKU901"
+  ],
+  "statement": "Пополнить товары с отсутствующим запасом и сохраняющимся спросом.",
+  "actionability": "ACTIONABLE_NOW",
+  "finding_refs": [1, 2, 3, 4]
+}
+Далее:
+Action 1 → SKU417 → Recommendation R7
+Action 2 → SKU522 → Recommendation R7
+Action 3 → SKU816 → Recommendation R7
+Action 4 → SKU901 → Recommendation R7
+
+38. Publication Projector создаёт group
+Алгоритм полностью детерминированный:
+Validated Actions
+        ↓
+partition by:
+recommendation_ref
+action_type
+target_kind
+normalized context
+        ↓
+if count &gt;= 2
+→ Action Group Projection
+Никакого AI здесь больше нет.
+
+39. Group title не нужно повторно генерировать AI
+Например Action Type:
+SKU_INCREASE_REPLENISHMENT
+может иметь presentation template:
+1 → «Пополнить товар»
+N → «Пополнить N товаров»
+
+40. А business explanation берём из Recommendation
+Например:
+У товаров отсутствует sellable stock при сохраняющемся спросе.
+Это уже написал Deep.
+Так мы избегаем нового AI-generation на Projection stage.
+
+41. Дополнительный factual qualifier
+Если действительно для всех members:
+sellable_stock = 0
+Projector может детерминированно показать:
+Пополнить 4 товара без остатков.
+Но только если этот qualifier доказан facts всех участников.
+Если:
+SKU417 → 0
+SKU522 → 0
+SKU816 → 3 days
+SKU901 → 1 day
+название:
+Пополнить 4 товара
+а не:
+4 товара без остатков.
+Backend не должен обобщать факт, который не относится ко всей группе.
+
+42. Внутри группы пользователь видит individual facts
+Например:
+SKU
+Остаток
+Покрытие
+Рекомендация
+SKU417
+0
+0 дней
++120
+SKU522
+0
+0 дней
++40
+SKU816
+4
+0,8 дня
++250
+SKU901
+0
+0 дней
+пополнить
+То есть Group уменьшает визуальный шум, но не уничтожает детализацию.
+
+43. Пользователь должен иметь возможность работать с одним child Action
+Например:
+Пополнить 4 товара
+Пользователь раскрывает карточку и может:
+SKU417 → DONE
+не затрагивая остальные.
+Это обязательно.
+
+44. Массовая пользовательская операция
+Я также рекомендую предусмотреть:
+«Отметить все выполненными»
+«Отклонить все»
+как bulk UI operation.
+Но технически это не изменение Group.
+Backend выполняет N отдельных переходов Action Case, связанных одним:
+bulk_operation_id
+Так сохраняется аудит.
+
+45. Будущая автоматизация Ozon
+Здесь атомарная модель особенно важна.
+Текущий Ozon интерфейс уже поддерживает массовое добавление/удаление товаров в рекламных кампаниях, а текущий Performance API содержит batch product operations; для некоторых массовых методов документирован лимит до 1000 товаров за запрос. Документы Ozon
+При этом Performance contracts изменяются: Ozon обновлял product/bid methods и их параметры в 2026 году. GitHub
+Поэтому нельзя делать:
+Action Group
+=
+Ozon API request.
+
+46. Правильная будущая execution model
+Например пользователь нажимает:
+Применить ко всем 40 SKU.
+Execution Layer:
+40 Atomic Actions
+↓
+fresh revalidation каждого
+↓
+37 valid
+3 stale/invalid
+↓
+compatible Actions объединяются
+в provider batches
+↓
+batch requests к Ozon
+↓
+результат снова раскладывается
+по 37 individual Actions
+То есть batch — оптимизация транспорта.
+Не business identity.
+
+47. Почему это важно при partial failure
+Представим Ozon запрос на несколько SKU.
+Результат:
+SKU417 → SUCCESS
+SKU522 → SUCCESS
+SKU816 → ERROR
+SKU901 → SUCCESS
+Если Aivion хранит один массовый Action:
+Что является результатом — SUCCESS или FAILED?
+При атомарной модели:
+417 DONE
+522 DONE
+816 FAILED
+901 DONE
+никакой проблемы нет.
+
+48. Provider batch limits не должны попадать в Action Contract
+Сегодня Ozon может разрешать:
+500
+1000
+товаров в конкретной операции. Например текущая Performance documentation отражает batch product operations и отдельные ограничения; в описании product campaigns также существует массовое добавление товаров. GitHub
+Завтра лимит может измениться.
+Поэтому:
+Action Group = 3 000 SKU
+архитектурно допустима как recommendation/UI set.
+Future Executor просто разделит её:
+batch 1
+batch 2
+batch 3
+...
+в соответствии с актуальным provider contract.
+
+49. Но Discovery/Deep budgets всё равно ограничивают реальные группы
+В текущем v1 AI анализирует только Material Entities.
+Поэтому Deep не сможет сегодня сформировать:
+Изменить 1 700 SKU,
+если эти 1 700 SKU не были доступны как main entities в Deep Pack.
+Это правильно.
+Массовый Action не должен становиться способом обхода bounded AI context.
+
+50. Multi-entity Recommendations не заменяют Category Materiality
+Например 20 SKU одной Category имеют небольшие изменения.
+Category сама Material и Deep понимает общий pattern.
+В зависимости от вывода могут возникнуть:
+CATEGORY_REPRICING_PLAN
+или bounded набор конкретных:
+SKU_ADJUST_PRICE.
+AI не обязан превращать любую Category ситуацию в десятки SKU Actions.
+
+51. Очень важное ограничение по полноте
+Если Recommendation говорит:
+Пополнить 4 SKU.
+Deep должен вернуть Actions для всех четырёх, которые обозначены как actionable subjects.
+Нельзя:
+subject_entities:
+417, 522, 816, 901
+
+Actions:
+417, 522
+без объяснимой причины.
+Я рекомендую технически требовать соответствие:
+ACTIONABLE_NOW multi-entity Recommendation
+→ explicit actionable_subject_refs
+→ каждый actionable subject покрыт Action
+
+52. Но Recommendation может охватывать больше объектов, чем Actions
+Иногда это полезно.
+Например:
+Recommendation:
+пересмотреть пополнение 5 SKU
+
+ACTIONABLE:
+417
+522
+816
+
+MONITOR:
+901
+999
+Но я бы не разрешал такую смешанную Recommendation в v1.
+Слишком неоднозначно.
+Лучше Deep сформирует:
+Recommendation R1:
+пополнить 3 SKU
+ACTIONABLE_NOW
+
+Recommendation R2:
+наблюдать ещё 2 SKU
+MONITOR
+Так контракт намного чище.
+
+53. Следовательно, одна Recommendation имеет один actionability
+Все её subjects должны соответствовать одному управленческому статусу:
+ACTIONABLE_NOW
+или:
+MONITOR
+или:
+INSUFFICIENT_EVIDENCE.
+
+54. Группируются только ACTIONABLE_NOW
+Потому что Action Group — контейнер над Actions.
+MONITOR может иметь отдельную UI-группировку позже, но это уже группировка Recommendations/Insights, а не Actions.
+Не смешивать эти понятия.
+
+55. Validation Gates для дополнения
+Необходимо добавить:
+multi_entity_recommendation_scope_gate
+Все subject refs существуют и принадлежат допустимому homogeneous kind.
+multi_entity_materiality_gate
+Все main subjects прошли Materiality.
+multi_entity_action_coverage_gate
+Каждый subject ACTIONABLE_NOW Recommendation покрыт соответствующим Action.
+action_single_target_gate
+Каждый atomic Action имеет ровно один primary target.
+action_group_shared_recommendation_gate
+Все group members имеют один Recommendation.
+action_group_homogeneous_type_gate
+Один Action Type.
+action_group_context_compatibility_gate
+Campaign/Promotion/etc. context совместим.
+action_group_unique_member_gate
+Один Action не присутствует дважды.
+action_group_no_nested_group_gate
+Нет вложенных групп.
+action_group_projection_determinism_gate
+Одинаковая Publication всегда даёт одну и ту же grouping projection.
+action_group_no_independent_status_gate
+Group status не является mutable source of truth.
+batch_execution_atomic_result_gate
+Будущий batch result обязательно разворачивается до individual Action results.
+
+56. Evals
+Отдельно нужно добавить synthetic scenarios.
+Четыре stockout SKU
+Deep должен:
+1 Recommendation
+4 Actions
+1 UI Group
+а не:
+4 одинаковых Recommendations.
+
+Три SKU с разными ценами
+Допустимо:
+1 Recommendation
+3 × SKU_ADJUST_PRICE
+3 разных recommended_price
+1 Group
+
+Два Price Action с разной причиной
+Два разных Recommendations.
+Несмотря на одинаковый Action Type:
+2 Groups / individual cards
+а не одна группа.
+
+Два разных Campaign
+SKU_ADJUST_AD_BID
+Campaign58 и Campaign79 не группируются вместе.
+
+Evidence-only SKU
+Если один участник group появился только Evidence:
+INVALID
+
+Partial user completion
+4 members:
+2 DONE
+2 OPEN
+Group projection корректно показывает оставшиеся два.
+
+New Publication
+Было:
+4 members
+стало:
+3 members
+старый Publication snapshot остаётся с четырьмя.
+
+57. Изменение физической модели
+Canonical Actions:
+action_cases
+action_case_proposals
+остаются индивидуальными.
+Добавляем поддержку multi-entity Recommendation:
+deep_recommendations
+deep_recommendation_subjects
+где:
+recommendation_id
+entity_kind
+entity_id
+ordinal
+
+58. Action Group Projection
+Можно хранить:
+publication_action_groups
+publication_action_group_members
+Но это immutable projection, а не новая business source-of-truth entity.
+Например:
+publication_action_groups
+
+id
+publication_id
+recommendation_id
+action_type_key
+target_kind
+context_signature
+member_count
+group_ordinal
+presentation_template_version
+
+59. Members
+publication_action_group_members
+
+group_id
+action_proposal_id
+action_case_id
+ordinal
+Это позволит:
+воспроизводить старую Publication;
+видеть, почему UI 20 августа показывал 4 SKU;
+не зависеть от текущего состояния Action Cases.
+
+60. Current Actions view
+Текущий раздел «Действия» может строиться уже не только из Publication snapshot, а из:
+current/open Action Cases
++
+latest reaffirmed proposal
++
+latest recommendation
+и затем применять тот же deterministic grouping policy.
+Это позволит группе естественно изменяться:
+4 → 3 → 2 → 0.
+
+61. История и текущий экран — разные вещи
+Это принципиально.
+Publication 20.08
+Навсегда показывает:
+Рекомендовалось пополнить 4 SKU.
+Current Actions 23.08
+Может показывать:
+Осталось пополнить 2 SKU.
+Оба представления правильные.
+
+62. Обновлённая формулировка Action Case identity
+Я рекомендую также сразу добавить к предыдущему ТЗ:
+Action Case идентифицируется не только action_type + target, а стабильной комбинацией seller + action_type_key + target + normalized_action_context + normalized_intent_signature.
+Это исправляет потенциальную архитектурную дыру ещё до реализации.
+
+63. Что в итоге получает пользователь
+Вместо:
+Пополнить SKU417
+Пополнить SKU522
+Пополнить SKU816
+Пополнить SKU901
+он видит:
+Пополнить 4 товара
+У товаров недостаточный запас относительно текущего спроса.
+417 — +120 шт.522 — +40 шт.816 — +250 шт.901 — требуется пополнение.
+Но внутри Aivion это всё ещё:
+4 independent Action Cases.
+И это, на мой взгляд, ключевой результат.
+
+Итоговая формулировка для архитектурного ТЗ
+Aivion должен поддерживать multi-entity Recommendations для случаев, когда единое управленческое решение относится к нескольким Material Entities одного типа. Multi-entity Recommendation не является массовым Action и не создаёт новый Action Target. Каждый actionable subject такой Recommendation должен порождать отдельный атомарный Action Proposal с единственным primary target, собственными parameters, Findings, Fact Handles и последующим Action Case.
+Однотипные атомарные Actions, сформированные из одной Recommendation и имеющие совместимый action context, могут объединяться Publication Projector в Action Group для пользовательского представления. Action Group является immutable publication/presentation projection и не имеет собственного независимого lifecycle или mutable status. Источником истины остаются отдельные Action Cases.
+Группировка не выполняется на основании текстового или semantic similarity. Она определяется детерминированно через общий recommendation_ref, action_type, target_kind и normalized action context. Actions разных типов, относящиеся к разным Recommendations либо имеющие несовместимый Campaign/Promotion context, не объединяются.
+Все main entities multi-entity Recommendation и child main entities Actions должны пройти Materiality и присутствовать в Discovery Pack. Evidence-only entities не могут быть добавлены в Action Group как управляемые объекты.
+Category/Campaign Actions не заменяются группами SKU Actions, если само управленческое решение относится к Category/Campaign как к единому target. В то же время Category Action не должен дублировать набор SKU Actions без отдельного category-level смысла.
+Persistent Action Case остаётся атомарным. Его identity строится на seller + action_type + target + normalized context + intent signature. Повторное предложение того же действия в последующих Publications обновляет factual basis существующего Case; изменение противоположного intent должно рассматриваться как новый occurrence, а предыдущий Case не переписывается.
+Будущая возможность массового выполнения не изменяет canonical Action model. Execution Layer может объединять несколько atomic Actions в provider batch только после индивидуальной fresh-state revalidation. Provider batch limits и endpoint contracts принадлежат versioned Execution Mapping и не являются частью Action identity. Частичный provider result всегда разворачивается до отдельных результатов child Actions.
+Что я бы сейчас считал правильным решением
+Для твоего примера:
+«Пополнить товары без остатков — 4 SKU»
+идеальная структура именно такая:
+1 multi-entity Recommendation
+        ↓
+4 atomic SKU Actions
+        ↓
+4 persistent Action Cases
+        ↓
+1 Action Group в интерфейсе
+Это одновременно решает удобство интерфейса, корректность AI, аудит, ежедневное обновление Actions и будущую автоматизацию через Ozon.
+Единственный небольшой продуктовый момент, который я бы ещё зафиксировал позднее при проектировании раздела «Действия»: разрешаем ли пользователю на групповой карточке нажимать «Выполнено для всех» / «Отклонить все». Архитектурно я рекомендую разрешить, но реализовывать это как bulk-команду над individual Action Cases, а не как изменение статуса самой группы.

@@ -1,0 +1,3508 @@
+
+Я повторно прошёл актуальный Aivion-main (7). Сейчас последний migration — 000060; production runtime всё ещё собирается вокруг старых products / orders / sales / daily_*, отдельных sync-пакетов, aipipeline, большого legacy actions, dashboardhome, unifiedanalysis и собственного SQL-аналитического слоя Chat. Поэтому план ниже — не «дорастить существующий Unified Analysis», а построить новый owner-runtime и затем полностью удалить старую бизнес-архитектуру.
+
+Aivion Physical Implementation Plan v1
+1. Главная стратегия реализации
+Финальная физическая схема должна выглядеть так:
+Ozon APIs
+   │
+   ▼
+Collection / Provider Adapters
+   │
+   ▼
+Canonical UCDM
+   │
+   ├── Capability / DQ
+   │
+   ▼
+Internal Factual API
+   │
+   ├───────────────┐
+   │               │
+   ▼               ▼
+Daily Analysis     AI Chat
+   │
+   ▼
+Factual Universe
+   │
+   ▼
+Landscapes
+   │
+   ▼
+Materiality
+   │
+   ▼
+Discovery AI
+   │
+   ▼
+Evidence Expansion
+   │
+   ▼
+Deep AI
+   │
+   ▼
+Action Reconciliation
+   │
+   ▼
+Publication
+   │
+   ├──────── Dashboard
+   ├──────── Actions
+   └──────── Chat published context
+При этом:
+PostgreSQL
+= source of truth
+
+Redis / Asynq
+= executor / очередь
+
+MinIO
+= immutable artifacts
+
+OpenAI
+= semantic reasoning
+
+Frontend
+= presentation
+
+2. Что физически переиспользуем из текущего проекта
+Не всё старое надо выбрасывать.
+Сохраняем нейтральную инфраструктуру:
+users
+sessions
+seller_accounts
+ozon_connections
+
+auth middleware
+seller isolation middleware
+
+PostgreSQL / pgx
+sqlc
+
+Redis / Asynq
+MinIO
+
+raw HTTP / Ozon auth transport,
+если не содержит старой business semantics
+
+OpenAI low-level HTTP/client pieces
+
+Sentry
+Prometheus
+Zap logger
+
+chat attachments infrastructure
+chat session/message storage concepts
+chat idempotency mechanisms
+
+review/admin/billing infrastructure
+Также можно переиспользовать часть:
+internal/integrations/ozon
+но именно как provider transport/client layer.
+Не переносить из старых sync-сервисов их business mapping как новую canonical truth автоматически.
+
+3. Что не является основой новой архитектуры
+Не строим новую систему поверх:
+products
+orders
+sales
+stocks
+
+daily_account_metrics
+daily_sku_metrics
+
+product_analytics_daily
+stock_analytics_snapshots
+
+ai_dashboard_narratives
+ai_daily_summaries
+
+alerts
+recommendations
+
+action_generation_runs
+action_items
+action_entity_groups
+
+ai_pipeline_runs
+ai_pipeline_dispatches
+
+ai_dashboard_data_snapshots
+
+seller_current_ai_snapshots
+
+unified_analysis_publications
+seller_current_unified_publications
+
+unifiedanalysis/*
+aipipeline/*
+dashboardhome semantic repair
+legacy actions AI generation
+chat tool_data_repository_sqlc
+Они существуют до cutover только потому, что текущий продукт пока на них работает.
+
+4. Не делаем migration старых business facts в новую UCDM
+Это важное решение.
+Например у нас сейчас есть:
+daily_account_metrics.revenue
+daily_sku_metrics.orders_count
+ad_metrics_daily.revenue
+sales.amount
+Но мы уже знаем, что их семантика не совпадает с новой canonical model.
+Поэтому не пишем migration вроде:
+INSERT INTO canonical_sales
+SELECT revenue, orders_count
+FROM daily_sku_metrics;
+Это снова протащит старые ошибки в новое ядро.
+Для seller 1:
+сохраняем:
+user
+seller_account
+Ozon connection
+
+удаляем старые business facts
+
+заново собираем всё из Ozon
+по новой ingestion architecture.
+Это уже согласовано и здесь особенно правильно.
+
+5. Database migration strategy
+Сейчас последняя migration:
+000060
+Поэтому условно следующий блок можно разложить так:
+000061 canonical_collection_foundation
+000062 canonical_catalog
+000063 canonical_sales
+000064 canonical_stock_price_advertising
+000065 canonical_optional_domains
+000066 capability_dq_factual_universe
+000067 analysis_runtime
+000068 publications_actions
+000069 chat_v2
+000070 evals_observability
+000071 legacy_architecture_removal
+Конкретные номера естественно берём следующие свободные на момент реализации.
+Не рекомендую делать одну migration на 4 000 строк.
+
+6. Collection foundation
+Новая ingestion architecture начинается не с productsync, а с общей модели collection.
+Предлагаю таблицы:
+collection_runs
+collection_domain_runs
+collection_cursors
+source_payloads
+
+collection_runs
+Один общий цикл сбора seller.
+Основные поля:
+id
+seller_account_id
+
+kind
+    INITIAL
+    DAILY
+    MANUAL
+    REPAIR
+
+status
+    PENDING
+    RUNNING
+    COMPLETED
+    COMPLETED_WITH_LIMITATIONS
+    FAILED
+    CANCELLED
+
+started_at
+finished_at
+created_at
+
+trigger
+requested_by
+Это замена текущей пары:
+sync_jobs
+import_jobs
+с более правильной domain architecture.
+
+7. collection_domain_runs
+Каждый источник/домен отдельно.
+Например:
+CATALOG
+SALES_DEMAND
+POSTINGS
+RETURNS
+STOCK
+PRICE
+ADVERTISING
+FUNNEL
+FINANCE
+SEARCH
+PROMOTIONS
+ACCOUNT_HEALTH
+SUPPLY
+TAXONOMY
+Поля:
+id
+collection_run_id
+seller_account_id
+
+domain
+capability_key
+
+status
+
+requested_from
+requested_to
+
+coverage_from
+coverage_to
+
+snapshot_at
+
+records_received
+records_written
+
+pages_received
+
+completeness_status
+
+started_at
+finished_at
+
+source_revision_hash
+
+error_code
+error_message
+
+8. Почему Domain Run — важная сущность
+Например:
+Collection #712
+
+Catalog       COMPLETED
+Sales         COMPLETED
+Stock         COMPLETED
+Advertising   FAILED
+Search        PARTIAL
+Finance       UNAVAILABLE
+Это не означает:
+collection failed.
+Core может быть готов, AI запускается, а optional limitations фиксируются отдельно.
+
+9. collection_cursors
+Заменяет старый sync_cursors.
+Пример ключа:
+seller
+domain
+cursor_key
+Храним только transport position.
+Никогда не используем cursor как business truth.
+
+10. source_payloads
+Новый replacement текущего raw_payloads.
+Поля:
+id
+seller_account_id
+collection_domain_run_id
+
+provider = OZON
+
+endpoint_key
+request_fingerprint
+page_seq
+
+storage_bucket
+storage_object_key
+sha256
+
+http_status
+received_at
+
+metadata_json
+Полный raw payload находится в MinIO.
+В PostgreSQL — provenance.
+Никаких API secrets/request authorization headers.
+
+11. Catalog physical model
+Предлагаю следующие таблицы:
+provider_categories
+provider_product_types
+taxonomy_sync_runs
+
+canonical_skus
+canonical_sku_versions
+canonical_sku_content_snapshots
+canonical_sku_relations
+
+seller_categories
+sku_category_assignments
+
+12. canonical_skus
+Стабильная identity.
+id BIGSERIAL
+
+seller_account_id
+
+ozon_sku BIGINT
+
+first_observed_at
+last_observed_at
+
+catalog_state
+    ACTIVE
+    ARCHIVED
+    UNOBSERVED
+    UNKNOWN
+
+created_at
+Critical constraint:
+UNIQUE(seller_account_id, ozon_sku)
+Это наш canonical SKU identity.
+
+13. Чего нет в canonical_skus
+Не держим mutable current business data:
+price
+stock
+sales
+category
+name
+offer_id
+как source of truth.
+Это отдельные version/fact tables.
+
+14. canonical_sku_versions
+Mutable metadata history:
+id
+canonical_sku_id
+
+offer_id
+ozon_product_id
+name
+
+provider_status
+catalog_state
+
+normalized_hash
+
+observed_at
+collection_domain_run_id
+Новая запись только когда normalized hash изменился.
+
+15. canonical_sku_content_snapshots
+Для дополнительного product content:
+attributes
+images
+description metadata
+provider content status
+Не смешиваем с identity.
+
+16. canonical_sku_relations
+Например related SKUs:
+seller
+source_sku_id
+related_sku_id
+
+relation_type
+provider_relation_key
+
+observed_at
+Не объединяет SKU identity.
+
+17. Provider taxonomy
+provider_categories глобальная:
+provider_category_id
+parent_provider_category_id
+name
+is_leaf
+path
+taxonomy_version
+provider_product_types:
+provider_type_id
+provider_category_id
+name
+Product Type остаётся context.
+
+18. Seller-bearing Category
+Нужна физическая seller entity для Action Target.
+Таблица:
+seller_categories
+Поля:
+id
+
+seller_account_id
+provider_category_id
+
+first_observed_at
+last_observed_at
+Constraint:
+UNIQUE(seller_account_id, provider_category_id)
+Именно seller_categories.id используется как Category Action Target.
+
+19. sku_category_assignments
+История:
+canonical_sku_id
+seller_category_id
+
+observed_from
+observed_to
+
+collection_domain_run_id
+Сегодняшнюю Category не backfill'им назад.
+До первой observation:
+UNMAPPED
+
+20. Sales Demand physical model
+Предлагаю:
+sales_demand_daily
+sales_account_daily
+sales_reconciliations
+
+21. sales_demand_daily
+Поля:
+id
+
+seller_account_id
+canonical_sku_id NULL
+
+source_sku
+
+business_date
+
+ordered_units
+ordered_amount
+currency
+
+collection_domain_run_id
+observed_at
+canonical_sku_id nullable специально.
+Если Ozon вернул неизвестный SKU:
+source fact сохраняется
+canonical_sku_id = NULL
+
+22. Revisions
+Не update старую строку.
+Новый Ozon collection:
+same:
+seller
+date
+sku
+
+new:
+collection_domain_run_id
+observed_at
+value
+Factual API выбирает latest observation:
+observed before universe cutoff.
+Это позволяет исправлять history, не переписывая старые Publications.
+
+23. sales_account_daily
+Независимый provider account truth.
+seller_account_id
+business_date
+
+ordered_units
+ordered_amount
+currency
+
+collection_domain_run_id
+observed_at
+Не вычисляем Account только как SUM SKU.
+
+24. sales_reconciliations
+Фиксируем техническую reconciliation:
+seller
+business_date
+domain_run_id
+
+provider_account_ordered_amount
+sku_sum_ordered_amount
+amount_difference
+
+provider_units
+sku_sum_units
+units_difference
+
+status
+Это DQ.
+Не seller business insight.
+
+25. Orders/Postings physical model
+Отдельно:
+sales_orders
+sales_postings
+sales_posting_versions
+sales_posting_products
+sales_lifecycle_events
+
+26. sales_orders
+Только если provider реально дал:
+ozon_order_id
+Identity:
+seller + ozon_order_id
+Не используем posting_number как Order.
+
+27. sales_postings
+Identity:
+seller + posting_number
+Поля:
+fulfillment_type
+order_id nullable
+first_observed_at
+
+28. sales_posting_versions
+Versioned:
+status
+substatus
+delivery schema
+warehouse/cluster context
+observed_at
+
+29. sales_posting_products
+Это product lines конкретного Posting.
+Не называем таблицу:
+order_items
+если у нас нет authoritative Order Item entity.
+
+30. Lifecycle events
+sales_lifecycle_events
+Поля:
+posting_id
+
+event_type
+
+provider_event_at NULL
+provider_date NULL
+
+business_date
+
+observed_at
+
+time_quality
+    EXACT
+    DATE_ONLY
+    OBSERVED_APPROXIMATE
+    UNKNOWN
+
+31. Returns
+Отдельно:
+sales_returns
+sales_return_events
+Возврат не меняет historical ordered amount.
+
+32. Stock physical model
+Нужно перестать иметь просто current mutable:
+stocks
+Предлагаю:
+inventory_pools
+
+inventory_locations
+inventory_location_versions
+
+stock_snapshots
+stock_snapshot_lines
+
+stock_turnover_observations
+
+33. inventory_pools
+Физический inventory pool.
+Нужен именно для предотвращения:
+FBO/FBS double count.
+Поля:
+id
+seller
+provider_pool_key
+fulfillment_type
+pool_type
+
+34. Location
+inventory_locations
+inventory_location_versions
+Identity стабильна.
+Название / cluster принадлежность versioned.
+
+35. stock_snapshots
+Одна complete collection:
+id
+seller
+collection_domain_run_id
+snapshot_at
+requested_sku_universe_hash
+completeness_status
+
+36. stock_snapshot_lines
+snapshot_id
+canonical_sku_id
+inventory_pool_id
+location_id nullable
+
+sellable_units NULL
+reserved_units NULL
+non_sellable_units NULL
+
+provider_fields_json
+Не выводим sellable_units из:
+total - reserved
+если semantics не принята.
+
+37. Provider turnover
+Храним отдельно:
+stock_turnover_observations
+Например:
+ADS
+IDC
+turnover_grade
+Это provider enrichment.
+Не смешиваем с Aivion coverage.
+
+38. Price physical model
+price_snapshots
+Я бы не дробил цену на 8 таблиц.
+Одна observation row:
+id
+seller
+canonical_sku_id
+
+observed_at
+collection_domain_run_id
+
+currency
+
+current_price
+base_price
+seller_promo_price
+customer_price
+old_reference_price
+min_allowed_price
+retail_price
+
+vat_rate
+
+auto_action_enabled
+
+provider_json
+Все поля nullable согласно capability/source.
+
+39. Никакого price history via old_price
+old_reference_price остаётся отдельным concept.
+История:
+ряд price_snapshots во времени.
+
+40. Advertising physical model
+Текущие:
+ad_campaigns
+ad_metrics_daily
+ad_campaign_skus
+лучше заменить, потому что их semantics слишком legacy.
+Новые:
+advertising_campaigns
+advertising_campaign_versions
+
+advertising_target_intervals
+
+advertising_daily_facts
+
+advertising_cpo_facts
+
+41. advertising_campaigns
+Identity:
+seller + provider_campaign_id
+
+42. Campaign versions
+name
+state
+strategy
+budget
+
+scope_type
+    EXPLICIT_SKU_SET
+    ALL_ELIGIBLE_SKUS
+    NON_SKU_OBJECTS
+    UNKNOWN
+
+observed_at
+
+43. Target history
+advertising_target_intervals
+Поля:
+campaign_id
+canonical_sku_id
+
+valid_from_observation
+valid_to_observation
+Только для explicit SKU scope.
+Не взрываем ALL_ELIGIBLE_SKUS в 2 000 synthetic rows.
+
+44. Advertising facts
+advertising_daily_facts
+Поля:
+campaign_id
+business_date
+
+impressions
+clicks
+
+paid_spend_amount
+bonus_spend_amount
+
+attributed_ordered_units
+attributed_ordered_amount
+
+currency
+
+collection_domain_run_id
+observed_at
+attribution_maturity
+
+45. CPO detail
+Если provider даёт promoted SKU и ordered SKU:
+advertising_cpo_facts
+храним обе ссылки раздельно.
+
+46. Funnel physical model
+Funnel metrics в отдельной append-only таблице:
+funnel_observations
+Не пытаться превратить Funnel в daily additive table.
+Поля:
+seller
+scope_kind
+scope_ref nullable
+
+metric_key
+
+period_start
+period_end
+
+value
+
+temporal_semantics
+
+collection_domain_run_id
+observed_at
+Например unique visitors остаются direct-period fact.
+
+47. Funnel metric registry — в коде
+Не рекомендую делать mutable admin table.
+Versioned registry:
+internal/funnelregistry
+определяет:
+metric_key
+meaning
+source capability
+scope
+temporal type
+additivity
+allowed transitions
+presentation stage
+Registry version входит в contract bundle.
+
+48. Finance physical model
+finance_accrual_types
+finance_accruals
+finance_accrual_components
+
+49. finance_accruals
+Parent row:
+provider_accrual_id
+seller
+business_date
+
+scope_type
+scope_ref
+
+total_amount
+currency
+
+accrual_type_id
+
+collection_domain_run_id
+observed_at
+
+50. Components
+finance_accrual_components
+Например:
+commission
+delivery
+item_fee
+non_item_fee
+container_fee
+unknown
+Parent + children никогда не суммируются как одна общая сумма.
+
+51. Search physical model
+seller_search_summaries
+seller_search_query_details
+market_search_snapshots
+
+52. Summary
+seller
+canonical_sku_id
+period_start/end
+
+provider_gmv
+provider_ordered_units
+
+unique_search_users
+unique_view_users
+
+position
+view_conversion
+
+observed_at
+
+53. Query detail
+normalized_query_key
+query_text
+
+canonical_sku_id
+
+provider_rank
+retrieval_scope = TOP_N_PROVIDER_RANKED
+
+metrics...
+Обязательно:
+top_n_limit
+и source scope.
+
+54. Promotions physical model
+promotions
+promotion_versions
+
+promotion_candidate_observations
+promotion_membership_observations
+
+55. Promotion identity
+seller
+promotion_origin
+provider_action_id
+
+56. Candidate и participant физически разные таблицы
+Это специально защищает нас от случайной ошибки:
+candidate == member
+
+57. Account Health physical model
+seller_rating_observations
+Поля:
+metric_key
+provider_value
+provider_status
+provider_direction
+provider_previous_value
+
+observed_at
+effective_date/period
+Unknown metric не отбрасываем.
+Registry versioned в code.
+
+58. Supply physical model
+Только FBO:
+supplies
+supply_versions
+supply_items
+supply_acceptance_facts
+Никакого FBP в v1.
+
+59. Capabilities physical model
+Нужна самостоятельная таблица:
+business_capability_assessments
+Поля:
+id
+seller_account_id
+
+capability_key
+domain
+
+state
+    READY
+    PARTIAL
+    STALE
+    UNAVAILABLE
+    FAILED
+    NOT_APPLICABLE
+
+contract_state
+access_state
+source_state
+semantic_state
+coverage_state
+temporal_state
+history_state
+
+reason_code
+details_json
+
+assessed_at
+
+source_domain_run_id nullable
+
+60. Domain Watermarks
+domain_watermarks
+Поля:
+seller
+domain
+fact_family
+
+latest_observed_at
+latest_complete_business_date
+latest_mature_business_date
+
+assessed_at
+Это техническая factual readiness.
+
+61. DQ physical model
+data_quality_runs
+data_quality_issues
+Issue:
+domain
+code
+scope_ref
+
+period_start/end
+
+severity
+details_json
+
+detected_at
+DQ не содержит:
+sales dropped
+campaign bad
+stock critical
+Только технические нарушения.
+
+62. Factual Universe
+Теперь ключевой слой:
+factual_universes
+factual_universe_sources
+factual_universe_capabilities
+factual_universe_dq_summary
+
+63. factual_universes
+Я бы использовал UUID, потому что это opaque immutable snapshot identity.
+id UUID
+
+seller_account_id
+
+analysis_date DATE
+analysis_cutoff_at TIMESTAMPTZ
+
+manifest_hash
+
+temporal_policy_version
+capability_policy_version
+dq_policy_version
+factual_api_version
+
+created_at
+
+64. Universe не копирует все факты
+Мы не создаём:
+200 000 duplicated rows
+per Publication.
+Universe указывает:
+какие факты были доступны на cutoff.
+Факты append/revision-oriented.
+Factual API читает:
+observed_at &lt;= analysis_cutoff
+и выбирает latest observation для business key.
+
+65. Universe source manifest
+factual_universe_sources
+Содержит для каждого domain:
+last_complete_domain_run_id
+coverage_from
+coverage_to
+snapshot_as_of
+watermark
+source_hash
+Большой полный manifest дополнительно хранится в MinIO.
+
+66. Universe capability snapshot
+Capabilities копируются/freeze в:
+factual_universe_capabilities
+чтобы P109 всегда видел тот capability state, который существовал в P109.
+
+67. Internal Factual API
+Создаём новый package:
+backend/internal/factualapi/
+Пример структуры:
+context.go
+types.go
+factref.go
+temporal.go
+
+catalog.go
+sales.go
+stock.go
+price.go
+advertising.go
+funnel.go
+finance.go
+search.go
+promotions.go
+health.go
+supply.go
+
+repository.go
+repository_sqlc.go
+
+trace_fact.go
+
+68. Read context
+type ReadContext struct {
+    SellerAccountID int64
+    UniverseID      uuid.UUID
+    AnalysisDate    time.Time
+    CutoffAt        time.Time
+}
+Для AI:
+SEALED_UNIVERSE
+обязателен.
+
+69. Factual API не содержит semantic methods
+Запрещены:
+GetCriticalSKUs()
+GetBiggestProblems()
+GetOpportunities()
+GetBestActions()
+GetOptimalPrice()
+GetRevenueAtRisk()
+Разрешены:
+GetSales(...)
+GetStock(...)
+GetPrices(...)
+GetCampaigns(...)
+GetSearchSummary(...)
+
+70. Factual API boundary gate
+Это обязательно физически закрепить.
+Например CI-script проверяет, что:
+internal/dashboard
+internal/chat
+internal/analysis/*
+не импортируют:
+internal/dbgen
+pgx
+напрямую для canonical business data.
+Исключения:
+factualapi
+collection repositories
+publication repositories
+actions persistence
+
+71. Почему это так важно
+Сегодня Chat имеет:
+tool_data_repository_sqlc.go
+и фактически является самостоятельным analytics engine.
+После migration такого пути быть не должно.
+
+72. New Analysis runtime
+Не переиспользуем огромный ai_pipeline_runs.
+Создаём чистые:
+analysis_runs
+analysis_run_stages
+analysis_stage_attempts
+analysis_ai_attempts
+analysis_artifacts
+analysis_run_events
+
+73. analysis_runs
+Поля:
+id BIGSERIAL
+
+seller_account_id
+
+run_kind
+    STANDARD_DAILY
+    EXPLICIT_REANALYSIS
+    EVALUATION
+
+execution_class
+    PRODUCTION
+    EVALUATION
+
+status
+    PREPARING
+    RUNNING
+    READY_TO_PUBLISH
+    PUBLISHED
+    NO_OP
+    FAILED
+    CANCELLED
+    STALE
+
+analysis_date
+analysis_cutoff_at
+
+factual_universe_id
+
+base_publication_id nullable
+
+contract_bundle_hash
+
+trigger
+
+started_at
+completed_at
+
+error_code
+error_message
+
+74. One production Run per seller
+Use DB invariant, not Redis.
+Partial unique index:
+UNIQUE(seller_account_id)
+WHERE execution_class = 'PRODUCTION'
+AND status IN (
+ 'PREPARING',
+ 'RUNNING',
+ 'READY_TO_PUBLISH'
+)
+PostgreSQL supports partial unique indexes specifically for uniqueness over only a subset of rows. PostgreSQL
+Evaluation runs unaffected.
+
+75. analysis_run_stages
+Одна строка на stage:
+run_id
+stage_key
+
+status
+
+input_hash
+output_hash
+
+attempt_count
+
+lease_owner
+lease_expires_at
+heartbeat_at
+
+started_at
+completed_at
+
+error_code
+error_message
+Unique:
+(run_id, stage_key)
+
+76. Stage list
+Физически фиксируем те же 18 stages:
+RESOLVE_CONTEXT
+SEAL_UNIVERSE
+PREPARE_CONTINUITY
+
+BUILD_LANDSCAPE_CORE
+RUN_MATERIALITY
+BUILD_LANDSCAPE_DETAIL
+
+BUILD_DISCOVERY_PACK
+DISCOVERY_AI
+VALIDATE_DISCOVERY
+
+EXPAND_EVIDENCE
+
+BUILD_DEEP_PACK
+DEEP_AI
+VALIDATE_DEEP
+
+PLAN_ACTION_RECONCILIATION
+
+BUILD_PUBLICATION
+BUILD_PROJECTIONS
+VALIDATE_PUBLICATION
+
+PUBLISH
+
+POST_PUBLISH
+Можно POST_PUBLISH не считать publish-blocking.
+
+77. Generic stage job
+В Redis не отправляем огромный pack.
+Task:
+{
+  "run_id": 1832,
+  "stage_key": "DEEP_AI"
+}
+Всё.
+
+78. Asynq только executor
+Task type:
+analysis.stage.execute
+Handler:
+1. прочитал stage из Postgres
+2. попытался claim lease
+3. если уже SUCCEEDED → no-op
+4. выполнил
+5. persist result
+6. enqueue next stage
+Asynq гарантирует at-least-once execution, retries и recovery worker-crash, поэтому сами handlers обязаны быть идемпотентными; Redis нельзя считать состоянием pipeline. GitHub
+
+79. Не полагаемся на Unique() как correctness mechanism
+Можно использовать:
+TaskID
+Unique
+для уменьшения мусора в queue.
+Но correctness всё равно:
+PostgreSQL stage state + lease.
+Asynq Unique привязан к TTL/task payload/queue и заканчивается после successful processing или TTL, поэтому это полезная дедупликация, но не durable business lock. GitHub
+
+80. Stage lease
+Claim выполняется атомарным SQL:
+UPDATE stage
+SET
+ status=RUNNING,
+ lease_owner=?,
+ lease_expires_at=?
+WHERE
+ id=?
+ AND
+ (
+   status=READY
+   OR lease_expires_at &lt; now()
+ )
+RETURNING *
+Worker heartbeat продлевает lease.
+Если process умер:
+другой worker сможет забрать stage.
+
+81. Advisory lock
+Не держим PostgreSQL lock весь AI-call.
+Но для коротких операций:
+create production run
+
+publication pointer switch
+можно использовать transaction-level advisory lock seller.
+PostgreSQL transaction advisory locks автоматически освобождаются в конце transaction и как раз подходят для короткой application-defined синхронизации. PostgreSQL
+
+82. Artifact store
+Новый общий интерфейс:
+type ArtifactStore interface {
+    Put(...)
+    Get(...)
+    Verify(...)
+}
+Переиспользовать MinIO client.
+
+83. analysis_artifacts
+Postgres только metadata:
+id
+run_id
+stage_key
+
+kind
+schema_version
+
+storage_key
+sha256
+
+compressed_bytes
+uncompressed_bytes
+
+created_at
+
+84. MinIO layout
+Например:
+analysis/
+  seller-1/
+    run-1832/
+      universe/
+        manifest.json
+
+      landscape/
+        core.json
+        detail.json
+
+      discovery/
+        pack.zip
+        request.json
+        response.json
+        validated.json
+
+      evidence/
+        requests.json
+        results.json
+
+      deep/
+        pack.zip
+        request.json
+        response.json
+        validated.json
+
+      actions/
+        reconciliation-plan.json
+
+      publication/
+        bundle.json
+
+      projections/
+        dashboard.json
+Имена logical; exact layout versioned.
+
+85. Deterministic artifact hashing
+Оставляем сильную сторону current Unified Analysis:
+canonical serialization
+stable file order
+stable LF
+stable ZIP
+SHA-256
+Это нейтральная и полезная инфраструктура.
+
+86. Landscape physical storage
+Не создаём mutable tables:
+landscape_current
+material_entities_current
+как business state.
+Stage outputs — immutable artifacts.
+В PostgreSQL достаточно:
+analysis_artifacts
+
+87. Materiality package
+internal/analysis/materiality/
+Пример:
+engine.go
+lanes.go
+anchors.go
+rrf.go
+diversity.go
+policy.go
+types.go
+Полностью deterministic.
+
+88. Discovery package
+internal/analysis/discovery/
+pack_builder.go
+contract.go
+prompt.go
+provider.go
+validator.go
+
+89. Evidence package
+internal/analysis/evidence/
+catalog.go
+recipes/
+expander.go
+normalizer.go
+continuity.go
+types.go
+Evidence Catalog version:
+evidence_catalog_v1
+входит в contract bundle.
+
+90. Deep package
+internal/analysis/deep/
+pack_builder.go
+contract.go
+prompt.go
+provider.go
+validator.go
+
+91. OpenAI low-level infrastructure
+Сейчас provider logic размазана по:
+unifiedanalysis/provider
+chat/openai_client
+actions AI clients
+...
+Нужно выделить нейтральный:
+internal/openaix/
+Например:
+client.go
+responses.go
+files.go
+containers.go
+usage.go
+retry.go
+errors.go
+А domain package задаёт:
+prompt
+schema
+tool catalog
+
+92. Responses API
+Discovery, Deep и Chat используют Responses API.
+Современный Responses API поддерживает custom function tools и structured JSON output через schema, поэтому нам не нужен отдельный homemade protocol поверх свободного JSON. OpenAI Developers
+
+93. Discovery/Deep без cross-stage provider state
+Каждый stage получает полный explicit input.
+Не:
+Discovery response_id
+→ Deep previous_response_id
+
+94. AI attempt persistence
+analysis_ai_attempts
+Поля:
+id
+run_id
+stage_key
+
+attempt_no
+
+model_policy_version
+model
+
+prompt_version
+schema_version
+
+provider_response_id
+provider_request_id
+
+input_artifact_id
+
+raw_output_artifact_id
+validated_output_artifact_id
+
+input_tokens
+output_tokens
+total_tokens
+estimated_cost
+
+started_at
+completed_at
+
+status
+error_code
+
+95. No silent model fallback
+Если configured Deep model недоступна:
+retry
+↓
+terminal failure
+а не:
+переключились на другую модель
+и никому не сказали.
+
+96. Action physical model
+Новый Actions — отдельный persistent business layer.
+Я предлагаю не переносить текущие:
+action_items
+action_user_states
+
+97. action_signatures
+Это business identity:
+id
+
+seller_account_id
+
+signature_hash
+
+action_type
+
+target_kind
+target_id
+
+normalized_context_hash
+normalized_context_json
+
+intent_key
+
+created_at
+Unique:
+(seller_account_id, signature_hash)
+Это:
+одно и то же бизнес-действие.
+
+98. action_signature_state
+Mutable control projection:
+signature_id
+
+active_case_id NULL
+
+suppressed_until NULL
+
+last_occurrence_no
+
+updated_at
+Именно здесь реализуется:
+same action identity suppressed 30d.
+
+99. action_cases
+Occurrence.
+id UUID
+
+signature_id
+
+occurrence_no
+
+opened_by_publication_id
+
+created_at
+closed_at nullable
+Unique:
+(signature_id, occurrence_no)
+
+100. action_case_state
+Текущий control state:
+case_id
+
+system_state
+    ACTIVE
+    SUSPENDED
+    RESOLVED
+    SUPERSEDED
+
+user_state
+    OPEN
+    DONE
+    DISMISSED
+
+current_proposal_id
+
+updated_at
+
+101. Почему system/user state разделены
+Например:
+AI still recommends
++
+user DONE
+Это две разные вещи.
+На следующем run может появиться новый occurrence.
+
+102. action_case_proposals
+Каждая новая Publication при FULLY_SUPPORTED создаёт новую proposal:
+id
+case_id
+publication_id
+
+recommendation_id
+
+action_type
+
+parameters_json
+
+display_order
+
+created_at
+Не копируем предыдущую proposal.
+
+103. Action supports
+Я бы не хранил REQUIRED_SUPPORT только одним JSON.
+Лучше:
+action_proposal_supports
+Поля:
+proposal_id
+
+support_key
+
+support_role
+    REQUIRED_SUPPORT
+    CONTEXT
+    COUNTEREVIDENCE
+
+claim
+
+fact_refs_json
+finding_refs_json
+
+104. Revalidation
+action_case_assessments
+Поля:
+previous_proposal_id
+analysis_run_id
+new_publication_id
+
+outcome
+    FULLY_SUPPORTED
+    PARTIALLY_SUPPORTED
+    NOT_SUPPORTED
+    UNVERIFIABLE
+    SUPERSEDED
+
+created_at
+
+105. Каждый support тоже оценивается
+action_support_assessments
+assessment_id
+support_key
+
+status
+    HOLDS
+    CHANGED
+    NOT_VERIFIABLE
+
+current_fact_refs_json
+Это даёт отличную auditability.
+
+106. User events
+Не перезаписываем историю.
+action_user_events
+id
+case_id
+seller
+user_id
+
+event_type
+    DONE
+    DISMISSED
+    REOPENED
+
+reason_code
+comment
+
+created_at
+REOPENED можно оставить физически допустимым для существующего «Вернуть в работу», но frontend разрешает его только согласно принятому contract.
+
+107. System events
+action_system_events
+Например:
+SUSPENDED
+RESOLVED
+SUPERSEDED
+RECURRED
+REAFFIRMED
+для audit.
+
+108. Action Groups
+Immutable publication projection:
+publication_action_groups
+publication_action_group_members
+
+Group
+id UUID
+publication_id
+
+recommendation_id
+action_type
+target_kind
+family
+
+display_order
+
+display_title
+display_summary
+
+presentation_template_key
+
+Members
+group_id
+case_id
+proposal_id
+member_order
+После user DONE row не удаляется.
+API просто overlay:
+case state → hidden from Active.
+Поэтому историческая Publication остаётся immutable.
+
+109. Publication physical model
+Новый:
+publications
+publication_components
+publication_findings
+publication_recommendations
+
+publication_projections
+
+publication_stock_sku_rows
+publication_ad_campaign_rows
+publication_sku_focus_rows
+
+seller_current_publications
+
+publication_release_events
+outbox_events
+
+110. Критически важно: Publication row создаём только в Publish transaction
+Не создаём:
+draft Publication
+projecting Publication
+Это принадлежит analysis_run.
+До Publish есть:
+analysis artifacts.
+Во время Publish:
+insert immutable Publication.
+Так концептуальная модель и physical model совпадают.
+
+111. publications
+id BIGSERIAL
+
+seller_account_id
+analysis_run_id
+
+analysis_date
+analysis_cutoff_at
+factual_universe_id
+
+contract_bundle_hash
+
+published_at
+
+bundle_hash
+Без:
+status mutable
+superseded_at mutable
+visibility mutable
+Publication itself immutable.
+
+112. Release state отдельно
+publication_release_events
+Например:
+PUBLISHED
+MADE_CURRENT
+WITHDRAWN
+ROLLBACK_SELECTED
+
+113. Current pointer
+seller_current_publications
+seller_account_id PK
+publication_id
+updated_at
+Никакого:
+ORDER BY published_at DESC LIMIT 1
+для Current.
+
+114. Publication components
+publication_components
+Пример:
+DEEP_OUTPUT
+DISCOVERY_OUTPUT
+EVIDENCE
+LANDSCAPE
+ACTION_PLAN
+Поля:
+publication_id
+component_type
+schema_version
+artifact_id
+sha256
+
+115. Findings relational index
+publication_findings
+publication_id
+finding_id
+
+primary_domain
+related_domains_json
+
+overview_bucket
+
+statement
+detail
+
+display_order
+
+grounding_refs_json
+
+116. Recommendations
+publication_recommendations
+publication_id
+recommendation_id
+
+actionability
+summary
+
+finding_refs_json
+
+display_order
+
+117. Dashboard projections
+Я не рекомендую строить один generic:
+widgets(key,value,json)
+Мы уже договорились о typed projections.
+
+118. Summary projection
+publication_projections
+Rows:
+publication_id
+projection_key
+
+DASHBOARD_HOME
+FUNNEL
+STOCK
+ADVERTISING
+
+schema_version
+payload_json
+payload_hash
+
+119. Большие row sets отдельно
+Например:
+publication_stock_sku_rows
+Поля:
+publication_id
+canonical_sku_id
+
+stock
+coverage
+
+ordered_units_7d
+ordered_amount_7d
+
+segment
+sort_key
+
+120. Campaign rows
+publication_ad_campaign_rows
+
+121. SKU Focus rows
+publication_sku_focus_rows
+publication
+cohort
+canonical_sku_id
+rank
+display facts
+
+122. Почему это лучше огромного JSON
+Summary response остаётся быстрым.
+А:
+«Показать все 1 500 SKU»
+можно lazy load.
+Но всё pinned к одной Publication.
+
+123. Atomic Publish transaction
+Алгоритм физически:
+1. Все artifacts уже загружены в MinIO
+2. ValidatePublication = PASS
+
+3. BEGIN
+
+4. pg_advisory_xact_lock(seller)
+
+5. Проверить:
+   current publication == expected base
+
+6. INSERT publications
+
+7. INSERT components
+8. INSERT findings
+9. INSERT recommendations
+
+10. Apply Action reconciliation
+    cases/proposals/assessments/groups
+
+11. INSERT dashboard projections
+
+12. UPDATE seller_current_publications
+
+13. INSERT release event
+
+14. INSERT outbox event
+
+15. COMMIT
+В transaction никаких:
+OpenAI
+MinIO upload
+Ozon
+HTTP
+
+124. Почему advisory lock только здесь
+Это короткая операция.
+PostgreSQL прямо предусматривает transaction-level advisory locks для application-defined synchronization и автоматически освобождает их при завершении transaction. PostgreSQL
+
+125. Outbox
+outbox_events
+Поля:
+id UUID
+
+event_type
+aggregate_type
+aggregate_id
+
+payload_json
+
+created_at
+
+processed_at
+attempts
+last_error
+
+126. Outbox events
+Например:
+publication.current_changed
+action.user_state_changed
+Consumer может:
+invalidate cache;
+обновить internal metrics;
+выполнить future notification.
+Но user request уже успешен после DB commit.
+
+127. Rollback
+Rollback не меняет старую Publication.
+Transaction:
+1. lock seller
+2. validate previous publication
+3. change current pointer
+4. rebuild action current state relative to previous publication
+5. keep all user events
+6. release event
+7. outbox
+Cases, существовавшие только в withdrawn Publication, просто не видны в Active projection.
+
+128. Dashboard backend package
+Старый:
+internal/dashboardhome
+лучше заменить на:
+internal/dashboard/
+Структура:
+service.go
+repository.go
+
+projection/
+    overview.go
+    funnel.go
+    stock.go
+    advertising.go
+
+types.go
+
+129. Dashboard API
+Сохраняем основной endpoint:
+GET /api/v1/dashboard/home
+Это уменьшит unnecessary frontend churn.
+Но response полностью новый.
+
+130. Lazy endpoints
+Добавить:
+GET /api/v1/dashboard/stock/skus
+GET /api/v1/dashboard/advertising/campaigns
+Request обязательно привязан к:
+publication_id
+или сервер возвращает rows строго из publication, указанной в current page token.
+
+131. Dashboard API не вызывает Factual API live
+Очень важное различие.
+Dashboard:
+Publication Projection
+а не:
+Factual API → пересчитать страницу на request.
+Factual API использовали projectors до Publish.
+
+132. Funnel redesign
+Проектор должен отдавать готовые:
+state
+reason_code
+
+stages[]
+transitions[]
+
+insight
+related_actions
+
+limitations
+Frontend вообще не знает Ozon metric compatibility.
+
+133. Actions API
+Старую API taxonomy удаляем.
+Target:
+GET /api/v1/actions
+GET /api/v1/actions/{action_view_id}
+
+POST /api/v1/actions/cases/{case_id}/done
+POST /api/v1/actions/cases/{case_id}/dismiss
+POST /api/v1/actions/cases/{case_id}/reopen
+
+POST /api/v1/actions/bulk
+
+134. /actions response
+Active:
+ActionGroupView[]
+Completed/Irrelevant:
+ActionCaseHistoryView[]
+
+135. Удаляем старые routes
+После frontend cutover:
+/check
+/uncheck
+/{action_key}/dismiss
+legacy export
+admin action-generation-runs
+legacy rerun actions
+если не нужны новому internal admin.
+
+136. Chat physical migration
+Базовые:
+chat_sessions
+chat_messages
+chat_attachments
+chat_feedback
+можно сохранить.
+Они нейтральные.
+
+137. Добавляем
+chat_turns
+chat_turn_contexts
+chat_turn_tool_calls
+chat_turn_grounding_refs
+
+chat_action_bindings
+chat_action_binding_members
+
+138. chat_turns
+id UUID
+
+session_id
+seller
+
+user_message_id
+assistant_message_id
+
+answer_mode
+
+status
+
+publication_id
+factual_universe_id
+
+model_policy_version
+tool_policy_version
+prompt_version
+
+started_at
+completed_at
+
+input_tokens
+output_tokens
+estimated_cost
+
+139. Context
+chat_turn_contexts
+turn_id
+
+analysis_date
+analysis_cutoff_at
+
+conversation_context_hash
+publication_context_hash
+attachment_context_hash
+action_context_hash
+
+history_message_count
+history_truncated
+
+140. Tool calls
+chat_turn_tool_calls
+turn_id
+sequence_no
+
+tool_key
+tool_version
+
+arguments_json
+arguments_hash
+
+status
+
+result_artifact_ref/hash
+
+started_at
+completed_at
+
+error_code
+
+141. Grounding
+chat_turn_grounding_refs
+turn_id
+
+ref_type
+    FACT
+    FINDING
+    RECOMMENDATION
+    ACTION_CASE
+    ATTACHMENT
+
+ref_key
+ordinal
+
+142. Action bindings
+Старый:
+chat_sessions.action_key
+удаляем.
+Новый:
+chat_action_bindings
+id UUID
+session_id
+
+origin_publication_id
+origin_action_group_id
+origin_recommendation_id
+Members:
+chat_action_binding_members
+binding_id
+action_case_id
+
+143. chat_traces legacy удаляется
+Его заменяют:
+chat_turns
+tool_calls
+contexts
+grounding
+OpenTelemetry trace
+Не нужен огромный JSON dumping ground.
+
+144. Chat runtime package
+Оставляем internal/chat, но очищаем.
+Новая структура примерно:
+service.go
+sessions.go
+turn.go
+history.go
+context.go
+
+agent.go
+
+tools/
+  catalog.go
+  publication.go
+  entities.go
+  sales.go
+  stock.go
+  advertising.go
+  funnel.go
+  search.go
+  finance.go
+  abc.go
+
+validator.go
+
+attachments.go
+exports.go
+
+145. Удаляется
+planner.go
+plan_resolve.go
+tool_data_repository_sqlc.go
+legacy intent routing
+legacy confidence
+alerts tools
+critical SKU tools
+recommendations tools
+
+146. Chat tools читают Factual API
+Не DB.
+Например:
+func (t *SKUContextTool) Execute(
+ ctx context.Context,
+ turnContext TurnContext,
+ input SKUInput,
+)
+внутри:
+factualAPI.GetSKU(...)
+
+147. Chat OpenAI loop
+Один logical turn:
+Context
+↓
+Responses API
+
+↓ function call
+
+Backend Factual API
+
+↓ tool result
+
+Responses continuation
+
+↓ possibly more tools
+
+Structured final answer
+
+↓
+validator
+
+↓
+persist
+
+↓
+SSE replay
+Responses API нативно поддерживает typed custom function tools и Structured Outputs, что позволяет убрать отдельный старый planner JSON-contract. OpenAI Developers
+
+148. Chat streaming
+Как договорились:
+model draft
+↓
+full structured result
+↓
+validate
+↓
+stream accepted text through SSE
+То есть transport остаётся streaming, но rejected response пользователь не видит.
+
+149. Evals physical model
+Новый:
+internal/eval/
+и таблицы:
+eval_suites
+eval_cases
+eval_suite_cases
+
+eval_runs
+eval_case_runs
+
+eval_grader_results
+eval_human_reviews
+
+eval_baselines
+
+150. Large Eval assets — MinIO
+Не хранить huge Factual Universe fixture в JSONB.
+DB:
+artifact_key
+hash
+metadata
+MinIO:
+eval/
+  factual-golden/
+  ai-golden/
+  longitudinal/
+  chat/
+  attachments/
+  real-replay/
+
+151. Eval execution
+EVALUATION использует тот же Analysis Runtime.
+Не второй pipeline.
+Разница:
+execution_class = EVALUATION
+Hard constraint:
+PUBLISH stage forbidden.
+
+152. Evaluation CLI
+Добавить devtools:
+run-eval-suite
+compare-eval-runs
+promote-eval-baseline
+export-eval-report
+
+153. Existing unifiedanalysis/eval
+Его идеи/fixtures можно просмотреть и использовать как reference.
+Но новый eval harness не должен зависеть от old Unified Analysis contract.
+
+154. Observability implementation
+Сейчас проект уже использует:
+Prometheus
+Grafana
+Zap
+Sentry
+Я бы их сохранил.
+Добавляем:
+OpenTelemetry tracing
+
+155. Не надо сразу переписывать Prometheus metrics на OTel
+Практичнее:
+Prometheus
+→ metrics
+
+Zap
+→ structured logs
+
+OpenTelemetry
+→ traces
+
+Sentry
+→ exception/error reporting
+Они хорошо дополняют друг друга.
+
+156. OpenTelemetry packages
+Добавить в Go:
+go.opentelemetry.io/otel
+OTLP exporter
+и package:
+internal/observability/
+
+157. Infra
+В deploy/compose/docker-compose.yml добавить:
+otel-collector
+tempo
+Grafana получает:
+Prometheus datasource
+Tempo datasource
+
+158. Почему OpenTelemetry
+OTel стандартизирует semantic attributes для spans/metrics/logs и отдельно развивает GenAI conventions, поэтому лучше не изобретать собственный trace format вокруг OpenAI calls. OpenTelemetry
+
+159. Trace structure
+Analysis:
+analysis.run
+  analysis.stage
+  analysis.stage
+    gen_ai request
+  analysis.stage
+Chat:
+chat.turn
+  context.resolve
+  factual.tool
+  gen_ai request
+  answer.validate
+
+160. Span names low-cardinality
+Не:
+analysis seller_1 run_1782 deep
+А:
+analysis.run
+analysis.stage
+chat.turn
+chat.tool
+IDs — attributes.
+OTel рекомендует low-cardinality span names и вынесение конкретных identifiers в attributes. OpenTelemetry
+
+161. Metrics package
+Текущий:
+internal/metrics
+можно расширить.
+Добавить группы:
+collection_*
+
+analysis_*
+
+publication_*
+
+action_*
+
+chat_*
+
+factual_*
+Как утвердили в Observability Contract.
+
+162. Configuration cleanup
+Сейчас runtime имеет большое число исторических:
+AI_PIPELINE_*
+UNIFIED_*
+DASHBOARD_NARRATIVE_*
+LEGACY_FALLBACK_*
+В final architecture удалить.
+
+163. Новый config
+Минимально:
+ANALYSIS_ENABLED
+
+ANALYSIS_DISCOVERY_MODEL
+ANALYSIS_DEEP_MODEL
+
+ANALYSIS_STAGE_LEASE_SECONDS
+
+ANALYSIS_MAX_RETRIES
+
+CHAT_MODEL
+
+CHAT_MAX_TOOL_ROUNDS
+
+OTEL_EXPORTER_OTLP_ENDPOINT
+Точные policies лучше быть в versioned code/config objects, а не десятках env vars.
+
+164. Model Policy
+Например:
+type ModelPolicy struct {
+    Version string
+    Model   string
+    ...
+}
+Каждый Run сохраняет:
+policy version
+actual model
+Не hardcode текущую legacy gpt-4.1.
+
+165. Contract Bundle
+Создаём:
+analysis/contracts/
+Version bundle включает:
+temporal
+capability
+DQ
+landscape
+materiality
+discovery
+evidence
+deep
+actions
+projections
+model policies
+Считается:
+contract_bundle_hash
+
+166. NO_OP
+Перед AI:
+same universe
++
+same contract bundle
++
+same run intent
+→
+NO_OP
+
+167. Collection orchestration
+Старые packages:
+productsync
+ordersync
+stocksync
+adsync
+productanalyticssync
+stockanalyticssync
+удаляем после replacement.
+Новый:
+internal/collection/
+
+168. Proposed package structure
+collection/
+  orchestrator/
+  catalog/
+  sales/
+  postings/
+  returns/
+  stock/
+  price/
+  advertising/
+  funnel/
+  finance/
+  search/
+  promotions/
+  health/
+  supply/
+  taxonomy/
+Каждый collector:
+Provider client
+↓
+normalize
+↓
+canonical repository
+↓
+capability/DQ result
+
+169. Ozon clients
+Сохраняем:
+integrations/ozon/
+как HTTP adapter layer.
+Туда постепенно добавить недостающие clients по уже закрытым canonical contracts.
+Но никаких таблиц или business aggregation там нет.
+
+170. Collection completion
+Все факты одного collection_domain_run пишутся transactionally насколько возможно.
+Последним действием:
+domain run → COMPLETED
+Universe никогда не выбирает:
+RUNNING domain run.
+
+171. Initial backfill
+При connection:
+Catalog
+Sales Core ~90d
+Postings/Returns supported history
+Advertising supported history
+Snapshot-only:
+Stock current
+Price current
+Не создаём synthetic Stock 90 days.
+
+172. Никакого ожидания 14 дней
+Readiness resolver:
+если исторических Core Sales достаточно
+→ normal analysis
+
+если недостаточно
+→ анализ того, что возможно,
+   с explicit limitations
+После последней договорённости hard wait 14 days нет.
+
+173. Analysis trigger
+После завершения mandatory Core:
+Catalog complete
+Sales complete/reconciled
+ReadinessService:
+resolve analysis_date
+↓
+enqueue production analysis
+Optional jobs не блокируют.
+
+174. Optional completion позже
+Если Search завершился через 3 минуты после seal:
+он не меняет текущий Run.
+Факт попадает в следующий Universe.
+Не перестраиваем P109 на лету.
+
+175. Frontend implementation
+После backend publication runtime готов:
+новый DashboardHomeResponse.
+
+176. Файлы, которые в основном сохраняем
+Например:
+dashboard shell
+tabs
+period controls
+
+Overview components
+
+Stock components
+Advertising layout
+
+Actions master-detail shell
+
+Chat screen
+session sidebar
+composer
+attachments
+
+177. Существенно переписываем frontend libs
+dashboard-home-types.ts
+
+overview-view-model.ts
+seller-pulse-view.ts
+
+stock-page-view-model.ts
+
+funnel view-model/component
+
+ad-efficiency-display.ts
+
+actions-types.ts
+actions-view-model.ts
+actions-display.ts
+actions-filters.ts
+actions-api.ts
+
+chat-api.ts
+chat-display.ts
+chat action handoff
+
+178. Funnel — отдельная реализация
+Удаляем old internal composition и делаем:
+FunnelStateBoundary
+FunnelVisualization
+FunnelStage
+FunnelTransition
+FunnelInsightCard
+FunnelRelatedActions
+с READY/PARTIAL/UNAVAILABLE/READY_EMPTY/FAILED.
+
+179. Legacy routes frontend
+Удалить:
+/dashboard/categories
+/dashboard/sku
+после проверки deep links.
+Не оставлять redirects как вечную compatibility architecture.
+
+180. Frontend action templates
+Реализовать versioned registry:
+action-presentation-registry.ts
+для всех 19 Action Types.
+Он содержит только presentation.
+
+181. One important distinction
+Backend должен присылать:
+display_title
+display_summary
+presentation_template_key
+Чтобы frontend не генерировал бизнес-смысл из enum самостоятельно.
+Registry определяет:
+иконки
+колонки
+формат параметров
+
+182. API wiring cleanup
+Сейчас cmd/api/main.go импортирует одновременно:
+alerts
+recommendations
+aipipeline
+dashboardhome
+unified publication
+actions
+chat
+...
+В final state wiring должен быть гораздо чище.
+Пример:
+auth
+account
+
+collection/status
+
+dashboard
+actions
+chat
+
+admin
+health
+
+factualapi — internal only
+publication — internal
+analysis — worker
+
+183. Worker wiring
+Сейчас cmd/worker/main.go знает:
+legacy pipeline
+summaries
+alerts
+unified analysis
+productsync
+ordersync...
+После migration:
+collection handlers
+analysis stage handler
+outbox dispatcher
+maintenance
+chat attachment cleanup
+
+184. Final worker task types
+Пример:
+collection.run
+collection.domain
+
+analysis.start
+analysis.stage.execute
+analysis.recover
+
+outbox.dispatch
+
+maintenance.cleanup
+chat.attachments.cleanup
+Не 25 разных historical AI tasks.
+
+185. Devtools новые
+Очень рекомендую сделать хороший новый operator tooling сразу.
+collect-seller
+
+inspect-collection-run
+
+seal-factual-universe
+
+inspect-factual-universe
+
+run-analysis
+
+inspect-analysis-run
+
+resume-analysis-run
+
+export-analysis-artifacts
+
+inspect-publication
+
+rollback-publication
+
+run-evals
+
+compare-evals
+
+reseed-seller
+
+186. Old devtools удалить
+После cutover убрать десятки:
+run-unified-analysis
+audit-unified-publication
+inspect-unified...
+rebuild-dashboard-publication
+old AI pipeline tools
+legacy narratives
+critical SKU checkers
+Иначе через полгода никто не поймёт, какой из 40 scripts актуален.
+
+187. SQLC query restructuring
+Сейчас:
+sql/queries/actions.sql
+daily_sku_metrics.sql
+unified_analysis.sql
+...
+После final cutover:
+collection.sql
+
+catalog.sql
+sales.sql
+stock.sql
+price.sql
+advertising.sql
+funnel.sql
+finance.sql
+search.sql
+promotions.sql
+health.sql
+supply.sql
+
+capabilities.sql
+dq.sql
+factual_universe.sql
+
+analysis_runtime.sql
+
+publications.sql
+publication_projections.sql
+
+action_cases.sql
+
+chat.sql
+chat_turns.sql
+
+evals.sql
+
+outbox.sql
+
+188. SQLC regeneration is mandatory gate
+Каждая migration/query PR:
+sqlc generate
+git diff --exit-code internal/dbgen
+чтобы generated code не отставал от schema.
+
+189. Database constraints strategy
+Где возможно используем:
+NOT NULL
+FK
+UNIQUE
+CHECK
+partial UNIQUE indexes
+а не проверяем всё только Go-кодом.
+PostgreSQL документация отдельно рекомендует использовать DB constraints для ограничений данных; для cross-row invariants лучше unique/exclusion/FK или controlled transaction logic, а не сложные CHECK, ссылающиеся на другие строки. PostgreSQL
+
+190. Деньги
+В новой canonical schema рекомендую:
+NUMERIC(20,6)
+для source facts.
+Presentation:
+2 decimal
+где валюта это предполагает.
+Не float.
+
+191. Percentages
+В storage:
+NUMERIC
+или храним base values и рассчитываем deterministic Factual API.
+Не FLOAT.
+
+192. Time
+Жёстко:
+DATE
+→ provider/business date
+
+TIMESTAMPTZ
+→ timestamp
+Никаких timestamp without timezone для source events.
+Business timezone policy:
+Europe/Moscow.
+
+193. Partitioning
+На v1 не вводил бы PostgreSQL table partitioning.
+При:
+~700–2000 SKU
+90 дней
+пилотное число sellers
+обычные composite indexes абсолютно достаточны.
+Добавить partitioning позже по фактическим volume metrics проще, чем сейчас усложнять migrations/query plans.
+
+194. Основные индексы
+На fact tables в первую очередь:
+(seller_account_id, business_date)
+(seller_account_id, canonical_sku_id, business_date)
+
+(canonical_sku_id, observed_at DESC)
+
+(seller, campaign_id, date)
+
+(collection_domain_run_id)
+Не индексировать каждую JSONB колонку «на всякий случай».
+
+195. Security
+Все repository methods seller-scoped.
+Там, где entity ID приходит из API:
+WHERE id = ?
+AND seller_account_id = ?
+Не сначала entity by ID, потом отдельная seller check.
+
+196. Public opaque IDs
+Для:
+Action Case
+Action Group
+Chat Turn
+Factual Universe
+UUID разумен.
+Internal high-volume rows:
+BIGSERIAL
+
+197. No public raw DB IDs where unnecessary
+Frontend не должен знать:
+canonical_sku row id 4182
+если бизнес-идентификатора SKU достаточно.
+Но Action case_id должен быть opaque.
+
+198. Failure handling
+Stage error классифицируется:
+RETRYABLE
+TERMINAL
+LIMITATION
+Не всё:
+return err
+→ Asynq retry 25 times.
+
+199. AI Retry
+Retry только:
+provider timeout
+transient provider failure
+schema/validation retry согласно policy
+На том же:
+pack
+prompt
+schema
+model policy.
+
+200. No semantic repair
+Любые старые:
+aijsonrepair
+semantic_repair
+AI reconcile
+backend rewriter
+не переносим в новый Deep output path.
+
+201. Implementation sequence — самый важный раздел
+Я бы не делал один giant PR.
+Оптимально примерно 12 этапов.
+
+PR 1 — Canonical foundation
+Создать:
+collection control schema
+catalog schema
+sales schema
+
+new collection package skeleton
+
+Factual primitives
+Temporal registry
+
+CI boundary rules
+Никакого production cutover.
+Acceptance:
+migrations PASS
+sqlc PASS
+unit tests
+seller isolation tests
+
+PR 2 — Core Catalog + Sales collectors
+Реализовать:
+Catalog
+taxonomy
+Sales Demand
+
+Canonical SKU
+
+Sales account reconciliation
+Добавить devtool:
+reseed-seller
+collect-seller
+На seller 1 должны получить реальные canonical facts.
+
+PR 3 — Core Factual API + Readiness/DQ
+Реализовать:
+Factual API Catalog/Sales
+
+Capabilities
+Watermarks
+DQ
+
+analysis_date resolver
+Acceptance на seller 1:
+Catalog reconcile
+Sales reconcile
+90d history если Ozon отдаёт
+
+PR 4 — Stock / Price / Advertising
+Добавить три важнейших дополнительных domains:
+Stock
+Price
+Advertising
+и Factual API.
+Проверить особенно account DRR formula.
+
+PR 5 — Remaining canonical domains
+Добавить:
+Funnel
+Finance
+Search
+Promotions
+Account Health
+Supply
+с capability-aware ingestion.
+После этого Canonical layer функционально полный.
+
+PR 6 — Factual Universe + Analysis runtime
+Создать:
+factual_universes
+
+analysis_runs
+analysis_run_stages
+artifacts
+
+generic stage executor
+leases
+recovery
+
+MinIO artifact model
+Пока AI можно заменить fake stage output.
+
+PR 7 — Landscape + Materiality
+Реализовать deterministic:
+Landscape Core
+Materiality
+Landscape Detail
+На этом этапе уже можно запускать EVALUATION до AI.
+
+PR 8 — Discovery + Evidence + Deep
+Реализовать:
+OpenAI Responses adapter
+
+Discovery Pack
+Discovery contract
+
+Evidence Catalog
+
+Deep Pack
+Deep contract
+Добавить fake provider + golden tests.
+В конце PR:
+facts → Deep Output
+работает end-to-end в EVALUATION.
+
+PR 9 — Actions + Publication
+Реализовать:
+Action Catalog
+
+Cases
+Signatures
+Proposals
+Supports
+Assessments
+User events
+
+continuity
+
+Publication
+atomic Publish
+outbox
+
+projections
+И впервые получаем:
+Current Publication
+по новой архитектуре.
+
+PR 10 — Dashboard + Actions Frontend
+Перевести:
+/dashboard/home
+
+Overview
+Stock
+Advertising
+
+Funnel redesign
+
+Actions workspace
+на новые DTO.
+При этом всё ещё можно держать новую архитектуру доступной только в local/evaluation environment до полного cutover.
+
+PR 11 — Chat v2
+Перевести Chat на:
+Current Publication
+Factual API
+tool loop
+multi-turn history
+Action Group handoff
+attachments + cabinet
+validated response
+Удалить direct SQL analytics из Chat.
+
+PR 12 — Evals + Observability
+Реализовать:
+Eval DB schema
+Golden suites
+Replay
+
+OpenTelemetry traces
+Prometheus metrics
+Grafana dashboards
+
+failure injection suite
+
+PR 13 — Cutover + Legacy Removal
+Это особый release PR.
+В нём одновременно:
+Switch runtime
+API → new Dashboard/Actions/Chat
+
+Worker → new Collection/Analysis
+Удалить старую architecture
+Backend packages.
+SQL queries.
+Routes.
+Frontend contracts.
+Env flags.
+Tests/docs.
+Migration:
+DROP legacy business tables
+Regenerate:
+sqlc
+
+202. Почему legacy drop только последним PR
+Если удалить таблицы раньше:
+текущий runtime перестанет запускаться.
+Если никогда не удалить:
+через год будет две архитектуры.
+Поэтому:
+new system fully testable
+↓
+one-time cutover
+↓
+legacy code+schema removed immediately
+
+203. Какие таблицы в final legacy-drop candidates
+После dependency audit:
+products
+orders
+sales
+stocks
+
+daily_account_metrics
+daily_sku_metrics
+
+product_analytics_daily
+stock_analytics_snapshots
+
+old ad_campaigns/ad_metrics/ad_campaign_skus
+
+description_categories legacy
+
+ai_daily_summary_*
+ai_dashboard_narratives
+
+alerts
+alert_runs
+
+recommendations
+recommendation_runs
+recommendation_alert_links
+recommendation_feedback
+
+action_generation_*
+action_items
+action_user_states
+action_entity_groups
+
+ai_pipeline_runs
+ai_pipeline_artifacts
+ai_pipeline_dispatches
+
+ai_dashboard_data_snapshots
+seller_current_ai_snapshots
+
+seller_analysis_settings
+
+unified_analysis_publications
+seller_current_unified_publications
+unified_publication_action_map
+unified_analysis_publication_audit
+
+ozon legacy enrichment facts,
+если заменены canonical equivalents
+Точный DROP список строится через FK dependency audit непосредственно перед migration.
+
+204. Что не удаляем
+users
+sessions
+seller_accounts
+
+ozon_connections
+
+admin logs
+billing
+review invites
+
+new chat sessions/messages/attachments
+
+205. Что делать с старой Chat history
+Поскольку Action references и semantic context меняются:
+для dev seller 1 я рекомендую:
+очистить старые Chat sessions
+вместе с reseed.
+Нет смысла мигрировать старые chats, которые ссылаются на legacy Action keys.
+Для будущих реальных production migrations это был бы отдельный product question, но до пилота его нет.
+
+206. Pre-cutover validation
+Перед переключением обязательны:
+Canonical acceptance
+Factual reconciliation
+
+full Analysis replay
+
+Action continuity
+
+Publication integrity
+
+Dashboard browser E2E
+
+Funnel states
+
+Chat multi-turn
+
+attachment+cabinet
+
+failure injection
+
+worker restart
+
+OpenAI timeout
+
+double delivery
+
+publish crash
+
+seller isolation
+
+Eval holdout
+
+207. Final seller-1 acceptance sequence
+Я бы использовал следующий реальный smoke.
+Step A
+reseed seller 1
+оставить connection.
+
+Step B
+initial collection
+проверить каждый Domain Run.
+
+Step C
+inspect Factual API
+особенно:
+ordered amount
+ordered units
+DRR
+stock
+price
+campaign
+
+Step D
+run EVALUATION
+посмотреть artifacts.
+
+Step E
+run STANDARD_DAILY
+получить P1.
+
+Step F
+Проверить:
+Overview
+Funnel
+Stock
+Advertising
+Actions
+Chat
+
+Step G
+Сделать:
+DONE одного Action member
+проверить:
+4 → 3
+
+Step H
+Следующий factual change + generation.
+Проверить continuity.
+
+208. Deployment model
+Не нужен новый microservice.
+Остаются:
+backend-api
+backend-worker
+frontend
+postgres
+redis
+minio
+плюс:
+otel-collector
+tempo
+для tracing.
+
+209. Почему не Temporal/Step Functions
+У нас уже есть:
+PostgreSQL
+Asynq
+worker
+и pipeline с относительно линейной stage machine.
+Добавление внешнего workflow engine сейчас только увеличит operational surface.
+
+210. Redis failure
+Поскольку Postgres — truth:
+если Redis умер:
+Runs остаются в DB.
+После восстановления:
+recovery scanner
+↓
+ищет READY/RUNNING expired stages
+↓
+re-enqueue.
+
+211. Recovery scanner
+Worker periodic task:
+analysis.recover
+ищет:
+READY stage without queue task
+
+RUNNING with expired lease
+
+outbox unprocessed
+и восстанавливает execution.
+
+212. PostgreSQL failure
+Stage ничего не считает completed до DB commit.
+AI response может успеть завершиться, а DB нет.
+Тогда attempt можно повторно получить/validate через provider response ID либо повторить согласно policy.
+Не публикуем state, которого DB не знает.
+
+213. MinIO failure
+Если artifact upload failed:
+stage not SUCCEEDED.
+Никакого:
+hash записали, файла нет.
+Перед Publish:
+Verify required artifacts.
+
+214. Determinism checks
+Каждый deterministic stage:
+input_hash
+output_hash
+policy_version
+Если тот же stage с тем же input/policy дал другой hash:
+DETERMINISM_VIOLATION.
+
+215. Package dependency rule
+Желательная dependency graph:
+integrations/ozon
+        ↓
+collection
+        ↓
+canonical repositories
+        ↓
+factualapi
+        ↓
+analysis
+        ↓
+publication
+        ↓
+dashboard/actions
+
+factualapi ───────→ chat
+publication ──────→ chat
+actions ──────────→ chat
+
+216. Запрещённые обратные зависимости
+Не должно быть:
+factualapi → dashboard
+
+collection → actions
+
+publication → frontend DTO package
+
+canonical facts → AI prompt package
+
+Ozon adapter → Dashboard
+
+217. Contracts package
+Полезно иметь:
+internal/contracts/
+только для genuinely shared value types:
+Domain
+ReadinessState
+EntityKind
+ActionTargetKind
+TemporalPeriod
+Но не делать один giant types.go на 5 000 строк.
+
+218. Testing layout
+Unit рядом с package.
+Golden:
+testdata/
+Integration:
+backend/tests/integration/
+End-to-end:
+frontend/e2e/
+Eval:
+backend/evals/
+или MinIO fixture package.
+
+219. CI final pipeline
+Минимально:
+migration_preflight
+
+sqlc_generation_gate
+
+go_fmt
+go_vet
+go_test
+
+canonical_contract_gate
+factual_api_boundary_gate
+
+analysis_contract_gate
+determinism_gate
+
+action_catalog_gate
+continuity_gate
+
+publication_gate
+
+frontend_typecheck
+frontend_unit
+
+frontend_e2e
+
+legacy_architecture_removal_gate
+
+220. Legacy architecture removal gate
+Очень рекомендую сделать literal grep gate.
+Fail build, если production code снова содержит imports:
+internal/aipipeline
+internal/unifiedanalysis
+internal/alerts
+internal/recommendations
+после cutover.
+Или legacy table names в active business packages.
+
+221. Не удалять полезные знания
+Перед удалением old code:
+извлечь нейтральные:
+ZIP deterministic writer
+OpenAI retry logic
+MinIO helpers
+SSE helpers
+attachment security
+idempotency
+seller isolation tests
+в новые clean packages.
+Потом удалить source legacy.
+
+222. Документация final state
+После реализации docs/current тоже нужно переписать.
+Сейчас там в основном:
+Unified Analysis Stage 2/3/4/5
+После cutover они будут вводить всех в заблуждение.
+Новый docs/current:
+canonical-data-model.md
+
+collection-runtime.md
+
+factual-api.md
+
+business-capabilities.md
+
+analysis-pipeline.md
+
+actions.md
+
+publication.md
+
+dashboard.md
+
+chat.md
+
+evals-observability.md
+
+operations-runbook.md
+
+223. README
+Текущий README всё ещё говорит:
+alerts, summaries, recommendations, legacy/unified...
+Нужно заменить на реальную новую структуру.
+
+224. Что не нужно делать первым
+Не начинать реализацию с:
+нового Dashboard JSX
+
+нового Chat prompt
+
+новых Action карточек
+пока нет canonical factual foundation.
+Иначе снова получится:
+красивый frontend поверх спорных цифр.
+
+225. Что является истинным Milestone 1
+Не:
+новый AI уже отвечает.
+А:
+seller 1 можно полностью собрать из Ozon в новую Canonical UCDM и получить через Factual API однозначно правильные факты.
+Если этот этап слабый, всё остальное бессмысленно.
+
+226. Milestone 2
+sealed Universe
+→ deterministic Landscape/Materiality
+→ Discovery
+→ Evidence
+→ Deep
+полностью replayable.
+
+227. Milestone 3
+Deep
+→ Action Cases
+→ Publication
+→ consistent Dashboard/Actions
+
+228. Milestone 4
+Chat работает на том же ядре.
+
+229. Milestone 5
+legacy physically deleted.
+Это важный milestone, а не «когда-нибудь потом почистим».
+
+230. Что я бы считал Definition of Done всей миграции
+Новая архитектура закончена только если одновременно выполняется:
+seller 1 reseeded из Ozon;
+
+старые business facts не используются;
+
+новые canonical domains работают;
+
+Factual API — единственный read boundary;
+
+Daily Analysis работает двумя AI calls;
+
+Evidence закрытый и replayable;
+
+Action Cases + continuity работают;
+
+Publication immutable;
+
+Dashboard читает только Publication;
+
+Actions согласованы с Dashboard;
+
+Funnel redesigned;
+
+Chat читает Publication/Factual API;
+
+Chat настоящий multi-turn;
+
+Evals работают;
+
+tracing/metrics есть;
+
+legacy backend удалён;
+
+legacy tables удалены;
+
+legacy frontend contracts удалены;
+
+legacy env flags удалены;
+
+old docs удалены/заменены;
+
+full E2E PASS.
+
+231. Важные архитектурные решения, которые этот Plan окончательно закрепляет
+Первое: новую UCDM не строим через миграцию старых daily_* данных. Источник — Ozon.
+Второе: существующие Ozon HTTP-клиенты переиспользуем, существующие business sync-models — нет.
+Третье: Factual API становится обязательной границей между canonical DB и AI/Chat.
+Четвёртое: PostgreSQL является единственным durable state pipeline; Asynq лишь at-least-once executor. GitHub
+Пятое: новый analysis_runs создаётся с чистой state machine; старый ai_pipeline_runs не расширяем ещё на двадцать статусов.
+Шестое: Publication создаётся только в atomic Publish transaction и с момента INSERT является immutable release snapshot.
+Седьмое: Action Cases физически отделяются от Publication Action Groups. Case persistent; Group — immutable presentation projection конкретной Publication.
+Восьмое: Dashboard читает только publication projections, не live Factual API.
+Девятое: Chat читает Factual API + Publication и не имеет собственного SQL analytics engine.
+Десятое: evaluation использует тот же runtime, но физически не имеет права Publish.
+Одиннадцатое: Redis, MinIO и OpenAI никогда не участвуют внутри DB Publish transaction.
+Двенадцатое: legacy после cutover удаляется физически — не остаётся режимов legacy/unified, fallback или dual read.
+
+Финальный порядок проекта
+После утверждения этого плана вся наша архитектурная работа закрывается:
+Canonical Models                         ✅
+Temporal / Capabilities / DQ             ✅
+Factual API                              ✅
+
+Landscapes / Materiality                 ✅
+Discovery / Evidence / Deep              ✅
+
+Actions / Continuity                     ✅
+Publication / Projection                 ✅
+Orchestration                            ✅
+
+Dashboard / Actions / Chat               ✅
+Frontend Migration                       ✅
+Funnel Redesign                          ✅
+
+Evals / Acceptance / Observability       ✅
+
+Physical Implementation Plan             ← этот документ
+После него больше не нужен ещё один большой архитектурный этап.
+Дальше уже начинается собственно разработка, и я бы начинал её строго с:
+PR 1 — Canonical Collection/Foundation → PR 2 — Catalog + Sales → PR 3 — Factual API/DQ
+а не с AI и не с frontend.
+Это позволит впервые за весь путь Aivion поставить абсолютно твёрдое основание: сначала бесспорно правильные данные и факты, затем AI, затем Actions и UI.

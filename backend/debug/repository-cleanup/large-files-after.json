@@ -1,0 +1,202 @@
+[
+  {
+    "size": 757076,
+    "path": "backend/internal/chatartifact/fonts/DejaVuSans.ttf"
+  },
+  {
+    "size": 705684,
+    "path": "backend/internal/chatartifact/fonts/DejaVuSans-Bold.ttf"
+  },
+  {
+    "size": 331256,
+    "path": "frontend/package-lock.json"
+  },
+  {
+    "size": 175886,
+    "path": "backend/internal/unifiedanalysis/outputvalidator/testdata/acceptance_run202_facts.json"
+  },
+  {
+    "size": 89718,
+    "path": "backend/internal/unifiedanalysis/outputvalidator/testdata/acceptance_run201_output.json"
+  },
+  {
+    "size": 87079,
+    "path": "backend/internal/dashboardhome/service.go"
+  },
+  {
+    "size": 85836,
+    "path": "frontend/components/admin-client-detail-screen.tsx"
+  },
+  {
+    "size": 74528,
+    "path": "backend/internal/httpserver/handlers/admin.go"
+  },
+  {
+    "size": 72530,
+    "path": "backend/internal/unifiedanalysis/publication/adapter/dashboard.go"
+  },
+  {
+    "size": 65830,
+    "path": "backend/debug/repository-cleanup/go-integration.log"
+  },
+  {
+    "size": 65659,
+    "path": "backend/internal/unifiedanalysis/outputvalidator/testdata/acceptance_run202_output.json"
+  },
+  {
+    "size": 58629,
+    "path": "backend/internal/dbgen/unified_analysis.sql.go"
+  },
+  {
+    "size": 57861,
+    "path": "backend/internal/aisummaries/context_build.go"
+  },
+  {
+    "size": 57343,
+    "path": "frontend/components/recommendations-screen.tsx"
+  },
+  {
+    "size": 56099,
+    "path": "backend/internal/aipipeline/service.go"
+  },
+  {
+    "size": 52567,
+    "path": "docs/audits/real-run-2026-07-22-8bbc469/dashboard-api-1.json"
+  },
+  {
+    "size": 52566,
+    "path": "backend/internal/unifiedanalysis/publication/bundlevalidator/validator.go"
+  },
+  {
+    "size": 52303,
+    "path": "backend/internal/dbgen/actions.sql.go"
+  },
+  {
+    "size": 50090,
+    "path": "backend/internal/unifiedanalysis/publication/service.go"
+  },
+  {
+    "size": 47848,
+    "path": "frontend/components/chat-screen.tsx"
+  },
+  {
+    "size": 47530,
+    "path": "backend/internal/httpserver/handlers/admin_test.go"
+  },
+  {
+    "size": 47195,
+    "path": "backend/internal/dbgen/ai_pipeline.sql.go"
+  },
+  {
+    "size": 45541,
+    "path": "frontend/lib/sku-focus-display.ts"
+  },
+  {
+    "size": 43526,
+    "path": "backend/internal/unifiedanalysis/prompt/analyst_v1_31.txt"
+  },
+  {
+    "size": 43408,
+    "path": "backend/internal/dashboardhome/risk_drivers.go"
+  },
+  {
+    "size": 40391,
+    "path": "backend/internal/unifiedanalysis/contract/schema/unified_analysis_output_v10.schema.json"
+  },
+  {
+    "size": 40149,
+    "path": "backend/internal/dashboardhome/narrative_datapack_context.go"
+  },
+  {
+    "size": 39878,
+    "path": "backend/internal/devseed/ozon_enrichment_seed.go"
+  },
+  {
+    "size": 39543,
+    "path": "backend/internal/chat/service.go"
+  },
+  {
+    "size": 38821,
+    "path": "backend/internal/unifiedanalysis/contract/schema/unified_analysis_output_v9.schema.json"
+  },
+  {
+    "size": 38533,
+    "path": "frontend/lib/seller-pulse-view.ts"
+  },
+  {
+    "size": 38523,
+    "path": "backend/internal/unifiedanalysis/queue_integration_test.go"
+  },
+  {
+    "size": 38359,
+    "path": "backend/internal/unifiedanalysis/contract/schema/unified_analysis_output_v8.schema.json"
+  },
+  {
+    "size": 37829,
+    "path": "backend/internal/dashboardhome/schema.go"
+  },
+  {
+    "size": 37734,
+    "path": "backend/internal/unifiedanalysis/contract/schema/unified_analysis_output_v7.schema.json"
+  },
+  {
+    "size": 37287,
+    "path": "frontend/lib/funnel-ai-analysis-view.ts"
+  },
+  {
+    "size": 36951,
+    "path": "backend/internal/actions/operational_detail_builder.go"
+  },
+  {
+    "size": 36839,
+    "path": "backend/internal/dbgen/recommendations.sql.go"
+  },
+  {
+    "size": 36597,
+    "path": "backend/internal/admin/service_test.go"
+  },
+  {
+    "size": 36134,
+    "path": "backend/internal/dbgen/models.go"
+  },
+  {
+    "size": 36058,
+    "path": "backend/internal/dbgen/ozon_enrichment.sql.go"
+  },
+  {
+    "size": 36031,
+    "path": "backend/internal/unifiedanalysis/test_helpers_test.go"
+  },
+  {
+    "size": 35651,
+    "path": "backend/internal/unifiedanalysis/prompt/analyst_v1_30.txt"
+  },
+  {
+    "size": 35514,
+    "path": "backend/internal/dashboardhome/top_actions.go"
+  },
+  {
+    "size": 35479,
+    "path": "backend/internal/dbgen/ai_pipeline_dispatches.sql.go"
+  },
+  {
+    "size": 35479,
+    "path": "backend/internal/dashboardhome/narrative_service.go"
+  },
+  {
+    "size": 35326,
+    "path": "backend/internal/unifiedanalysis/contract/schema/unified_analysis_output_v6.schema.json"
+  },
+  {
+    "size": 35240,
+    "path": "backend/internal/unifiedanalysis/contract/schema/unified_analysis_output_v4.schema.json"
+  },
+  {
+    "size": 35151,
+    "path": "backend/internal/unifiedanalysis/contract/schema/unified_analysis_output_v5.schema.json"
+  },
+  {
+    "size": 34956,
+    "path": "backend/internal/unifiedanalysis/contract/schema/unified_analysis_output_v3.schema.json"
+  }
+]

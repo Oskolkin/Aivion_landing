@@ -1,0 +1,12 @@
+DROP TABLE IF EXISTS sku_category_assignments;
+DROP TABLE IF EXISTS seller_categories;
+DROP TABLE IF EXISTS canonical_sku_relations;
+DROP TABLE IF EXISTS canonical_sku_content_snapshots;
+DROP TABLE IF EXISTS canonical_sku_versions;
+DROP TABLE IF EXISTS canonical_skus;
+DROP TABLE IF EXISTS provider_product_type_versions;
+DROP TABLE IF EXISTS provider_product_types;
+DROP TABLE IF EXISTS provider_category_versions;
+DROP TABLE IF EXISTS provider_categories;
+DROP TABLE IF EXISTS taxonomy_sync_runs;
+DROP FUNCTION IF EXISTS enforce_catalog_seller_match();

@@ -1,0 +1,1115 @@
+{
+  "constraints": {
+    "limitations": [
+      "No margin/cost constraints available; AI must not suggest direct price decrease without checking margin."
+    ],
+    "price_constraints_available": false,
+    "sku_price_constraints": []
+  },
+  "data_quality": {
+    "context_compaction": {
+      "campaign_sent": 1,
+      "campaign_total": 1,
+      "policy": "full normalized dataset is split into deterministic technical chunks",
+      "selection_policy": "technical_chunking_only_no_business_filtering",
+      "sku_sent": 1,
+      "sku_total": 1
+    },
+    "limitations": [
+      "Advertising metrics are campaign-level only; SKU-level ad spend attribution is unavailable.",
+      "Finance data is unavailable; true profit, payout and margin cannot be calculated.",
+      "daily_sku_metrics.stock_available is treated as a current snapshot, not historical stock movement."
+    ],
+    "sources": {
+      "advertising": {
+        "campaign_count": 1,
+        "campaign_product_links": 1,
+        "daily_metric_rows": 14,
+        "status": "available"
+      },
+      "daily_account_metrics": {
+        "date_from": "2026-06-25",
+        "date_to": "2026-07-08",
+        "rows": 14,
+        "status": "available"
+      },
+      "daily_sku_metrics": {
+        "rows": 14,
+        "status": "available"
+      },
+      "finance": {
+        "reason": "finance ingestion not implemented",
+        "status": "not_available"
+      },
+      "funnel": {
+        "status": "available"
+      },
+      "ozon_api_capabilities": {
+        "status": "not_available"
+      },
+      "product_enrichment": {
+        "status": "not_available"
+      },
+      "seller": {
+        "status": "available"
+      },
+      "stock_analytics": {
+        "rows": 1,
+        "snapshot_date": "2026-07-08",
+        "source": "dev_seed",
+        "status": "available"
+      }
+    }
+  },
+  "data_windows": {
+    "current_day": "2026-07-08",
+    "last_14d": {
+      "from": "2026-06-25",
+      "to": "2026-07-08"
+    },
+    "last_7d": {
+      "from": "2026-07-02",
+      "to": "2026-07-08"
+    },
+    "previous_7d": {
+      "from": "2026-06-25",
+      "to": "2026-07-01"
+    },
+    "yesterday": "2026-07-07"
+  },
+  "entity_registry": {
+    "campaigns": {
+      "campaign:882000001625": {
+        "adv_object_type": "SKU",
+        "budget": {
+          "currency": "RUB"
+        },
+        "campaign_external_id": "882000001625",
+        "entity_id": "campaign:882000001625",
+        "entity_type": "campaign",
+        "name": "Campaign One",
+        "state": "CAMPAIGN_STATE_RUNNING"
+      }
+    },
+    "categories": {},
+    "sku_groups": {},
+    "skus": {
+      "sku:801000100001": {
+        "entity_id": "sku:801000100001",
+        "entity_type": "sku",
+        "image_url": null,
+        "name": "SKU One",
+        "offer_id": "offer-1",
+        "ozon_product_id": "901000100001",
+        "sku": "801000100001",
+        "sources": [
+          "ad_campaign_skus",
+          "daily_sku_metrics",
+          "products",
+          "stock_analytics_snapshots"
+        ],
+        "status": "active"
+      }
+    },
+    "warehouses": {
+      "warehouse:1": {
+        "entity_id": "warehouse:1",
+        "entity_type": "warehouse",
+        "name": "WH-1",
+        "warehouse_id": "1"
+      }
+    }
+  },
+  "fact_registry": {
+    "account.current_day.revenue": {
+      "date": "2026-07-08",
+      "entity_id": "account:seller",
+      "entity_type": "account",
+      "fact_id": "account.current_day.revenue",
+      "formatted_value": "1 130 ₽",
+      "metric": "revenue",
+      "source": {
+        "calculation": "value on current_day",
+        "field": "revenue",
+        "table": "daily_account_metrics"
+      },
+      "unit": "RUB",
+      "value": 1130,
+      "window": "current_day"
+    },
+    "account.last_7d.orders": {
+      "date_from": "2026-07-02",
+      "date_to": "2026-07-08",
+      "entity_id": "account:seller",
+      "entity_type": "account",
+      "fact_id": "account.last_7d.orders",
+      "formatted_value": "140",
+      "metric": "orders",
+      "source": {
+        "calculation": "sum over last_7d",
+        "field": "orders_count",
+        "table": "daily_account_metrics"
+      },
+      "unit": "count",
+      "value": 140,
+      "window": "last_7d"
+    },
+    "account.last_7d.revenue": {
+      "date_from": "2026-07-02",
+      "date_to": "2026-07-08",
+      "entity_id": "account:seller",
+      "entity_type": "account",
+      "fact_id": "account.last_7d.revenue",
+      "formatted_value": "7 700 ₽",
+      "metric": "revenue",
+      "source": {
+        "calculation": "sum over last_7d",
+        "field": "revenue",
+        "table": "daily_account_metrics"
+      },
+      "unit": "RUB",
+      "value": 7700,
+      "window": "last_7d"
+    },
+    "account.orders.last_7d_vs_previous_7d_delta_abs": {
+      "date_from": "2026-06-25",
+      "date_to": "2026-07-08",
+      "entity_id": "account:seller",
+      "entity_type": "account",
+      "fact_id": "account.orders.last_7d_vs_previous_7d_delta_abs",
+      "formatted_value": "49",
+      "metric": "orders_delta_abs",
+      "source": {
+        "calculation": "abs delta last_7d vs previous_7d",
+        "field": "orders_count",
+        "table": "daily_account_metrics"
+      },
+      "unit": "count",
+      "value": 49,
+      "window": "last_7d_vs_previous_7d"
+    },
+    "account.orders.last_7d_vs_previous_7d_delta_pct": {
+      "date_from": "2026-06-25",
+      "date_to": "2026-07-08",
+      "entity_id": "account:seller",
+      "entity_type": "account",
+      "fact_id": "account.orders.last_7d_vs_previous_7d_delta_pct",
+      "formatted_value": "53,85%",
+      "metric": "orders_delta_pct",
+      "source": {
+        "calculation": "pct delta last_7d vs previous_7d",
+        "field": "orders_count",
+        "table": "daily_account_metrics"
+      },
+      "unit": "percent",
+      "value": 53.85,
+      "window": "last_7d_vs_previous_7d"
+    },
+    "account.previous_7d.orders": {
+      "date_from": "2026-06-25",
+      "date_to": "2026-07-01",
+      "entity_id": "account:seller",
+      "entity_type": "account",
+      "fact_id": "account.previous_7d.orders",
+      "formatted_value": "91",
+      "metric": "orders",
+      "source": {
+        "calculation": "sum over previous_7d",
+        "field": "orders_count",
+        "table": "daily_account_metrics"
+      },
+      "unit": "count",
+      "value": 91,
+      "window": "previous_7d"
+    },
+    "account.previous_7d.revenue": {
+      "date_from": "2026-06-25",
+      "date_to": "2026-07-01",
+      "entity_id": "account:seller",
+      "entity_type": "account",
+      "fact_id": "account.previous_7d.revenue",
+      "formatted_value": "7 210 ₽",
+      "metric": "revenue",
+      "source": {
+        "calculation": "sum over previous_7d",
+        "field": "revenue",
+        "table": "daily_account_metrics"
+      },
+      "unit": "RUB",
+      "value": 7210,
+      "window": "previous_7d"
+    },
+    "account.revenue.last_7d_vs_previous_7d_delta_pct": {
+      "date_from": "2026-06-25",
+      "date_to": "2026-07-08",
+      "entity_id": "account:seller",
+      "entity_type": "account",
+      "fact_id": "account.revenue.last_7d_vs_previous_7d_delta_pct",
+      "formatted_value": "6,80%",
+      "metric": "revenue_delta_pct",
+      "source": {
+        "calculation": "pct delta last_7d vs previous_7d",
+        "field": "revenue",
+        "table": "daily_account_metrics"
+      },
+      "unit": "percent",
+      "value": 6.8,
+      "window": "last_7d_vs_previous_7d"
+    },
+    "campaign.882000001625.current_day.spend": {
+      "date": "2026-07-08",
+      "entity_id": "campaign:882000001625",
+      "entity_type": "campaign",
+      "fact_id": "campaign.882000001625.current_day.spend",
+      "formatted_value": "100 ₽",
+      "metric": "spend",
+      "source": {
+        "field": "spend",
+        "table": "ad_metrics_daily"
+      },
+      "unit": "RUB",
+      "value": 100,
+      "window": "current_day"
+    },
+    "campaign.882000001625.last_7d.drr_pct": {
+      "date_from": "2026-07-02",
+      "date_to": "2026-07-08",
+      "entity_id": "campaign:882000001625",
+      "entity_type": "campaign",
+      "fact_id": "campaign.882000001625.last_7d.drr_pct",
+      "formatted_value": "25,00%",
+      "metric": "drr_pct",
+      "source": {
+        "calculation": "spend/revenue*100",
+        "field": "spend,revenue",
+        "table": "ad_metrics_daily"
+      },
+      "unit": "percent",
+      "value": 25,
+      "window": "last_7d"
+    },
+    "campaign.882000001625.last_7d.orders": {
+      "date_from": "2026-07-02",
+      "date_to": "2026-07-08",
+      "entity_id": "campaign:882000001625",
+      "entity_type": "campaign",
+      "fact_id": "campaign.882000001625.last_7d.orders",
+      "formatted_value": "14",
+      "metric": "orders",
+      "source": {
+        "calculation": "sum over last_7d",
+        "field": "orders_count",
+        "table": "ad_metrics_daily"
+      },
+      "unit": "count",
+      "value": 14,
+      "window": "last_7d"
+    },
+    "campaign.882000001625.last_7d.revenue": {
+      "date_from": "2026-07-02",
+      "date_to": "2026-07-08",
+      "entity_id": "campaign:882000001625",
+      "entity_type": "campaign",
+      "fact_id": "campaign.882000001625.last_7d.revenue",
+      "formatted_value": "2 800 ₽",
+      "metric": "revenue",
+      "source": {
+        "calculation": "sum over last_7d",
+        "field": "revenue",
+        "table": "ad_metrics_daily"
+      },
+      "unit": "RUB",
+      "value": 2800,
+      "window": "last_7d"
+    },
+    "campaign.882000001625.last_7d.spend": {
+      "date_from": "2026-07-02",
+      "date_to": "2026-07-08",
+      "entity_id": "campaign:882000001625",
+      "entity_type": "campaign",
+      "fact_id": "campaign.882000001625.last_7d.spend",
+      "formatted_value": "700 ₽",
+      "metric": "spend",
+      "source": {
+        "calculation": "sum over last_7d",
+        "field": "spend",
+        "table": "ad_metrics_daily"
+      },
+      "unit": "RUB",
+      "value": 700,
+      "window": "last_7d"
+    },
+    "funnel.account.current_day.add_to_cart": {
+      "date": "2026-07-08",
+      "entity_id": "funnel:account",
+      "entity_type": "funnel",
+      "fact_id": "funnel.account.current_day.add_to_cart",
+      "formatted_value": "100",
+      "metric": "add_to_cart",
+      "source": {
+        "field": "add_to_cart",
+        "table": "product_analytics_daily"
+      },
+      "unit": "count",
+      "value": 100,
+      "window": "current_day"
+    },
+    "funnel.account.current_day.completed_orders": {
+      "date": "2026-07-08",
+      "entity_id": "funnel:account",
+      "entity_type": "funnel",
+      "fact_id": "funnel.account.current_day.completed_orders",
+      "formatted_value": "22",
+      "metric": "completed_orders",
+      "source": {
+        "field": "completed_orders",
+        "table": "product_analytics_daily"
+      },
+      "unit": "count",
+      "value": 22,
+      "window": "current_day"
+    },
+    "funnel.account.current_day.impressions": {
+      "date": "2026-07-08",
+      "entity_id": "funnel:account",
+      "entity_type": "funnel",
+      "fact_id": "funnel.account.current_day.impressions",
+      "formatted_value": "5000",
+      "metric": "impressions",
+      "source": {
+        "field": "impressions",
+        "table": "product_analytics_daily"
+      },
+      "unit": "count",
+      "value": 5000,
+      "window": "current_day"
+    },
+    "funnel.account.current_day.orders_count": {
+      "date": "2026-07-08",
+      "entity_id": "funnel:account",
+      "entity_type": "funnel",
+      "fact_id": "funnel.account.current_day.orders_count",
+      "formatted_value": "23",
+      "metric": "orders_count",
+      "source": {
+        "field": "orders_count",
+        "table": "product_analytics_daily"
+      },
+      "unit": "count",
+      "value": 23,
+      "window": "current_day"
+    },
+    "funnel.account.current_day.product_views": {
+      "date": "2026-07-08",
+      "entity_id": "funnel:account",
+      "entity_type": "funnel",
+      "fact_id": "funnel.account.current_day.product_views",
+      "formatted_value": "1000",
+      "metric": "product_views",
+      "source": {
+        "field": "product_views",
+        "table": "product_analytics_daily"
+      },
+      "unit": "count",
+      "value": 1000,
+      "window": "current_day"
+    },
+    "funnel.account.transition.add_to_cart_to_orders_count.conversion_pct": {
+      "date": "2026-07-08",
+      "entity_id": "funnel:account",
+      "entity_type": "funnel",
+      "fact_id": "funnel.account.transition.add_to_cart_to_orders_count.conversion_pct",
+      "formatted_value": "23,00%",
+      "metric": "conversion_pct",
+      "source": {
+        "calculation": "stage conversion",
+        "field": "add_to_cart_to_orders_count",
+        "table": "product_analytics_daily"
+      },
+      "unit": "percent",
+      "value": 23,
+      "window": "current_day"
+    },
+    "funnel.account.transition.impressions_to_product_views.conversion_pct": {
+      "date": "2026-07-08",
+      "entity_id": "funnel:account",
+      "entity_type": "funnel",
+      "fact_id": "funnel.account.transition.impressions_to_product_views.conversion_pct",
+      "formatted_value": "20,00%",
+      "metric": "conversion_pct",
+      "source": {
+        "calculation": "stage conversion",
+        "field": "impressions_to_product_views",
+        "table": "product_analytics_daily"
+      },
+      "unit": "percent",
+      "value": 20,
+      "window": "current_day"
+    },
+    "funnel.account.transition.orders_count_to_completed_orders.conversion_pct": {
+      "date": "2026-07-08",
+      "entity_id": "funnel:account",
+      "entity_type": "funnel",
+      "fact_id": "funnel.account.transition.orders_count_to_completed_orders.conversion_pct",
+      "formatted_value": "95,65%",
+      "metric": "conversion_pct",
+      "source": {
+        "calculation": "stage conversion",
+        "field": "orders_count_to_completed_orders",
+        "table": "product_analytics_daily"
+      },
+      "unit": "percent",
+      "value": 95.65,
+      "window": "current_day"
+    },
+    "funnel.account.transition.product_views_to_add_to_cart.conversion_pct": {
+      "date": "2026-07-08",
+      "entity_id": "funnel:account",
+      "entity_type": "funnel",
+      "fact_id": "funnel.account.transition.product_views_to_add_to_cart.conversion_pct",
+      "formatted_value": "10,00%",
+      "metric": "conversion_pct",
+      "source": {
+        "calculation": "stage conversion",
+        "field": "product_views_to_add_to_cart",
+        "table": "product_analytics_daily"
+      },
+      "unit": "percent",
+      "value": 10,
+      "window": "current_day"
+    },
+    "sku.801000100001.current.stock_available": {
+      "date": "2026-07-08",
+      "entity_id": "sku:801000100001",
+      "entity_type": "sku",
+      "fact_id": "sku.801000100001.current.stock_available",
+      "formatted_value": "50",
+      "metric": "stock_available",
+      "source": {
+        "calculation": "current_snapshot",
+        "field": "stock_available",
+        "table": "daily_sku_metrics"
+      },
+      "unit": "count",
+      "value": 50,
+      "window": "current_day"
+    },
+    "sku.801000100001.current_day.revenue": {
+      "date": "2026-07-08",
+      "entity_id": "sku:801000100001",
+      "entity_type": "sku",
+      "fact_id": "sku.801000100001.current_day.revenue",
+      "formatted_value": "865 ₽",
+      "metric": "revenue",
+      "source": {
+        "field": "revenue",
+        "table": "daily_sku_metrics"
+      },
+      "unit": "RUB",
+      "value": 865,
+      "window": "current_day"
+    },
+    "sku.801000100001.last_7d.orders": {
+      "date_from": "2026-07-02",
+      "date_to": "2026-07-08",
+      "entity_id": "sku:801000100001",
+      "entity_type": "sku",
+      "fact_id": "sku.801000100001.last_7d.orders",
+      "formatted_value": "140",
+      "metric": "orders",
+      "source": {
+        "calculation": "sum over last_7d",
+        "field": "orders_count",
+        "table": "daily_sku_metrics"
+      },
+      "unit": "count",
+      "value": 140,
+      "window": "last_7d"
+    },
+    "sku.801000100001.last_7d.revenue": {
+      "date_from": "2026-07-02",
+      "date_to": "2026-07-08",
+      "entity_id": "sku:801000100001",
+      "entity_type": "sku",
+      "fact_id": "sku.801000100001.last_7d.revenue",
+      "formatted_value": "5 950 ₽",
+      "metric": "revenue",
+      "source": {
+        "calculation": "sum over last_7d",
+        "field": "revenue",
+        "table": "daily_sku_metrics"
+      },
+      "unit": "RUB",
+      "value": 5950,
+      "window": "last_7d"
+    },
+    "sku.801000100001.stock.idc_days": {
+      "date": "2026-07-08",
+      "entity_id": "sku:801000100001",
+      "entity_type": "sku",
+      "fact_id": "sku.801000100001.stock.idc_days",
+      "formatted_value": "10,0 дн.",
+      "metric": "idc_days",
+      "source": {
+        "field": "idc",
+        "table": "stock_analytics_snapshots"
+      },
+      "unit": "days",
+      "value": 10
+    },
+    "sku.801000100001.stock.turnover_grade": {
+      "date": "2026-07-08",
+      "entity_id": "sku:801000100001",
+      "entity_type": "sku",
+      "fact_id": "sku.801000100001.stock.turnover_grade",
+      "formatted_value": "ACTUAL",
+      "metric": "turnover_grade",
+      "source": {
+        "field": "turnover_grade",
+        "table": "stock_analytics_snapshots"
+      },
+      "unit": "enum",
+      "value": "ACTUAL"
+    }
+  },
+  "schema_version": "ai_data_pack_v1",
+  "seller_context": {
+    "marketplace": "ozon",
+    "metric_date": "2026-07-08",
+    "seller_account_id": 42,
+    "timezone": "Europe/Moscow"
+  },
+  "tables": {
+    "account_rollup": {
+      "current_day": {
+        "aov": 49.13,
+        "cancel_count": 1,
+        "orders_count": 23,
+        "returns_count": 1,
+        "revenue": 1130,
+        "units_sold": 23
+      },
+      "data_status": "available",
+      "deltas": {
+        "orders_last_7d_vs_previous_7d_abs": 49,
+        "orders_last_7d_vs_previous_7d_pct": 53.85,
+        "revenue_last_7d_vs_previous_7d_abs": 490,
+        "revenue_last_7d_vs_previous_7d_pct": 6.8
+      },
+      "fact_ids": [
+        "account.current_day.revenue",
+        "account.last_7d.revenue",
+        "account.previous_7d.revenue",
+        "account.last_7d.orders",
+        "account.previous_7d.orders",
+        "account.revenue.last_7d_vs_previous_7d_delta_pct",
+        "account.orders.last_7d_vs_previous_7d_delta_pct",
+        "account.orders.last_7d_vs_previous_7d_delta_abs"
+      ],
+      "last_7d": {
+        "aov": 55,
+        "cancel_count": 7,
+        "orders_count": 140,
+        "returns_count": 7,
+        "revenue": 7700,
+        "units_sold": 140
+      },
+      "previous_7d": {
+        "aov": 79.23,
+        "cancel_count": 7,
+        "orders_count": 91,
+        "returns_count": 7,
+        "revenue": 7210,
+        "units_sold": 91
+      },
+      "yesterday": {
+        "aov": 50.91,
+        "cancel_count": 1,
+        "orders_count": 22,
+        "returns_count": 1,
+        "revenue": 1120,
+        "units_sold": 22
+      }
+    },
+    "campaign_product_links": [
+      {
+        "campaign_entity_id": "campaign:882000001625",
+        "campaign_external_id": "882000001625",
+        "enrichment_status": "partial",
+        "is_active": false,
+        "linked_stock_summary": {
+          "available_stock_count": 50,
+          "idc_days": 10,
+          "turnover_grade": "ACTUAL"
+        },
+        "sku": "801000100001",
+        "sku_entity_id": "sku:801000100001"
+      }
+    ],
+    "campaign_rollups": [
+      {
+        "adv_object_type": "SKU",
+        "budget": {
+          "currency": "RUB"
+        },
+        "campaign_external_id": "882000001625",
+        "current_day": {
+          "clicks": 63,
+          "cpc": 1.5873,
+          "cpo": 50,
+          "ctr_pct": 6.22,
+          "drr_pct": 25,
+          "impressions": 1013,
+          "orders": 2,
+          "revenue": 400,
+          "roas": 4,
+          "spend": 100,
+          "spend_without_orders": false,
+          "spend_without_revenue": false
+        },
+        "daily_series": [
+          {
+            "clicks": 50,
+            "cpc": 2,
+            "cpo": 50,
+            "ctr_pct": 5,
+            "date": "2026-06-25",
+            "drr_pct": 25,
+            "impressions": 1000,
+            "orders": 2,
+            "revenue": 400,
+            "roas": 4,
+            "spend": 100,
+            "spend_without_orders": false,
+            "spend_without_revenue": false
+          },
+          {
+            "clicks": 51,
+            "cpc": 1.9608,
+            "cpo": 50,
+            "ctr_pct": 5.09,
+            "date": "2026-06-26",
+            "drr_pct": 25,
+            "impressions": 1001,
+            "orders": 2,
+            "revenue": 400,
+            "roas": 4,
+            "spend": 100,
+            "spend_without_orders": false,
+            "spend_without_revenue": false
+          },
+          {
+            "clicks": 52,
+            "cpc": 1.9231,
+            "cpo": 50,
+            "ctr_pct": 5.19,
+            "date": "2026-06-27",
+            "drr_pct": 25,
+            "impressions": 1002,
+            "orders": 2,
+            "revenue": 400,
+            "roas": 4,
+            "spend": 100,
+            "spend_without_orders": false,
+            "spend_without_revenue": false
+          },
+          {
+            "clicks": 53,
+            "cpc": 1.8868,
+            "cpo": 50,
+            "ctr_pct": 5.28,
+            "date": "2026-06-28",
+            "drr_pct": 25,
+            "impressions": 1003,
+            "orders": 2,
+            "revenue": 400,
+            "roas": 4,
+            "spend": 100,
+            "spend_without_orders": false,
+            "spend_without_revenue": false
+          },
+          {
+            "clicks": 54,
+            "cpc": 1.8519,
+            "cpo": 50,
+            "ctr_pct": 5.38,
+            "date": "2026-06-29",
+            "drr_pct": 25,
+            "impressions": 1004,
+            "orders": 2,
+            "revenue": 400,
+            "roas": 4,
+            "spend": 100,
+            "spend_without_orders": false,
+            "spend_without_revenue": false
+          },
+          {
+            "clicks": 55,
+            "cpc": 1.8182,
+            "cpo": 50,
+            "ctr_pct": 5.47,
+            "date": "2026-06-30",
+            "drr_pct": 25,
+            "impressions": 1005,
+            "orders": 2,
+            "revenue": 400,
+            "roas": 4,
+            "spend": 100,
+            "spend_without_orders": false,
+            "spend_without_revenue": false
+          },
+          {
+            "clicks": 56,
+            "cpc": 1.7857,
+            "cpo": 50,
+            "ctr_pct": 5.57,
+            "date": "2026-07-01",
+            "drr_pct": 25,
+            "impressions": 1006,
+            "orders": 2,
+            "revenue": 400,
+            "roas": 4,
+            "spend": 100,
+            "spend_without_orders": false,
+            "spend_without_revenue": false
+          },
+          {
+            "clicks": 57,
+            "cpc": 1.7544,
+            "cpo": 50,
+            "ctr_pct": 5.66,
+            "date": "2026-07-02",
+            "drr_pct": 25,
+            "impressions": 1007,
+            "orders": 2,
+            "revenue": 400,
+            "roas": 4,
+            "spend": 100,
+            "spend_without_orders": false,
+            "spend_without_revenue": false
+          },
+          {
+            "clicks": 58,
+            "cpc": 1.7241,
+            "cpo": 50,
+            "ctr_pct": 5.75,
+            "date": "2026-07-03",
+            "drr_pct": 25,
+            "impressions": 1008,
+            "orders": 2,
+            "revenue": 400,
+            "roas": 4,
+            "spend": 100,
+            "spend_without_orders": false,
+            "spend_without_revenue": false
+          },
+          {
+            "clicks": 59,
+            "cpc": 1.6949,
+            "cpo": 50,
+            "ctr_pct": 5.85,
+            "date": "2026-07-04",
+            "drr_pct": 25,
+            "impressions": 1009,
+            "orders": 2,
+            "revenue": 400,
+            "roas": 4,
+            "spend": 100,
+            "spend_without_orders": false,
+            "spend_without_revenue": false
+          },
+          {
+            "clicks": 60,
+            "cpc": 1.6667,
+            "cpo": 50,
+            "ctr_pct": 5.94,
+            "date": "2026-07-05",
+            "drr_pct": 25,
+            "impressions": 1010,
+            "orders": 2,
+            "revenue": 400,
+            "roas": 4,
+            "spend": 100,
+            "spend_without_orders": false,
+            "spend_without_revenue": false
+          },
+          {
+            "clicks": 61,
+            "cpc": 1.6393,
+            "cpo": 50,
+            "ctr_pct": 6.03,
+            "date": "2026-07-06",
+            "drr_pct": 25,
+            "impressions": 1011,
+            "orders": 2,
+            "revenue": 400,
+            "roas": 4,
+            "spend": 100,
+            "spend_without_orders": false,
+            "spend_without_revenue": false
+          },
+          {
+            "clicks": 62,
+            "cpc": 1.6129,
+            "cpo": 50,
+            "ctr_pct": 6.13,
+            "date": "2026-07-07",
+            "drr_pct": 25,
+            "impressions": 1012,
+            "orders": 2,
+            "revenue": 400,
+            "roas": 4,
+            "spend": 100,
+            "spend_without_orders": false,
+            "spend_without_revenue": false
+          },
+          {
+            "clicks": 63,
+            "cpc": 1.5873,
+            "cpo": 50,
+            "ctr_pct": 6.22,
+            "date": "2026-07-08",
+            "drr_pct": 25,
+            "impressions": 1013,
+            "orders": 2,
+            "revenue": 400,
+            "roas": 4,
+            "spend": 100,
+            "spend_without_orders": false,
+            "spend_without_revenue": false
+          }
+        ],
+        "deltas": {
+          "revenue_abs": 0,
+          "revenue_pct": 0,
+          "spend_abs": 0,
+          "spend_pct": 0
+        },
+        "entity_id": "campaign:882000001625",
+        "fact_ids": [
+          "campaign.882000001625.last_7d.spend",
+          "campaign.882000001625.last_7d.revenue",
+          "campaign.882000001625.last_7d.orders",
+          "campaign.882000001625.last_7d.drr_pct",
+          "campaign.882000001625.current_day.spend"
+        ],
+        "last_14d": {
+          "clicks": 791,
+          "cpc": 1.7699,
+          "cpo": 50,
+          "ctr_pct": 5.61,
+          "drr_pct": 25,
+          "impressions": 14091,
+          "orders": 28,
+          "revenue": 5600,
+          "roas": 4,
+          "spend": 1400,
+          "spend_without_orders": false,
+          "spend_without_revenue": false
+        },
+        "last_7d": {
+          "clicks": 420,
+          "cpc": 1.6667,
+          "cpo": 50,
+          "ctr_pct": 5.94,
+          "drr_pct": 25,
+          "impressions": 7070,
+          "orders": 14,
+          "revenue": 2800,
+          "roas": 4,
+          "spend": 700,
+          "spend_without_orders": false,
+          "spend_without_revenue": false
+        },
+        "name": "Campaign One",
+        "placement": null,
+        "previous_7d": {
+          "clicks": 371,
+          "cpc": 1.8868,
+          "cpo": 50,
+          "ctr_pct": 5.28,
+          "drr_pct": 25,
+          "impressions": 7021,
+          "orders": 14,
+          "revenue": 2800,
+          "roas": 4,
+          "spend": 700,
+          "spend_without_orders": false,
+          "spend_without_revenue": false
+        },
+        "state": "CAMPAIGN_STATE_RUNNING"
+      }
+    ],
+    "category_rollups": [],
+    "finance_rollup": {
+      "data_status": "not_available",
+      "reason": "finance ingestion is not implemented in P0 enrichment"
+    },
+    "funnel_rollup": {
+      "current_day": {
+        "date": "2026-07-08",
+        "source_status": "ok",
+        "stages": {
+          "add_to_cart": 100,
+          "completed_orders": 22,
+          "impressions": 5000,
+          "orders_count": 23,
+          "product_views": 1000
+        },
+        "transitions": [
+          {
+            "conversion_pct": 20,
+            "from": "impressions",
+            "from_value": 5000,
+            "name": "impressions_to_product_views",
+            "to": "product_views",
+            "to_value": 1000
+          },
+          {
+            "conversion_pct": 10,
+            "from": "product_views",
+            "from_value": 1000,
+            "name": "product_views_to_add_to_cart",
+            "to": "add_to_cart",
+            "to_value": 100
+          },
+          {
+            "conversion_pct": 23,
+            "from": "add_to_cart",
+            "from_value": 100,
+            "name": "add_to_cart_to_orders_count",
+            "to": "orders_count",
+            "to_value": 23
+          },
+          {
+            "conversion_pct": 95.65,
+            "from": "orders_count",
+            "from_value": 23,
+            "name": "orders_count_to_completed_orders",
+            "to": "completed_orders",
+            "to_value": 22
+          }
+        ]
+      },
+      "data_status": "available",
+      "fact_ids": [
+        "funnel.account.current_day.impressions",
+        "funnel.account.current_day.product_views",
+        "funnel.account.current_day.add_to_cart",
+        "funnel.account.current_day.orders_count",
+        "funnel.account.current_day.completed_orders",
+        "funnel.account.transition.impressions_to_product_views.conversion_pct",
+        "funnel.account.transition.product_views_to_add_to_cart.conversion_pct",
+        "funnel.account.transition.add_to_cart_to_orders_count.conversion_pct",
+        "funnel.account.transition.orders_count_to_completed_orders.conversion_pct"
+      ],
+      "last_7d": {
+        "stage_totals": {
+          "add_to_cart": 700,
+          "completed_orders": 133,
+          "impressions": 35000,
+          "orders_count": 140,
+          "product_views": 7000
+        },
+        "transition_averages": {
+          "add_to_cart_to_orders_count": 20,
+          "impressions_to_product_views": 20,
+          "orders_count_to_completed_orders": 94.95,
+          "product_views_to_add_to_cart": 10
+        }
+      },
+      "scope": {
+        "id": "account",
+        "source_scope_id": "",
+        "type": "account"
+      }
+    },
+    "product_enrichment": [
+      {
+        "commissions": [],
+        "data_status": "not_available",
+        "entity_id": "sku:801000100001",
+        "errors": [],
+        "promotions": [],
+        "snapshot_date": "2026-07-08"
+      }
+    ],
+    "sku_rollups": [
+      {
+        "current_day": {
+          "orders": 23,
+          "revenue": 865,
+          "stock_available": 50,
+          "stock_available_semantic": "current_snapshot",
+          "units_sold": 23
+        },
+        "deltas": {
+          "orders_abs": 49,
+          "orders_pct": 53.85,
+          "revenue_abs": 245,
+          "revenue_pct": 4.29
+        },
+        "entity_id": "sku:801000100001",
+        "fact_ids": [
+          "sku.801000100001.current_day.revenue",
+          "sku.801000100001.last_7d.revenue",
+          "sku.801000100001.last_7d.orders",
+          "sku.801000100001.current.stock_available"
+        ],
+        "last_7d": {
+          "active_sales_days": 7,
+          "avg_daily_orders": 20,
+          "orders": 140,
+          "revenue": 5950,
+          "units_sold": 140
+        },
+        "name": "SKU One",
+        "offer_id": "offer-1",
+        "previous_7d": {
+          "orders": 91,
+          "revenue": 5705,
+          "units_sold": 91
+        },
+        "product_enrichment_status": "not_available",
+        "shares": {
+          "orders_share_7d_pct": 100,
+          "revenue_share_7d_pct": 100
+        },
+        "sku": "801000100001"
+      }
+    ],
+    "stock_positions": [
+      {
+        "ads_28d": 5,
+        "available_stock_count": 50,
+        "data_status": "available",
+        "days_without_sales": 0,
+        "entity_id": "sku:801000100001",
+        "excess_stock_count": 0,
+        "expiring_stock_count": 0,
+        "fact_ids": [
+          "sku.801000100001.stock.idc_days",
+          "sku.801000100001.stock.turnover_grade"
+        ],
+        "idc_days": 10,
+        "requested_stock_count": 0,
+        "return_from_customer_stock_count": 0,
+        "return_to_seller_stock_count": 0,
+        "snapshot_date": "2026-07-08",
+        "source": "dev_seed",
+        "source_rows_count": 1,
+        "source_turnover_grades": [
+          "ACTUAL"
+        ],
+        "stock_defect_stock_count": 0,
+        "transit_defect_stock_count": 0,
+        "transit_stock_count": 0,
+        "turnover_grade": "ACTUAL",
+        "turnover_grade_aggregation_method": "single_row",
+        "valid_stock_count": 0,
+        "waiting_docs_stock_count": 0,
+        "warehouse_breakdown": []
+      }
+    ]
+  }
+}

@@ -1,0 +1,2123 @@
+
+Да. После сопоставления UCDM, Temporal Framework, всех доменных моделей и актуального состояния Ozon API я бы строил Business Data Capabilities Model как отдельный системный слой между UCDM и будущим Factual API.
+Его задача не ответить «работает ли API Ozon», а дать однозначный ответ:
+Какие бизнес-вопросы Aivion действительно способен корректно анализировать для конкретного продавца, на конкретный момент и в конкретном Analysis Run?
+Это принципиально разные вещи.
+Например /v1/analytics/data может одновременно давать базовые revenue/ordered_units всем продавцам и расширенные Funnel-метрики только при Premium Plus. /product-queries без подписки возвращает часть показателей, а Premium/Premium Plus/Premium Pro расширяют набор и историю; Premium Pro отдельно открывает market Search и подробную customer price. GitHub Поэтому capability уровня «Analytics API работает» нам совершенно недостаточна.
+
+1. Главный принцип Capability Model
+Я предлагаю зафиксировать:
+Business Capability — это гарантированная способность Aivion получить и корректно использовать определённый тип бизнес-фактов в определённой grain/temporal semantics, а не наличие API endpoint, подписки или строки в БД.
+Например:
+STOCK.CURRENT_SELLABLE
+означает не:
+/v1/analytics/stocks ответил 200
+а:
+есть полный достаточно свежий Stock Snapshot
++
+SKU разрешены
++
+semantics sellable_units принята
++
+snapshot попадает до analysis_cutoff_at
+Только тогда capability действительно usable.
+
+2. Capability ≠ API Endpoint
+Очень важно.
+Один endpoint:
+/v1/analytics/data
+даёт одновременно:
+SALES.ACCOUNT_DEMAND
+SALES.SKU_DEMAND
+
+FUNNEL.SEARCH_IMPRESSIONS
+FUNNEL.PDP_IMPRESSIONS
+FUNNEL.SEARCH_CART_ADDS
+FUNNEL.PDP_CART_ADDS
+...
+Но первые возможности могут быть:
+READY
+а Funnel:
+UNAVAILABLE
+для того же seller.
+Документация подтверждает, что базовые revenue и ordered_units доступны всем продавцам, а значительная часть Funnel metrics относится к Premium Plus. GitHub
+Следовательно:
+endpoint capability
+вообще не должно быть главным понятием Business Layer.
+
+3. Capability ≠ подписка
+Мы это уже утвердили на Funnel и Search.
+Например:
+seller says Premium Plus = true
+ещё не означает:
+FUNNEL.PDP_IMPRESSIONS = READY.
+Потому что возможны:
+metric deprecated;
+scope/role problem;
+source contract changed;
+request invalid;
+provider malfunction;
+data collection incomplete.
+И наоборот, Search API прямо допускает часть показателей без Premium, хотя полная аналитика требует подписки. GitHub
+Поэтому:
+subscription
+=
+entitlement hint
+
+live source
+=
+access evidence
+
+canonical facts
+=
+actual data evidence
+
+semantic contract
+=
+usability evidence
+
+4. Capability ≠ Readiness
+Это ещё одна важная граница.
+Capability отвечает:
+такая возможность у seller в принципе есть?
+Readiness отвечает:
+можно ли использовать её в этом Analysis Run?
+Например:
+Advertising capability:
+SUPPORTED
+
+Performance connection:
+valid
+
+historically Advertising:
+works
+Но сегодня API вернул 500.
+Получаем:
+capability structurally:
+AVAILABLE
+
+current run readiness:
+FAILED
+Не:
+Advertising permanently unavailable.
+
+5. Поэтому я предлагаю не один status, а несколько независимых измерений
+Это, пожалуй, центральное решение модели.
+Никакого:
+capability_status = "partial"
+как единственного поля.
+Для каждой capability нужны минимум:
+contract_status
+access_status
+source_status
+semantic_status
+coverage_status
+temporal_status
+history_status
+final_readiness
+
+6. contract_status
+Что мы знаем о provider source contract.
+ACTIVE
+BETA
+DEPRECATED
+REMOVED
+UNKNOWN
+Например новый FBO Acceptance Act API появился 11 августа 2026 как beta. Telegram
+Поэтому:
+SUPPLY.ACCEPTANCE_ACTS
+
+contract_status = BETA
+Но это не означает automatically unusable.
+После acceptance:
+final_readiness = READY
+contract_status = BETA
+вполне допустимо.
+Это лучше, чем смешивать:
+BETA
+READY
+FAILED
+в одном enum.
+
+7. Очень хороший пример — Finance
+Старые:
+/v3/finance/transaction/list
+/v3/finance/transaction/totals
+Ozon уже объявил deprecated с отключением 8 сентября 2026 года, переведя клиентов на /v1/finance/accrual/*. Telegram
+Поэтому старый endpoint:
+contract_status = DEPRECATED
+а новый accrual family:
+contract_status = ACTIVE/BETA
+по конкретной спецификации.
+Capability:
+FINANCE.ACCRUAL_LEDGER
+при этом остаётся стабильной.
+Вот ради этого разделения мы и проектируем capability abstraction.
+
+8. access_status
+Может ли конкретный seller получить source.
+Например:
+ACCESSIBLE
+
+UNAVAILABLE_SUBSCRIPTION
+
+UNAVAILABLE_SCOPE
+
+AUTH_FAILED
+
+PROVIDER_FORBIDDEN
+
+UNKNOWN
+Но здесь особенно важно:
+HTTP 403 сам по себе не означает UNAVAILABLE_SUBSCRIPTION.
+Текущие инструкции по Seller API прямо указывают, что 403 может означать как отсутствие нужной роли/доступа, так и subscription limitation. GitHub
+То есть evaluator должен использовать:
+known subscription
++
+known source requirement
++
+HTTP result/body
++
+previous observations
+а если причина не доказана:
+PROVIDER_FORBIDDEN_UNKNOWN_REASON
+
+9. source_status
+Что произошло при последнем фактическом collection.
+SUCCESS
+EMPTY_VALID
+PARTIAL
+FAILED
+NOT_ATTEMPTED
+Например:
+Campaign catalog returned 200
+0 campaigns
+Это:
+SUCCESS
+population = EMPTY
+Не:
+Advertising unavailable.
+
+10. Это особенно важно для пустого seller
+Допустим:
+Product Catalog:
+0 SKU
+Тогда:
+CATALOG.SKU_UNIVERSE = READY
+population = EMPTY
+Потому что мы успешно доказали, что universe пуст.
+А:
+STOCK.CURRENT_SELLABLE
+может быть:
+NOT_APPLICABLE
+reason = EMPTY_SKU_UNIVERSE
+Это значительно точнее, чем назвать оба домена UNAVAILABLE.
+
+11. semantic_status
+Это совершенно отдельное измерение.
+VALIDATED
+
+PENDING_ACCEPTANCE
+
+PARTIAL_MAPPING
+
+UNKNOWN_PROVIDER_SEMANTICS
+
+INCOMPATIBLE
+
+INVALID
+И вот здесь используется наше:
+PENDING_NON_EMPTY_SELLER_ACCEPTANCE
+Из интеграционного документа: реальные SKU/stock/postings/finance/performance/search/promotion/supply payload должны пройти проверку на непустом кабинете; до этого соответствующие source semantics являются pending acceptance, а не failure. Интеграция Aivion с Ozon Seller через частное приложение.docxDOCX
+
+12. Пример
+Наш пустой тестовый кабинет дал:
+/v1/analytics/stocks
+→ нельзя полноценно проверить,
+потому что нужен SKU.
+Правильно:
+STOCK.CURRENT_SELLABLE
+
+contract_status = ACTIVE
+access_status = ACCESSIBLE
+source_status = NOT_APPLICABLE_TO_CURRENT_TEST
+semantic_status = PENDING_ACCEPTANCE
+Не:
+FAILED.
+
+13. После первого непустого seller
+Мы проверили:
+provider_valid_stock_count
+и подтвердили:
+→ canonical sellable_units.
+Тогда:
+semantic_status = VALIDATED
+
+source_contract_version =
+stock_source_contract_v1
+
+14. coverage_status
+Даже успешный source может давать не полный universe.
+Я предлагаю:
+FULL
+
+PARTIAL
+
+TOP_N_PROVIDER_RANKED
+
+SPARSE_SOURCE
+
+ACCOUNT_ONLY
+
+DIRECT_SUBSET
+
+UNKNOWN
+И отдельно количественные поля:
+expected_entity_count
+observed_entity_count
+resolved_entity_count
+
+source_coverage_ratio
+resolution_coverage_ratio
+
+15. Почему обычного процента недостаточно
+Search Details:
+limit_by_sku &lt;= 15
+и даже complete pagination не делает query universe полным. GitHub
+Поэтому:
+coverage_ratio = 100%
+было бы ложью.
+Правильно:
+transport_completeness = COMPLETE
+
+semantic_coverage =
+TOP_N_PROVIDER_RANKED
+Это правило уже зафиксировано в Canonical Search Model.
+
+16. temporal_status
+CURRENT
+
+LAGGED
+
+STALE
+
+PERIOD_PARTIAL
+
+OUTSIDE_ANALYSIS_CUTOFF
+
+UNKNOWN
+Пример Search.
+Ozon сейчас говорит, что аналитика по запросам за последний месяц рассчитывается примерно 1–2 дня, а более старая история имеет отдельные ограничения и недельную гранулярность. GitHub
+Если:
+analysis_date = 19 Aug
+Search complete through = 17 Aug
+то capability существует.
+Но:
+temporal_status = LAGGED
+lag_days = 2
+И run-level readiness:
+PARTIAL.
+
+17. history_status
+Одно поле:
+history_days = 90
+категорически недостаточно.
+Search показал почему.
+Например:
+20 Jul – 19 Aug:
+DAILY/ARBITRARY_PERIOD
+
+до 20 Jul:
+WEEKLY_ONLY
+Следовательно я предлагаю history segments.
+Например:
+[
+  {
+    "from": "2026-07-20",
+    "to": "2026-08-19",
+    "granularity": "ARBITRARY_PERIOD",
+    "status": "AVAILABLE"
+  },
+  {
+    "from": "2026-05-01",
+    "to": "2026-07-19",
+    "granularity": "WEEKLY",
+    "status": "AVAILABLE_SUBSCRIPTION"
+  }
+]
+А не искусственное:
+history = 110 days.
+
+18. Это нужно не только Search
+Stock:
+history:
+from Aivion connection only
+granularity = OBSERVED_SNAPSHOTS
+Price:
+from connection
+OBSERVED_SNAPSHOTS
+Sales:
+provider historical
+DAILY
+Promotions membership:
+from Aivion first observation
+OBSERVED_RELATION_HISTORY
+Supply:
+Order history maybe provider backfillable
+
+bundle history:
+partial
+
+acceptance acts:
+новый/beta source
+Finance:
+provider accrual history
+То есть Capability Model обязан хранить history semantics, а не только depth.
+
+19. Финальный readiness_status
+Вот здесь оставляем уже утверждённый единый набор:
+READY
+PARTIAL
+STALE
+UNAVAILABLE
+FAILED
+NOT_APPLICABLE
+Temporal Framework именно его использует. 
+
+20. Точная семантика final states
+READY
+Capability полностью usable в предусмотренной semantics для текущего Analysis Context.
+PARTIAL
+Данные можно использовать, но есть существенное ограничение:
+partial entity coverage;
+top-N only;
+history shorter than desired;
+domain lag;
+some metric unavailable;
+mapping coverage incomplete.
+AI имеет право использовать capability только вместе с limitation metadata.
+STALE
+Данные существуют и были валидны, но превышают current freshness policy.
+UNAVAILABLE
+Capability сейчас структурно недоступна:
+subscription;
+scope;
+provider source removed;
+source contract unavailable.
+FAILED
+Должна была быть доступна, но текущая попытка не удалась:
+5xx;
+pagination failed;
+processing failed;
+validation failed.
+NOT_APPLICABLE
+Capability не имеет смысла для данного seller/context.
+Например seller фактически не использует FBO:
+SUPPLY.FBO_ACCEPTANCE = NOT_APPLICABLE
+
+21. FAILED и UNAVAILABLE нельзя смешивать
+Это принципиальный invariant.
+Без Premium Plus:
+FUNNEL.PDP_IMPRESSIONS =
+UNAVAILABLE
+reason = SUBSCRIPTION
+Provider outage:
+FUNNEL.PDP_IMPRESSIONS =
+FAILED
+reason = SOURCE_5XX
+Это разные продуктовые ситуации.
+Temporal Framework уже требует именно такое различие. 
+
+22. Старые данные при downgrade не исчезают
+Например:
+Aug:
+Premium Plus
+
+Funnel history = READY
+1 сентября seller отключил Premium.
+Current capability:
+FUNNEL.PDP_IMPRESSIONS =
+UNAVAILABLE_SUBSCRIPTION
+Но historical facts:
+June–August
+остаются.
+Funnel Model уже прямо закрепила этот lifecycle. 
+
+23. Поэтому Capability имеет как минимум два temporal scopes
+Current Collection Capability
+Можно ли получить новые данные сейчас?
+Historical Query Capability
+Какие уже известные historical facts существуют?
+Пример после downgrade:
+current_collection = UNAVAILABLE
+
+historical_data =
+AVAILABLE
+from June through August
+Это чрезвычайно важно для Chat и historical comparisons.
+
+24. Capability Definitions
+Нужен versioned catalog.
+Я предлагаю:
+analysis.business_capability_definitions
+
+analysis.business_capability_versions
+Stable definition:
+capability_key
+domain
+Mutable/versioned:
+description
+
+capability_kind
+
+supported_grains
+
+temporal_semantics
+
+AI exposure rules
+
+hard/soft gate role
+
+source maturity expectations
+
+semantic requirements
+
+25. Capability kinds
+Я бы использовал три типа.
+SOURCE_FACT
+Прямой canonical fact.
+Например:
+SALES.SKU_DEMAND
+PRICE.CURRENT_BASIC
+STOCK.CURRENT_SELLABLE
+DERIVED_FACT
+Детерминированно рассчитывается backend.
+Например:
+STOCK.COVERAGE_7D
+AD.EFFICIENCY_METRICS
+COMPOSITE_ANALYTICAL
+Требует нескольких capabilities.
+Например:
+AD.SPEND_SHARE
+требует:
+AD.PAID_SPEND
++
+SALES.ACCOUNT_DEMAND
++
+temporal compatibility
+
+26. Dependencies — отдельный DAG
+analysis.business_capability_dependencies
+Пример:
+STOCK.COVERAGE_7D
+    ↓ REQUIRED
+STOCK.CURRENT_SELLABLE
+
+STOCK.COVERAGE_7D
+    ↓ REQUIRED
+SALES.SKU_DEMAND
+
+27. Типы dependency
+REQUIRED
+
+OPTIONAL_ENRICHMENT
+
+RECONCILIATION
+
+GRAIN_ENABLEMENT
+Например Finance:
+FINANCE.SKU_DIRECT_MAPPING
+
+OPTIONAL:
+CATEGORY.SKU_MAPPING_HISTORY
+Category mapping не нужна, чтобы SKU Finance существовала.
+Но нужна для:
+Category Finance projection.
+
+28. Capability graph не должен содержать циклов
+Например нельзя:
+A depends B
+B depends A.
+При публикации новой Capability Registry Version backend должен проверять DAG.
+Если cycle:
+registry version invalid
+и не активируется.
+
+29. Provider Capability Observation — отдельный слой
+Business capability не должна напрямую хранить HTTP ошибки.
+Для этого:
+src.provider_capability_observations
+Например:
+seller
+contract
+provider_method
+provider_metric NULL
+
+observed_at
+
+http_status
+
+result_kind
+
+provider_error_code
+provider_error_message
+
+subscription_context
+
+scope_context
+
+probe_payload_hash
+result_kind:
+SUCCESS
+SUCCESS_EMPTY
+FORBIDDEN
+AUTH_FAILED
+INVALID_REQUEST
+DEPRECATED
+RATE_LIMITED
+SERVER_ERROR
+UNKNOWN
+
+30. Это заменяет старую ozon_api_capabilities
+После перехода на новую architecture старую таблицу, как мы договорились, не оставляем.
+Новый provider observation layer становится единственным.
+
+31. Но live probe не должен быть отдельным запросом каждый Daily Run
+Некоторые capabilities стабильны днями/месяцами.
+Например subscription.
+Другие могут меняться быстро.
+Поэтому probe policy должна быть versioned:
+probe_on_connection
+probe_on_subscription_change
+probe_after_contract_change
+probe_after_403
+periodic_probe
+Не:
+пробить 100 endpoints перед каждым AI run.
+
+32. Самое важное — Current Seller Capability Evaluation
+После ingestion:
+Provider observations
++
+UCDM facts
++
+Watermarks
++
+Semantic Registry
++
+Dependency Graph
+↓
+Capability Evaluator
+Результат:
+analysis.capability_evaluations
+
+33. Capability evaluation append-only
+Я бы не делал одну mutable:
+seller_capabilities
+которую постоянно UPDATE.
+Лучше:
+seller
+capability
+
+evaluated_at
+
+contract_status
+access_status
+source_status
+semantic_status
+coverage_status
+temporal_status
+
+readiness_status
+
+primary_reason_code
+
+details
+
+evaluation_policy_version
+И view:
+v_current_seller_capabilities
+выбирает latest.
+
+34. Почему append-only
+Вчера:
+Funnel READY.
+Сегодня:
+seller downgraded
+→ UNAVAILABLE.
+Через месяц:
+upgraded
+→ READY.
+Это полезная operational history.
+И она объясняет:
+почему раньше AI видел Funnel, а сейчас нет.
+
+35. Metric-level Capability State
+Некоторые domains требуют более глубокого уровня.
+Особенно Funnel.
+Поэтому:
+analysis.capability_metric_evaluations
+Например:
+FUNNEL
+
+SEARCH_IMPRESSIONS = READY
+
+PDP_IMPRESSIONS = READY
+
+SEARCH_VIEW_SESSIONS = UNAVAILABLE_SUBSCRIPTION
+
+PDP_VIEW_SESSIONS = UNAVAILABLE_SUBSCRIPTION
+Domain-level Funnel state затем выводится из этих children.
+Funnel Model именно требует metric-by-metric probing. 
+
+36. Grain-level Capability State
+Аналогично нужен:
+analysis.capability_grain_evaluations
+Например:
+FINANCE.COMPONENT_BREAKDOWN
+
+ACCOUNT = READY
+
+SKU = PARTIAL
+coverage = 76%
+
+CATEGORY = PARTIAL
+coverage = 70%
+Или Funnel:
+PDP_IMPRESSIONS
+
+ACCOUNT = READY
+SKU = READY
+CATEGORY = DERIVED_SAFE
+А unique sessions:
+ACCOUNT = READY
+
+SKU = READY
+
+CATEGORY = UNAVAILABLE_NON_ADDITIVE
+
+37. Это позволит не раздувать каталог capabilities
+Вместо:
+SALES_ACCOUNT
+SALES_SKU
+SALES_CATEGORY
+можно иметь:
+SALES.DEMAND
+с grain states:
+ACCOUNT
+SKU
+CATEGORY.
+Для отдельных случаев, где semantics принципиально разные, capabilities всё равно разделяем.
+
+38. History segments физически
+analysis.capability_history_segments
+Поля:
+capability_evaluation_id
+
+grain
+
+available_from
+available_to
+
+granularity
+
+completeness
+
+source_kind
+
+semantic_scope
+
+details
+
+39. Data Watermarks
+Temporal Framework уже прямо требует operational:
+domain_data_watermarks
+чтобы не сканировать fact tables для определения готовности. 
+Я предлагаю расширить их до:
+analysis.domain_data_watermarks
+seller
+
+domain
+capability_key NULL
+
+latest_complete_business_date
+
+latest_complete_snapshot_at
+
+history_available_from
+history_available_to
+
+last_successful_sync_at
+last_attempt_at
+
+latest_sync_status
+
+source_contract_version
+
+updated_at
+Для особо важных capabilities можно хранить capability-level watermark.
+
+40. Два этапа evaluation
+Чтобы не получить circular dependency:
+Нам нужен analysis_date,
+чтобы оценить capability.
+
+Но capability readiness нужна,
+чтобы выбрать analysis_date.
+делаем два уровня.
+Phase A — Operational Capability State
+Ответ:
+насколько далеко вообще дошли данные?
+Например:
+Sales through 19 Aug
+Ads through 19 Aug
+Search through 17 Aug
+Stock snapshot 20 Aug 05:32
+Phase B — Analysis Context Capability State
+После candidate analysis_date = D:
+достаточно ли этого для конкретных D/current7/previous7?
+
+41. Пример
+Operational:
+Search latest complete = 17 Aug
+Candidate:
+analysis_date = 19 Aug
+Analysis-level evaluation:
+SEARCH.SELLER_SUMMARY
+
+readiness = PARTIAL
+temporal_status = LAGGED
+lag_days = 2
+
+42. Analysis Capability Manifest
+Как только:
+analysis_cutoff_at = T
+заморожен, current seller capability evaluation уже недостаточна.
+Нужен:
+analysis.factual_universe_capabilities
+
+43. Структура frozen capability
+manifest_id
+capability_key
+
+readiness_status
+
+contract_status
+access_status
+semantic_status
+
+coverage_status
+temporal_status
+
+available_grains
+
+history_summary
+
+reason_codes
+
+limitations
+
+data_hash
+
+capability_policy_version
+После seal immutable.
+
+44. Почему это обязательно
+Publication от 20 августа могла иметь:
+Market Search = UNAVAILABLE_SUBSCRIPTION
+А 1 сентября seller купил Premium Pro.
+Если UI/Chat потом откроет старую Publication, она должна знать:
+именно тогда данных Market Search не было.
+Не сегодняшние capabilities.
+
+45. Capability Manifest является частью Factual Universe hash
+То есть:
+Universe Hash =
+facts
++
+temporal context
++
+capability manifest
++
+policy versions
+Потому что:
+те же numbers
+с различной semantic capability могут означать разные вещи.
+
+46. Capability Catalog v1 — Core Identity
+Я бы зафиксировал следующие верхнеуровневые capabilities.
+Catalog / Identity
+CATALOG.SKU_UNIVERSE
+CATALOG.SKU_METADATA
+CATALOG.SKU_CONTENT
+
+CATEGORY.TAXONOMY
+CATEGORY.SKU_ASSIGNMENT
+
+LOCATION.WAREHOUSE_DIMENSION
+LOCATION.CLUSTER_DIMENSION
+CATEGORY.SKU_ASSIGNMENT имеет:
+current mapping
+history coverage
+UNMAPPED coverage
+
+47. Sales capabilities
+SALES.DEMAND
+SALES.ORDER_POSTING_LIFECYCLE
+SALES.RETURNS
+SALES.DELIVERED_PROVIDER_HISTORY
+SALES.CANCELLATION_PROVIDER_HISTORY
+SALES.DEMAND содержит:
+ordered_units
+ordered_amount
+и grains:
+ACCOUNT
+SKU
+CATEGORY derived
+Именно Sales остаётся владельцем demand. AI-пайплайн сервиса.docxDOCX
+
+48. Stock capabilities
+STOCK.CURRENT_SELLABLE
+STOCK.LOCATION_BREAKDOWN
+STOCK.FULFILLMENT_BREAKDOWN
+
+STOCK.PROVIDER_TURNOVER_CONTEXT
+
+STOCK.AIVION_HISTORY
+
+STOCK.COVERAGE_7D
+STOCK.COVERAGE_30D
+Derived:
+STOCK.COVERAGE_7D
+requires:
+CURRENT_SELLABLE
++
+SALES.DEMAND current_7d.
+
+49. Advertising capabilities
+AD.CAMPAIGN_CATALOG
+
+AD.CAMPAIGN_CONFIGURATION
+
+AD.CAMPAIGN_TARGETING
+
+AD.DAILY_PERFORMANCE
+
+AD.SKU_PERFORMANCE
+
+AD.PAID_SPEND
+
+AD.BONUS_SPEND
+
+AD.ATTRIBUTED_ORDERS
+
+AD.DETAIL_ATTRIBUTION
+
+AD.PROVIDER_DRR
+
+AD.EFFICIENCY_METRICS
+
+AD.SPEND_SHARE
+Advertising работает через отдельный Performance API surface; актуальный OpenAPI сейчас содержит отдельный Statistics family и множество campaign/statistics methods. GitHub
+
+50. Важный integration distinction
+Мы ранее приняли:
+Seller API
++
+Performance API
+как необходимые подключения для Aivion.
+Но Capability Model должен различать:
+onboarding gate
+Обе интеграции должны быть сконфигурированы.
+Daily Analysis gate
+Если Performance сегодня временно FAILED:
+Advertising = FAILED
+но сам Analysis Run не блокируется.
+То есть:
+integration required
+≠
+domain hard blocker every day.
+
+51. Funnel capabilities
+Здесь сохраняем уже утверждённый granular catalog:
+FUNNEL.SEARCH_IMPRESSIONS
+
+FUNNEL.PDP_IMPRESSIONS
+
+FUNNEL.SEARCH_CART_ADDS
+
+FUNNEL.PDP_CART_ADDS
+
+FUNNEL.SEARCH_VIEW_SESSIONS
+
+FUNNEL.PDP_VIEW_SESSIONS
+
+FUNNEL.SEARCH_CART_CONVERSION
+
+FUNNEL.PDP_CART_CONVERSION
+
+FUNNEL.TOTAL_PROVIDER_FUNNEL
+ordered_units/ordered_amount сюда не входят.
+Owner — Sales. 
+
+52. Funnel domain readiness
+Например:
+Search surface READY
+PDP surface READY
+→
+Funnel Domain = READY
+Только PDP:
+Funnel = PARTIAL
+Ни одной pre-order capability:
+Funnel = UNAVAILABLE
+Не:
+Sales only → Funnel PARTIAL.
+
+53. Finance capabilities
+FINANCE.ACCRUAL_LEDGER
+
+FINANCE.TYPE_CLASSIFICATION
+
+FINANCE.ACCOUNT_NET_ACCRUAL
+
+FINANCE.COMPONENT_BREAKDOWN
+
+FINANCE.SKU_DIRECT_MAPPING
+
+FINANCE.POSTING_DIRECT_MAPPING
+
+FINANCE.CAMPAIGN_DIRECT_MAPPING
+
+FINANCE.SUPPLY_DIRECT_MAPPING
+
+FINANCE.BALANCE
+
+FINANCE.SETTLEMENT_RECONCILIATION
+FINANCE.SKU_DIRECT_MAPPING может быть:
+PARTIAL
+mapping_coverage = 76%
+while:
+FINANCE.ACCOUNT_NET_ACCRUAL = READY.
+Это очень хороший пример grain-specific capability.
+
+54. Price capabilities
+Используем уже принятые:
+PRICE.CURRENT_BASIC
+
+PRICE.CUSTOMER
+
+PRICE.REFERENCE
+
+PRICE.MINIMUM_FLOOR
+
+PRICE.INDEX
+
+PRICE.PROMOTION_CONTEXT
+
+PRICE.PRICING_STRATEGY
+
+PRICE.COMPETITOR_CONTEXT
+
+PRICE.AIVION_HISTORY
+PRICE.CUSTOMER зависит от Premium Pro /v1/product/prices/details; актуальная документация по-прежнему указывает Premium Pro requirement и возвращает customer_price. GitHub
+Но:
+PRICE.CURRENT_BASIC
+от этого не зависит.
+
+55. Search capabilities
+Сохраняю ранее утверждённый набор:
+SEARCH.SELLER_SUMMARY
+
+SEARCH.QUERY_DETAILS
+
+SEARCH.QUERY_UNIQUE_SEARCH_USERS
+
+SEARCH.QUERY_UNIQUE_VIEW_USERS
+
+SEARCH.QUERY_POSITION
+
+SEARCH.QUERY_VIEW_CONVERSION
+
+SEARCH.QUERY_GMV
+
+SEARCH.QUERY_ORDER_COUNT
+
+SEARCH.SKU_OVERALL_POSITION
+
+SEARCH.MARKET_TOP
+
+SEARCH.MARKET_TEXT
+
+SEARCH.MARKET_POPULARITY
+
+SEARCH.MARKET_COMPETITION
+
+SEARCH.MARKET_AVG_PRICE
+Market capabilities:
+Premium Pro
+по текущей спецификации. GitHub
+
+56. SEARCH.QUERY_DETAILS
+Обязательно:
+semantic_coverage =
+TOP_N_PROVIDER_RANKED
+Даже если:
+source_status = SUCCESS.
+Это один из ключевых примеров, почему Capability Model нужен вообще.
+
+57. Promotions capabilities
+PROMOTION.OZON_CATALOG
+
+PROMOTION.OZON_PARTICIPANTS
+
+PROMOTION.OZON_CANDIDATES
+
+PROMOTION.OZON_PRICE_CONTEXT
+
+PROMOTION.SELLER_CATALOG
+
+PROMOTION.SELLER_PRODUCTS
+
+PROMOTION.SELLER_CANDIDATES
+
+PROMOTION.SELLER_RULES
+
+PROMOTION.MEMBERSHIP_HISTORY
+
+PROMOTION.ELIGIBILITY_HISTORY
+Seller-actions beta не делает весь Promotions domain beta.
+Например:
+Ozon Promotions READY
+Seller Promotions UNAVAILABLE/BETA
+→ domain overall:
+PARTIAL
+с понятной причиной.
+
+58. Account Health capabilities
+Как уже утверждали:
+HEALTH.RATING_SUMMARY
+
+HEALTH.RATING_HISTORY
+
+HEALTH.RATING_THRESHOLDS
+
+HEALTH.PREMIUM_PENALTY_HISTORY
+
+HEALTH.LOCALIZATION_INDEX
+
+HEALTH.FBS_RFBS_ERROR_INDEX
+
+HEALTH.FBS_RFBS_ERROR_POSTINGS
+
+ACCOUNT.SUBSCRIPTION_CONTEXT
+При этом rating/status остаются provider facts, а не Aivion Health Score.
+
+59. Supply capabilities
+Только FBO:
+SUPPLY.ORDER_CATALOG
+
+SUPPLY.LIFECYCLE
+
+SUPPLY.PLANNED_CONTENT
+
+SUPPLY.DELIVERY_WINDOW
+
+SUPPLY.ROUTE
+
+SUPPLY.OPERATIONAL_REQUIREMENTS
+
+SUPPLY.OVERDUE_CONTEXT
+
+SUPPLY.ACCEPTANCE_ACTS
+
+SUPPLY.ACCEPTANCE_SKU_DETAILS
+
+SUPPLY.DISCREPANCIES
+И history:
+SUPPLY.ORDER_HISTORY
+SUPPLY.CONTENT_HISTORY
+FBP вообще отсутствует из active capability catalog v1.
+
+60. Acceptance Acts maturity
+Поскольку API был добавлен только 11 августа 2026 как beta, capability может иметь:
+contract_status = BETA
+semantic_status = VALIDATED
+readiness = READY
+после acceptance.
+Именно maturity metadata, а не top-level BETA status. Telegram
+
+61. Cross-domain capabilities
+Вот здесь Capability Model становится особенно полезным.
+Например:
+ANALYSIS.STOCK_COVERAGE
+зависит от:
+STOCK.CURRENT_SELLABLE
++
+SALES.DEMAND
+
+62. Advertising Spend Share
+ANALYSIS.AD_SPEND_SHARE
+requires:
+AD.PAID_SPEND
++
+SALES.DEMAND
++
+period compatibility
++
+currency compatibility.
+Если:
+Ads period = 13–19
+Sales = 12–18
+Capability:
+UNAVAILABLE
+reason = TEMPORAL_INCOMPATIBILITY.
+Temporal Framework прямо запрещает такой расчёт. 
+
+63. Category capabilities лучше не размножать
+Я не предлагаю создать:
+CATEGORY_SALES
+CATEGORY_STOCK
+CATEGORY_PRICE
+CATEGORY_FINANCE
+CATEGORY_ADS
+CATEGORY_FUNNEL
+...
+как отдельные top-level definitions.
+Вместо этого grain evaluation:
+SALES.DEMAND
+  CATEGORY = READY
+
+FINANCE.COMPONENT_BREAKDOWN
+  CATEGORY = PARTIAL
+
+FUNNEL.PDP_IMPRESSIONS
+  CATEGORY = READY
+
+FUNNEL.PDP_VIEW_SESSIONS
+  CATEGORY = UNAVAILABLE_NON_ADDITIVE
+Это намного масштабируемее.
+
+64. Category grain enablement
+Например Sales Category requires:
+SALES.SKU_DEMAND
++
+CATEGORY.SKU_ASSIGNMENT
+Если:
+category mapping coverage = 95%
+Category Sales:
+PARTIAL
+но Account Sales:
+READY.
+UNMAPPED при этом остаётся честной Category bucket.
+
+65. Analysis Hard Gate
+Теперь Capability Model позволяет формально определить:
+CORE_DAILY_ANALYSIS_GATE
+Я бы рекомендовал hard dependencies только:
+CATALOG.SKU_UNIVERSE
+SALES.DEMAND
+плюс:
+usable canonical SKU resolution
+account Sales reconciliation
+как мы уже приняли в Temporal Framework. 
+
+66. Не делать hard blocker из остальных domains
+Например:
+Stock FAILED
+Advertising FAILED
+Search LAGGED
+Funnel UNAVAILABLE
+Finance PARTIAL
+не должны автоматически блокировать Analysis.
+Они дают:
+limitations.
+
+67. Почему
+Иначе любой:
+Premium downgrade
+Ozon outage
+beta API failure
+остановит весь продукт.
+А наша architecture специально ориентирована на graceful partial publication.
+
+68. Category тоже не hard gate
+Если:
+10% Sales → UNMAPPED
+Account/SKU analysis остаётся возможным.
+Category analysis:
+PARTIAL.
+
+69. AI Exposure Policy
+Не каждая READY capability должна автоматически лететь в Discovery.
+Capability Definition должен иметь:
+discovery_exposure
+
+evidence_exposure
+
+dashboard_exposure
+
+chat_exposure
+Например:
+SUPPLY.ACCEPTANCE_SKU_DETAILS
+
+Discovery:
+SUMMARY_ONLY
+
+Evidence:
+FULL
+
+70. Почему
+Иначе мы снова получим огромный Data Pack.
+Capability говорит:
+информация существует.
+Pack Builder решает:
+какую часть этой информации положить в конкретный AI stage.
+Это два разных слоя.
+
+71. Для PARTIAL нужны три AI policy
+Я предлагаю:
+ALLOW_WITH_LIMITATION
+
+EVIDENCE_ONLY
+
+BLOCK
+Например:
+Search query details
+PARTIAL
+TOP_N_ONLY
+можно:
+ALLOW_WITH_LIMITATION.
+Finance mapping coverage 20%
+В Discovery можно дать Account Finance, но SKU Finance:
+BLOCK.
+Stale Stock
+Можно, возможно:
+EVIDENCE_ONLY
+или block в зависимости от freshness policy.
+Это будет versioned AI Consumption Policy.
+
+72. AI никогда не должен сам решать, можно ли доверять capability
+Не надо передавать:
+stock as_of = yesterday
+и надеяться, что LLM сам поймёт, слишком ли это старо.
+Backend уже должен вернуть:
+readiness = STALE
+AI policy = BLOCK_CURRENT_RECOMMENDATION.
+Это deterministic backend responsibility.
+
+73. Reason Codes
+Я бы создал системный catalog.
+Минимум:
+NO_SUBSCRIPTION
+
+NO_API_SCOPE
+
+AUTH_FAILED
+
+PROVIDER_FORBIDDEN
+
+SOURCE_DEPRECATED
+
+SOURCE_REMOVED
+
+SOURCE_5XX
+
+SOURCE_RATE_LIMITED
+
+INVALID_PROVIDER_METRIC
+
+PARTIAL_PAGINATION
+
+PARTIAL_BATCHES
+
+EMPTY_UNIVERSE
+
+NO_ACTIVITY
+
+PENDING_NON_EMPTY_SELLER_ACCEPTANCE
+
+UNKNOWN_PROVIDER_SEMANTICS
+
+UNRESOLVED_ENTITIES
+
+PARTIAL_MAPPING
+
+TOP_N_ONLY
+
+SOURCE_MATURITY_LAG
+
+HISTORY_TOO_SHORT
+
+HISTORY_GRANULARITY_LIMITED
+
+SNAPSHOT_STALE
+
+PERIOD_INCOMPLETE
+
+TEMPORAL_INCOMPATIBILITY
+
+CURRENCY_INCOMPATIBILITY
+
+DEPENDENCY_UNAVAILABLE
+
+CATEGORY_PERIOD_MAPPING_AMBIGUOUS
+
+BETA_SOURCE
+
+NOT_APPLICABLE_FULFILLMENT
+
+74. Primary reason + all reasons
+Одна capability может быть partial сразу по нескольким причинам.
+Например:
+Search:
+lag = 2 days
+
++
+query details top-N
+
++
+SKU resolution 98%.
+Поэтому:
+primary_reason_code
+для UI,
+и:
+reason_codes[]
+для audit/AI.
+
+75. EMPTY_UNIVERSE не обязательно error
+Например:
+Campaign Catalog:
+0 campaigns
+Capability:
+AD.CAMPAIGN_CATALOG
+READY
+population = EMPTY.
+Но:
+AD.DAILY_PERFORMANCE
+NOT_APPLICABLE
+reason = EMPTY_CAMPAIGN_UNIVERSE.
+
+76. NO_ACTIVITY тоже не unavailable
+Например:
+Sales source complete
+ordered_units = 0
+SALES.DEMAND всё равно:
+READY.
+Это реальный business fact.
+Missing ≠ Zero остаётся главным invariant. 
+
+77. Domain Readiness теперь становится derived summary
+Например Advertising:
+Campaign Catalog READY
+Daily Performance READY
+Paid Spend READY
+SKU Performance PARTIAL
+Attribution READY
+Domain:
+READY/PARTIAL
+в зависимости от versioned domain policy.
+Но:
+domain readiness — удобное summary.
+Source of truth:
+individual capabilities.
+
+78. Domain profiles должны быть versioned
+Например:
+funnel_profile_v1
+говорит:
+FULL if:
+Search meaningful surface +
+PDP meaningful surface
+
+PARTIAL if:
+at least one pre-order capability
+
+UNAVAILABLE:
+none.
+Если позже product requirements поменяются:
+funnel_profile_v2.
+Старые Publications остаются объяснимы.
+
+79. Factual Universe Capability Manifest — пример
+{
+  "sales.demand": {
+    "readiness": "READY",
+    "grains": {
+      "account": "READY",
+      "sku": "READY",
+      "category": "PARTIAL"
+    },
+    "history": {
+      "from": "2026-05-22",
+      "to": "2026-08-19",
+      "granularity": "DAILY"
+    }
+  },
+
+  "stock.current_sellable": {
+    "readiness": "READY",
+    "as_of": "2026-08-20T05:31:42+03:00",
+    "semantic_coverage": "FULL"
+  },
+
+  "funnel.pdp_impressions": {
+    "readiness": "UNAVAILABLE",
+    "reason": "NO_SUBSCRIPTION"
+  },
+
+  "search.seller_summary": {
+    "readiness": "PARTIAL",
+    "through_date": "2026-08-17",
+    "lag_days": 2,
+    "reason": "SOURCE_MATURITY_LAG"
+  },
+
+  "search.query_details": {
+    "readiness": "PARTIAL",
+    "semantic_coverage": "TOP_N_PROVIDER_RANKED"
+  }
+}
+
+80. Что увидит Discovery
+Не весь этот technical JSON.
+Compact:
+DATA CAPABILITIES
+
+Sales:
+complete through 19 Aug
+
+Stock:
+current, as of 20 Aug 05:31
+
+Advertising:
+available through 19 Aug
+
+Funnel:
+unavailable — required analytics metrics unavailable
+
+Search:
+available with 2-day provider lag
+query details limited to provider top-N
+
+Finance:
+available through 18 Aug
+
+Supply:
+current
+acceptance acts: beta/partial
+
+81. Это чрезвычайно важно для reasoning
+AI теперь понимает:
+если Funnel unavailable — нельзя делать вывод «конверсия карточки стабильна».
+если Search lagged — нельзя напрямую сравнивать его последний период с Sales 13–19 без оговорки.
+если Finance Category coverage 60% — нельзя говорить о полном P&amp;L категории.
+
+82. Evidence получает capability manifest тоже
+Discovery выбрал SKU 417.
+Evidence Request:
+SEARCH
+STOCK
+PRICE
+Backend проверяет frozen manifest:
+Stock READY
+Price READY
+Search PARTIAL
+и раскрывает Search только в разрешённой semantics.
+Evidence не делает live probe.
+
+83. Capability changes после cutoff не влияют на Evidence
+Cutoff:
+05:40
+05:50 Search API вдруг начал работать лучше.
+Deep Analysis всё равно использует:
+capability manifest @ 05:40.
+Это продолжает утверждённый Temporal invariant: Discovery, Evidence и Deep видят одну reality. 
+
+84. Что Capability Model НЕ делает
+Очень важно.
+Она не определяет:
+какая проблема важна;
+
+какой SKU плох;
+
+какую кампанию остановить;
+
+нужно ли вступать в акцию;
+
+на сколько увеличить поставку;
+
+почему упали продажи.
+Она определяет только:
+какие factual инструменты доступны для ответа на такие вопросы.
+
+85. Capability Model также НЕ является Feature Flags
+Если позже у Aivion будут тарифы:
+Basic
+Pro
+Enterprise
+это совершенно отдельный:
+Aivion Product Entitlement Layer.
+Не надо смешивать:
+Seller может получить Market Search у Ozon
+с:
+наш тариф разрешает показать Market Search пользователю.
+Это два разных ограничения.
+
+86. Capability Model НЕ является Permission Model
+То же самое с ролями пользователя.
+User X может видеть Finance?
+— permission/authorization.
+Finance data available for Seller?
+— Business Capability.
+Нельзя смешивать.
+
+87. Физические таблицы, которые добавляются к Schema Blueprint
+Я бы добавил:
+analysis.business_capability_definitions
+
+analysis.business_capability_versions
+
+analysis.business_capability_dependencies
+
+src.provider_capability_observations
+
+analysis.capability_evaluations
+
+analysis.capability_metric_evaluations
+
+analysis.capability_grain_evaluations
+
+analysis.capability_history_segments
+
+analysis.domain_data_watermarks
+
+analysis.factual_universe_capabilities
+Это примерно 10 таблиц, но они закрывают всю системную проблему availability/readiness.
+
+88. business_capability_definitions
+Stable:
+id
+
+capability_key UNIQUE
+
+domain
+
+created_at
+Например:
+STOCK.CURRENT_SELLABLE
+не переименовываем при смене Ozon endpoint.
+
+89. business_capability_versions
+capability_id
+
+policy_version
+
+description
+
+capability_kind
+
+temporal_semantics
+
+supported_grains
+
+hard_gate_role
+
+discovery_policy
+evidence_policy
+dashboard_policy
+chat_policy
+
+valid_from_at
+valid_to_at
+
+90. business_capability_dependencies
+capability_version_id
+
+required_capability_id
+
+dependency_type
+
+grain_constraint NULL
+
+temporal_constraint NULL
+UNIQUE pair.
+Перед активацией registry version:
+DAG validation.
+
+91. provider_capability_observations
+Это source evidence.
+Append-only:
+seller
+contract
+
+provider_method
+provider_metric
+
+observed_at
+
+result_kind
+
+HTTP details
+
+provider error
+
+subscription context
+
+scope context
+
+payload reference
+
+92. capability_evaluations
+Append-only seller/current evaluation:
+seller
+capability_version
+
+evaluated_at
+
+contract_status
+access_status
+source_status
+semantic_status
+coverage_status
+temporal_status
+
+readiness_status
+
+primary_reason
+
+details_json
+
+evaluation_policy_version
+
+93. capability_metric_evaluations
+Только когда capability имеет variable metric children.
+Например Funnel:
+evaluation_id
+canonical_metric_id
+
+status
+reason
+
+94. capability_grain_evaluations
+evaluation_id
+
+grain_type
+
+readiness
+
+expected_entity_count
+observed_entity_count
+resolved_entity_count
+
+source_coverage
+resolution_coverage
+
+semantic_scope
+
+reason
+
+95. capability_history_segments
+Как описал выше:
+evaluation
+grain
+
+from
+to
+
+granularity
+
+completeness
+
+semantic_scope
+
+96. factual_universe_capabilities
+Snapshot/copy именно run-level semantics.
+Не FK к mutable latest state в смысле «читать потом latest».
+Мы сохраняем:
+exact evaluated values
++
+policy version
++
+hash.
+После manifest seal:
+immutable.
+
+97. Evaluation Algorithm
+Для каждой capability я предлагаю единый deterministic порядок.
+1. Definition exists?
+↓
+2. Source contract active?
+↓
+3. Seller access/entitlement?
+↓
+4. Semantic mapping accepted?
+↓
+5. Source collection successful?
+↓
+6. Complete enough?
+↓
+7. Entity resolution adequate?
+↓
+8. Historical/temporal requirements met?
+↓
+9. Required dependencies usable?
+↓
+10. Derive final readiness
+AI здесь отсутствует.
+
+98. Важен порядок checks
+Например seller без Premium:
+Не нужно делать:
+source failed
+если мы заранее достоверно знаем:
+UNAVAILABLE_SUBSCRIPTION.
+Но при неоднозначном entitlement:
+probe.
+
+99. Не прятать provider contract changes за retry
+Если:
+metric deprecated
+это не:
+FAILED
+retry tomorrow.
+Это:
+contract/source mapping problem
+→ INVALID_PROVIDER_METRIC / DEPRECATED.
+Funnel Model уже фиксировала такую семантику. Funnel.docxDOCX
+
+100. Retryable vs structural reasons
+Я бы маркировал reason:
+retry_class
+TRANSIENT
+5xx
+429
+network timeout
+STRUCTURAL
+no subscription
+deprecated
+scope forbidden
+unknown semantics
+DATA_STATE
+empty universe
+lag
+partial period
+stale snapshot
+Так orchestrator понимает:
+имеет ли смысл retry.
+
+101. Capability Evaluator не должен запускать sync
+Очень важно избежать hidden side effects.
+Плохо:
+Evaluate Stock Capability()
+→ silently calls Ozon.
+Правильно:
+Ingestion
+→ updates observations/facts/watermarks
+
+Evaluator
+→ pure deterministic evaluation
+Это улучшает reproducibility.
+
+102. On-demand probe — отдельный orchestration step
+Если evaluator видит:
+access UNKNOWN
+orchestrator может решить:
+run provider probe
+→ re-evaluate.
+Но evaluator сам network I/O не делает.
+
+103. Data Capability Gate перед expensive AI
+Полный pipeline теперь:
+Source Sync
+↓
+UCDM
+↓
+Update Watermarks
+↓
+Evaluate Operational Capabilities
+↓
+Resolve candidate Analysis Date
+↓
+Evaluate Analysis Capabilities
+↓
+Hard Gate
+↓
+Seal analysis_cutoff_at
+↓
+Freeze Temporal Context
+↓
+Freeze Capability Manifest
+↓
+Build Factual Universe
+↓
+Discovery
+Это ровно продолжает Temporal flow. Temporal Framework.docxDOCX
+
+104. Если Hard Gate не пройден
+Например:
+Sales complete through 18
+candidate D = 19
+Не создаём expensive AI Run.
+Scheduler позже повторяет ingestion.
+Temporal Framework именно это предусматривает. Temporal Framework.docxDOCX
+
+105. Если optional capability FAILED
+Например:
+Stock READY
+Ads READY
+Funnel FAILED
+Run создаётся.
+Capability Manifest:
+FUNNEL = FAILED
+Discovery не получает Funnel facts и знает limitation.
+
+106. Capability model и Dashboard
+Позже Dashboard тоже должен читать capabilities.
+Например Funnel page:
+UNAVAILABLE_SUBSCRIPTION
+UI показывает:
+данные воронки недоступны для текущего кабинета.
+Не:
+0 impressions
+0 cart
+0 conversion.
+
+107. Это убирает отдельную UI-логику
+Frontend не должен сам знать:
+Premium Plus gives Funnel.
+Backend возвращает:
+capability state.
+Если Ozon завтра изменит entitlement, frontend не меняется.
+
+108. Capability model и Chat
+Пользователь спрашивает:
+почему просела конверсия карточки?
+Если:
+Funnel = UNAVAILABLE
+Chat factual planner понимает:
+точно ответить нельзя.
+Но может использовать:
+Sales
+Search
+Price
+Ads
+Stock
+и честно объяснить limitation.
+
+109. Capability model и Actions
+Очень важный safety invariant.
+Если Action требует current Stock evidence:
+Stock = STALE
+AI не должен получить этот evidence как полноценный current fact.
+Поэтому capability policy влияет на Evidence Catalog availability.
+
+110. Acceptance tests — subscription
+Seller without Premium Plus.
+Expected:
+SALES.DEMAND = READY
+
+FUNNEL upstream metrics =
+UNAVAILABLE_SUBSCRIPTION
+Daily Analysis:
+PASS.
+
+111. Search partial subscription
+Seller without Premium.
+Expected:
+SEARCH.SELLER_SUMMARY =
+READY/PARTIAL according actual returned metrics
+
+restricted metrics =
+UNAVAILABLE_SUBSCRIPTION
+
+MARKET_* =
+UNAVAILABLE_SUBSCRIPTION.
+Никакого:
+Search completely unavailable.
+Текущая документация подтверждает partial analytics without subscription. GitHub
+
+112. Premium upgrade
+До upgrade:
+FUNNEL = UNAVAILABLE.
+После:
+probe
+backfill attempt
+
+current = READY
+
+history =
+actual provider available range.
+Никакого synthetic history.
+
+113. Premium downgrade
+Current collection:
+UNAVAILABLE.
+Historical capability:
+AVAILABLE through downgrade.
+Facts retained.
+
+114. Empty catalog
+CATALOG.SKU_UNIVERSE:
+READY + EMPTY
+Stock:
+NOT_APPLICABLE.
+No fake SKU probe.
+
+115. Empty Sales day
+Complete provider source:
+ordered_units = 0
+ordered_amount = 0
+Capability:
+READY.
+
+116. Failed Sales source
+No current rows.
+Capability:
+FAILED
+not zero.
+Hard gate fails.
+
+117. Partial Stock pagination
+19/20 batches success.
+Stock Snapshot = PARTIAL
+STOCK.CURRENT_SELLABLE = FAILED/PARTIAL
+и он не становится Analysis snapshot.
+
+118. Stale Stock
+Complete snapshot exists.
+Age exceeds policy.
+readiness = STALE.
+History remains available.
+
+119. Search top-N
+All pages loaded.
+Expected:
+source collection = COMPLETE
+semantic coverage = TOP_N_PROVIDER_RANKED
+readiness = PARTIAL
+Не FULL.
+
+120. Finance mapping
+Account total:
+100%
+SKU resolved:
+70%
+Expected:
+FINANCE.ACCOUNT_NET_ACCRUAL = READY
+
+FINANCE.SKU_DIRECT_MAPPING = PARTIAL
+coverage = 70%
+
+FINANCE Category =
+PARTIAL &lt;= SKU mapping.
+
+121. Category temporal ambiguity
+Search direct period:
+13–19 Aug
+SKU changed category 16 Aug.
+Expected:
+Search SKU = READY
+
+Search Category grain =
+PARTIAL/UNAVAILABLE for this row
+
+reason =
+CATEGORY_PERIOD_MAPPING_AMBIGUOUS.
+
+122. Performance outage
+Performance connection valid historically.
+Today 5xx.
+Expected:
+Advertising capability = FAILED
+not UNAVAILABLE
+
+Daily Run still PASS.
+
+123. Source contract deprecation
+Finance old endpoint deprecated.
+Expected:
+old source contract =
+DEPRECATED
+
+new source =
+ACTIVE
+
+FINANCE capability stays READY
+No AI-visible disruption if new source works.
+
+124. Beta source
+Supply Acts beta works and semantics accepted.
+Expected:
+contract_status = BETA
+
+readiness = READY
+
+limitation may mention source maturity
+Не:
+readiness = BETA.
+
+125. Determinism test
+Same:
+seller
+facts
+watermarks
+capability policy
+cutoff
+must produce:
+same capability manifest hash.
+
+126. Correction after cutoff
+Capability was:
+Search PARTIAL
+at cutoff.
+Later history completes.
+Old manifest stays:
+PARTIAL.
+New run:
+READY.
+
+127. Почему эта модель важна для дальнейшей архитектуры
+Без неё Internal Factual API пришлось бы возвращать:
+value/null/error
+и каждый consumer отдельно решал бы:
+можно ли использовать?
+Dashboard решил бы одно.
+Chat — другое.
+Discovery — третье.
+Evidence — четвёртое.
+Мы снова получили бы рассинхрон.
+Capability Model создаёт единый semantic permission layer над facts.
+
+128. Важное уточнение: это не скрывает данные
+Capability:
+PARTIAL
+не означает:
+удалить facts из UCDM.
+UCDM хранит факты.
+Capability Layer определяет:
+для каких аналитических операций они сейчас пригодны.
+Это принципиально.
+
+129. Архитектурный контракт, который я рекомендую зафиксировать
+Business Data Capabilities Aivion является deterministic metadata-layer поверх UCDM, описывающим не API endpoints, а фактические бизнес-возможности анализа конкретного seller. Capability определяется одновременно provider contract maturity, seller access/entitlement, фактическим live source result, accepted source semantics, collection completeness, entity resolution, semantic coverage, temporal freshness/alignment, history availability и dependencies. Subscription и HTTP status являются только входными evidence и никогда самостоятельно не определяют capability.
+Capability и readiness разделяются. Текущая способность получать данные может существовать при текущем FAILED collection; исторические данные могут оставаться доступными после потери подписки; beta/deprecated являются характеристиками source contract, а не readiness status. Единый run-level readiness vocabulary: READY, PARTIAL, STALE, UNAVAILABLE, FAILED, NOT_APPLICABLE. Причины хранятся отдельно и не сводятся к одному status.
+Capability Model поддерживает metric-level и grain-level состояния, history segments с реальной granularity, quantitative entity/mapping coverage и semantic scopes вроде FULL или TOP_N_PROVIDER_RANKED. Transport completeness никогда не подменяет semantic completeness. Empty valid universe не считается source failure, Missing не превращается в Zero.
+Capabilities формируют versioned dependency DAG. Derived/composite capabilities доступны только при готовности required dependencies и temporal/currency compatibility. Synthetic allocation, semantic inference и causal interpretation не входят в capability evaluation.
+Перед Analysis Run capabilities оцениваются deterministic backend evaluator'ом без network side effects. После определения analysis_cutoff_at exact capability state замораживается в immutable Factual Universe Capability Manifest и входит в universe hash. Discovery, Evidence, Deep Analysis, Dashboard и Chat используют одну и ту же capability semantics.
+Hard gate Daily Analysis v1 ограничивается usable Canonical SKU/Catalog и complete Core Sales demand/account reconciliation; остальные domains деградируют независимо и передаются как limitations. Seller API и Performance API остаются обязательными интеграционными плоскостями onboarding, но transient failure Performance/Advertising не блокирует Daily Publication.
+
+Один продуктовый вопрос действительно появился
+Он касается не архитектуры capability layer, а поведения продукта при полностью пустом или фактически неактивном кабинете.
+Предлагаю такое правило:
+Seller подключился
+Catalog = 0 SKU
+или
+нет meaningful Sales history
+→ не запускать дорогой Discovery/Deep Analysis и не публиковать искусственную “аналитику без данных”.
+Вместо этого кабинет находится в состоянии примерно:
+CONNECTED_NO_ANALYZABLE_DATA
+и показывает:
+Кабинет подключён, но данных пока недостаточно для анализа.
+При этом ingestion/capability evaluation продолжаются, а первый AI Run автоматически запускается, когда появляется минимально достаточный factual universe.
+Для нашей целевой аудитории 700–2000 SKU это кажется мне правильнее, чем генерировать AI-отчёты для пустого кабинета.
+Если ты с этим согласен, я бы зафиксировал и этот product invariant вместе с Business Data Capabilities Model. После этого следующий этап — Internal Canonical Factual API.

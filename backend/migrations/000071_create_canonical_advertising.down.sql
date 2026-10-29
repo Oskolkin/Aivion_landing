@@ -1,0 +1,16 @@
+DROP TRIGGER IF EXISTS advertising_report_requests_scope ON advertising_report_requests;
+DROP TRIGGER IF EXISTS advertising_spend_reconciliations_scope ON advertising_spend_reconciliations;
+DROP TRIGGER IF EXISTS advertising_cpo_facts_scope ON advertising_cpo_facts;
+DROP TRIGGER IF EXISTS advertising_product_daily_facts_scope ON advertising_product_daily_facts;
+DROP TRIGGER IF EXISTS advertising_daily_facts_scope ON advertising_daily_facts;
+DROP TRIGGER IF EXISTS advertising_target_intervals_scope ON advertising_target_intervals;
+DROP TRIGGER IF EXISTS advertising_campaign_versions_scope ON advertising_campaign_versions;
+DROP FUNCTION IF EXISTS enforce_canonical_ad_scope();
+DROP TABLE IF EXISTS advertising_report_requests;
+DROP TABLE IF EXISTS advertising_spend_reconciliations;
+DROP TABLE IF EXISTS advertising_cpo_facts;
+DROP TABLE IF EXISTS advertising_product_daily_facts;
+DROP TABLE IF EXISTS advertising_daily_facts;
+DROP TABLE IF EXISTS advertising_target_intervals;
+DROP TABLE IF EXISTS advertising_campaign_versions;
+DROP TABLE IF EXISTS advertising_campaigns;

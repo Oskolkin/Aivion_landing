@@ -1,0 +1,3 @@
+check,status,entity_id,expected,actual,detail
+actions_count_matches_output,ok,,output_actions=0,persisted_actions=0,AI output action count vs persisted action_items count
+actions_present,ok,,0 actions,0 actions,outcome carries no actions; nothing to ground

@@ -1,0 +1,13 @@
+﻿{
+  "name": "aivion-image-fixtures",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Optional local tooling to regenerate control.webp fixtures. Do not commit node_modules.",
+  "type": "module",
+  "scripts": {
+    "gen:control-webp": "node gen_control_webp.mjs"
+  },
+  "dependencies": {
+    "sharp": "0.35.3"
+  }
+}

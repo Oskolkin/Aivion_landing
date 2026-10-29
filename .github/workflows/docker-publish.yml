@@ -1,0 +1,161 @@
+name: Docker Publish
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: docker-publish-${{ github.ref }}
+  cancel-in-progress: false
+
+on:
+  workflow_dispatch:
+    inputs:
+      git_sha:
+        description: "Commit SHA to build (must be on main)"
+        required: true
+  push:
+    branches: [main]
+    paths:
+      - backend/**
+      - frontend/**
+      - .github/workflows/docker-publish.yml
+      - deploy/**
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE: ghcr.io/oskolkin/aivion-backend
+  WORKER_IMAGE: ghcr.io/oskolkin/aivion-worker
+  FRONTEND_IMAGE: ghcr.io/oskolkin/aivion-frontend
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Resolve target SHA
+        id: sha
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TARGET_SHA="${{ github.event.inputs.git_sha }}"
+          else
+            TARGET_SHA="${{ github.sha }}"
+          fi
+          TARGET_SHA="$(echo "$TARGET_SHA" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+          if ! echo "$TARGET_SHA" | grep -Eq '^[0-9a-f]{7,40}$'; then
+            echo "::error::git_sha must be a hex commit SHA"
+            exit 1
+          fi
+          SHORT_SHA="${TARGET_SHA:0:12}"
+          echo "full=$TARGET_SHA" >> "$GITHUB_OUTPUT"
+          echo "short=$SHORT_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ steps.sha.outputs.full }}
+
+      - name: Verify SHA is on main
+        id: verified
+        run: |
+          set -euo pipefail
+          TARGET_SHA="${{ steps.sha.outputs.full }}"
+          git fetch origin main --prune
+          # Resolve to full object if a short SHA was provided
+          RESOLVED="$(git rev-parse --verify "${TARGET_SHA}^{commit}")"
+          echo "Resolved SHA: $RESOLVED"
+          if ! git merge-base --is-ancestor "$RESOLVED" origin/main; then
+            echo "::error::Commit $RESOLVED is not an ancestor of origin/main"
+            exit 1
+          fi
+          echo "full=$RESOLVED" >> "$GITHUB_OUTPUT"
+          echo "short=${RESOLVED:0:12}" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Backend metadata
+        id: meta-backend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.BACKEND_IMAGE }}
+          tags: |
+            type=raw,value=${{ steps.verified.outputs.full }}
+            type=raw,value=${{ steps.verified.outputs.short }}
+
+      - name: Worker metadata
+        id: meta-worker
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.WORKER_IMAGE }}
+          tags: |
+            type=raw,value=${{ steps.verified.outputs.full }}
+            type=raw,value=${{ steps.verified.outputs.short }}
+
+      - name: Frontend metadata
+        id: meta-frontend
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.FRONTEND_IMAGE }}
+          tags: |
+            type=raw,value=${{ steps.verified.outputs.full }}
+            type=raw,value=${{ steps.verified.outputs.short }}
+
+      - name: Build and push backend
+        id: build-backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
+
+      - name: Build and push worker
+        id: build-worker
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile.worker
+          push: true
+          tags: ${{ steps.meta-worker.outputs.tags }}
+          labels: ${{ steps.meta-worker.outputs.labels }}
+
+      - name: Build and push frontend
+        id: build-frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
+          build-args: |
+            NEXT_PUBLIC_API_BASE_URL=
+            BACKEND_PROXY_URL=http://backend-api:8081
+
+      - name: Job summary
+        run: |
+          set -euo pipefail
+          SHA="${{ steps.verified.outputs.full }}"
+          SHORT="${{ steps.verified.outputs.short }}"
+          {
+            echo "## Docker Publish"
+            echo ""
+            echo "| Image | Tags | Digest |"
+            echo "|-------|------|--------|"
+            echo "| \`${{ env.BACKEND_IMAGE }}\` | \`${SHA}\`, \`${SHORT}\` | \`${{ steps.build-backend.outputs.digest }}\` |"
+            echo "| \`${{ env.WORKER_IMAGE }}\` | \`${SHA}\`, \`${SHORT}\` | \`${{ steps.build-worker.outputs.digest }}\` |"
+            echo "| \`${{ env.FRONTEND_IMAGE }}\` | \`${SHA}\`, \`${SHORT}\` | \`${{ steps.build-frontend.outputs.digest }}\` |"
+            echo ""
+            echo "SHA-only tags (no sole \`latest\`). Deploy with full SHA."
+          } >> "$GITHUB_STEP_SUMMARY"

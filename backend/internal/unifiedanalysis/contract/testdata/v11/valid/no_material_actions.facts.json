@@ -1,0 +1,16 @@
+{
+  "facts": [
+    {
+      "fact_id": "account:orders_7d:current_7d",
+      "metric_code": "orders_7d",
+      "scope_type": "account",
+      "entity_id": null
+    },
+    {
+      "fact_id": "sku:801000100002:stock_coverage_days_7d",
+      "metric_code": "stock_coverage_days_7d",
+      "scope_type": "sku",
+      "entity_id": "801000100002"
+    }
+  ]
+}

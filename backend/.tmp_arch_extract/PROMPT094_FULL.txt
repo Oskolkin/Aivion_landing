@@ -1,0 +1,5348 @@
+<timestamp>Friday, Aug 28, 2026, 11:32 AM (UTC+3)</timestamp>
+<user_query>
+# AIVION — PROMPT №9.4
+
+## FINAL PRE-DISCOVERY IMPLEMENTATION CLOSURE
+
+### EXACT REPAIR SPEC — NO DESIGN FREEDOM
+
+---
+
+# 0. MISSION
+
+Ты работаешь в текущем repository после Prompt №9.3.
+
+Текущий audited snapshot до начала этой работы:
+
+```text
+Aivion-main (19).zip
+branch: codex/canonical-sales-hardening
+latest known migration: 000089_prompt93_collection_provenance
+```
+
+Prompt №9.3 архитектурно движется правильно, но **не закрыт**.
+
+`PROMPT_10_READINESS` остаётся `BLOCKED`.
+
+Твоя задача — **не спроектировать решение**, а выполнить описанные ниже исправления буквально.
+
+После Prompt №9.4 должны быть окончательно закрыты:
+
+```text
+PROMPT_08_STATUS = CLOSED
+PROMPT_09_STATUS = CLOSED
+PROMPT_10_READINESS = PASS
+```
+
+Только после этого можно начинать Prompt №10 / Discovery.
+
+---
+
+# 1. ABSOLUTE EXECUTION RULES
+
+Не:
+
+* создавать новую branch;
+* делать reset;
+* откатывать Prompt 8.2 / 9.1 / 9.2 / 9.3;
+* начинать Discovery;
+* добавлять OpenAI;
+* добавлять Evidence / Deep / Actions / Publication;
+* менять normative architecture docs ради удобства implementation;
+* ослаблять gate;
+* переводить blocker в warning;
+* помечать dead Materiality lane inactive только ради тестов;
+* использовать N+1 fallback;
+* использовать legacy Profile V1 в production V3;
+* скрывать ошибку под READY_EMPTY;
+* превращать missing/invalid value в zero.
+
+Stage 7:
+
+```text
+BUILD_DISCOVERY_PACK
+```
+
+остаётся `NOT_IMPLEMENTED`.
+
+---
+
+# 2. BEFORE CHANGES
+
+Сначала вывести:
+
+```bash
+git status
+git branch --show-current
+git log -5 --oneline
+```
+
+Определить:
+
+```text
+CURRENT_HEAD
+CURRENT_LATEST_MIGRATION
+CURRENT_WORKTREE
+```
+
+Не предполагать, что migration 000090 свободна — проверить.
+
+---
+
+# 3. READ NORMATIVE DOCS AGAIN
+
+Перед кодом перечитать:
+
+```text
+docs/architecture/v1/README.md
+docs/architecture/v1/00-architecture-baseline.md
+```
+
+и документы:
+
+```text
+Physical Implementation Plan
+Unified Canonical Data Model v1
+Temporal Framework
+Business Data Capabilities Model
+Data Quality Readiness Model
+Internal Canonical Factual API
+Entity Landscapes
+Materiality Engine
+Pipeline Orchestration / Run Lifecycle
+Evals / Acceptance / Observability Contract
+Discovery
+```
+
+Особенно помнить:
+
+```text
+Landscape Profile =
+fields
++ factual calls
++ windows
++ capability requirements
++ supporting limits
++ sort rules
++ serialization rules.
+```
+
+И:
+
+```text
+Missing != Zero
+Unavailable != Empty
+Unknown != Zero
+Unsupported != Empty.
+```
+
+---
+
+# 4. CURRENT BLOCKERS — SOURCE-LEVEL CONFIRMED
+
+Следующие defects уже найдены в актуальном repository и НЕ требуют повторного расследования.
+
+Исправить каждый.
+
+---
+
+## BLOCKER A — CAPABILITY FAIL-CLOSED BROKEN
+
+### Current file
+
+```text
+backend/internal/analysis/landscape/factual_source.go
+```
+
+### Current bad code
+
+Сейчас примерно:
+
+```go
+func capabilityUsable(
+    sealed factualapi.FactualReadContext,
+    key string,
+) (usable bool, state string, reason string) {
+
+    b, ok := sealed.CapabilityBinding(
+        key,
+        "HISTORICAL_QUERY",
+    )
+
+    if !ok {
+        // WRONG
+        return true,
+            "UNBOUND",
+            "CAPABILITY_NOT_BOUND"
+    }
+
+    switch b.FinalState {
+    case "READY", "PARTIAL":
+        return true, b.FinalState, b.ReasonCode
+    default:
+        return false, b.FinalState, b.ReasonCode
+    }
+}
+```
+
+Это запрещено.
+
+`capability missing` не может означать:
+
+```text
+go ahead and read.
+```
+
+### Target implementation
+
+Исправить минимум так:
+
+```go
+func capabilityUsable(
+    sealed factualapi.FactualReadContext,
+    key string,
+) (usable bool, state string, reason string) {
+
+    b, ok := sealed.CapabilityBinding(
+        key,
+        "HISTORICAL_QUERY",
+    )
+
+    if !ok {
+        return false,
+            "MISSING",
+            "CAPABILITY_NOT_BOUND"
+    }
+
+    switch b.FinalState {
+    case "READY", "PARTIAL":
+        return true, b.FinalState, b.ReasonCode
+
+    case "STALE":
+        return false, b.FinalState, nz(
+            b.ReasonCode,
+            "CAPABILITY_STALE",
+        )
+
+    default:
+        return false, b.FinalState, nz(
+            b.ReasonCode,
+            "CAPABILITY_NOT_USABLE",
+        )
+    }
+}
+```
+
+### Also fix
+
+В том же файле сейчас есть поведение вида:
+
+```go
+func accountSalesCapability(...) (...) {
+    ...
+    return true,
+        "UNBOUND",
+        "CAPABILITY_NOT_BOUND"
+}
+```
+
+Это тоже удалить.
+
+Target:
+
+```go
+return false,
+    "MISSING",
+    "CAPABILITY_NOT_BOUND"
+```
+
+---
+
+# 5. REMOVE AD-HOC CAPABILITY ALIASES
+
+Сейчас `loadAccountBlocks()` местами делает:
+
+```go
+if ok, state, reason :=
+    capabilityUsable(sealed, "AD.PAID_SPEND");
+    ok || capabilityUsableFirst(
+        sealed,
+        "ADVERTISING.ACCOUNT_SPEND",
+        "AD.CAMPAIGN_CATALOG",
+    ) {
+    ...
+}
+```
+
+Это неправильный уровень semantic routing.
+
+Profile должен сам знать canonical capability.
+
+Никаких:
+
+```text
+AD.PAID_SPEND
+AD.CAMPAIGN_CATALOG
+ACCOUNT_HEALTH.RATINGS
+```
+
+если canonical Readiness registry использует другие keys.
+
+Использовать canonical capability keys из:
+
+```text
+backend/internal/readiness/types.go
+```
+
+Например:
+
+```text
+SALES.ACCOUNT_DEMAND
+SALES.SKU_DEMAND
+SALES.CATEGORY_DEMAND
+
+STOCK.SKU_CURRENT
+STOCK.COVERAGE_7D
+STOCK.COVERAGE_30D
+
+PRICE.CUSTOMER_PRICE
+PRICE.HISTORY
+
+ADVERTISING.ACCOUNT_SPEND
+ADVERTISING.CAMPAIGN_TRAFFIC
+ADVERTISING.CAMPAIGN_ATTRIBUTION
+ADVERTISING.SKU_TRAFFIC
+ADVERTISING.SKU_ATTRIBUTION
+
+FUNNEL.ACCOUNT
+FUNNEL.SKU
+FUNNEL.CATEGORY_ADDITIVE
+
+FINANCE.ACCOUNT_NET
+FINANCE.SKU_DIRECT
+FINANCE.CATEGORY_DIRECT
+
+SEARCH.SELLER_SUMMARY
+SEARCH.QUERY_DETAILS
+SEARCH.CATEGORY_SUMMARY
+
+PROMOTIONS.DEFINITIONS
+PROMOTIONS.MEMBERSHIP
+
+HEALTH.CURRENT_RATINGS
+
+SUPPLY.STATE
+SUPPLY.BUNDLE
+SUPPLY.SKU_INBOUND
+SUPPLY.ACCEPTANCE
+```
+
+---
+
+# 6. FILES FOR CAPABILITY FIX
+
+Modify:
+
+```text
+backend/internal/analysis/landscape/factual_source.go
+backend/internal/analysis/landscape/profile_registry_v2.go
+backend/internal/analysis/landscape/profile_validate.go
+backend/internal/analysis/landscape/profile_validate_test.go
+backend/internal/readiness/types.go
+```
+
+`readiness/types.go` менять только если обнаружен реально missing canonical key.
+
+Не вводить aliases ради Landscape.
+
+---
+
+# 7. REQUIRED CAPABILITY TESTS
+
+Добавить:
+
+```go
+func TestCapabilityMissingIsNotUsable(t *testing.T)
+```
+
+Expected:
+
+```text
+missing capability
+→ usable=false.
+```
+
+Добавить:
+
+```go
+func TestRequiredProfileCapabilityMissingFails(t *testing.T)
+```
+
+Добавить:
+
+```go
+func TestOptionalProfileCapabilityMissingOmitsOrUnavailable(t *testing.T)
+```
+
+Никогда:
+
+```text
+missing capability
+→ factual read.
+```
+
+---
+
+# 8. BLOCKER B — PROFILE V2 IS NOT A FULL EXECUTABLE CONTRACT
+
+Current:
+
+```text
+backend/internal/analysis/landscape/profile_registry_v2.go
+```
+
+Сейчас:
+
+```go
+type BlockSpec struct {
+    BlockID       string
+    Required      bool
+    CapabilityKey string
+    FactFamily    string
+    FactualMethod string
+    Periods       []string
+}
+```
+
+Этого недостаточно.
+
+Нормативный Profile также должен seal:
+
+```text
+supporting limits
+sort rules
+semantic scope
+source-native window policy
+readiness behavior
+serialization behavior.
+```
+
+---
+
+# 9. DO NOT MUTATE V2 AGAIN
+
+Поскольку semantic output и serialization будут меняться,
+НЕ менять смысл:
+
+```text
+landscape_schema_v2
+*_V2
+```
+
+под теми же version names.
+
+Ввести:
+
+```text
+landscape_schema_v3
+
+ACCOUNT_DISCOVERY_V3
+
+CATEGORY_CORE_V3
+CATEGORY_DETAIL_V3
+
+SKU_CORE_V3
+SKU_DETAIL_V3
+
+CAMPAIGN_CORE_V3
+CAMPAIGN_DETAIL_V3
+```
+
+Old V1/V2 contracts остаются immutable.
+
+---
+
+# 10. TARGET PROFILE TYPES
+
+Создать новый файл:
+
+```text
+backend/internal/analysis/landscape/profile_registry_v3.go
+```
+
+Не переписывать V2 как V3.
+
+Target structure:
+
+```go
+type BlockMode string
+
+const (
+    BlockRequired BlockMode =
+        "REQUIRED"
+
+    BlockOptionalCapability BlockMode =
+        "OPTIONAL_CAPABILITY"
+
+    BlockDerived BlockMode =
+        "DERIVED"
+
+    BlockNotSupportedBySemantics BlockMode =
+        "NOT_SUPPORTED_BY_SEMANTICS"
+)
+
+type CapabilityMatch string
+
+const (
+    CapabilityAll CapabilityMatch = "ALL"
+    CapabilityAny CapabilityMatch = "ANY"
+)
+
+type SerializationPolicy string
+
+const (
+    SerializeBlockState SerializationPolicy =
+        "SERIALIZE_BLOCK_STATE"
+
+    OmitWhenGlobalCapabilityUnavailable SerializationPolicy =
+        "OMIT_WHEN_GLOBAL_CAPABILITY_UNAVAILABLE"
+
+    NeverSerialize SerializationPolicy =
+        "NEVER_SERIALIZE"
+)
+
+type PeriodAnchor string
+
+const (
+    PeriodAnchorAnalysisDate PeriodAnchor =
+        "ANALYSIS_DATE"
+
+    PeriodAnchorFactFamilyCoverageTo PeriodAnchor =
+        "FACT_FAMILY_COVERAGE_TO"
+
+    PeriodAnchorSnapshot PeriodAnchor =
+        "SNAPSHOT_AS_OF"
+)
+
+type PeriodSpec struct {
+    Name       string       `json:"name"`
+    Anchor     PeriodAnchor `json:"anchor"`
+    FactFamily string       `json:"fact_family,omitempty"`
+}
+
+type SupportingSpec struct {
+    Limit         int        `json:"limit"`
+    SortBasis     string     `json:"sort_basis"`
+    SemanticScope string     `json:"semantic_scope"`
+    Period        PeriodSpec `json:"period"`
+}
+
+type BlockSpecV3 struct {
+    BlockID string `json:"block_id"`
+
+    Mode BlockMode `json:"mode"`
+
+    CapabilityKeys []string `json:"capability_keys,omitempty"`
+    CapabilityMatch CapabilityMatch `json:"capability_match,omitempty"`
+
+    FactFamilies []string `json:"fact_families,omitempty"`
+
+    FactualMethods []string `json:"factual_methods,omitempty"`
+
+    Periods []PeriodSpec `json:"periods,omitempty"`
+
+    FormulaPolicy string `json:"formula_policy,omitempty"`
+
+    Serialization SerializationPolicy `json:"serialization"`
+
+    Supporting *SupportingSpec `json:"supporting,omitempty"`
+}
+
+type ExecutableProfileV3 struct {
+    Name          string        `json:"name"`
+    SchemaVersion string        `json:"schema_version"`
+    Blocks        []BlockSpecV3 `json:"blocks"`
+}
+```
+
+Названия допустимо слегка адаптировать
+под Go conventions,
+НО semantics должны быть именно такими.
+
+---
+
+# 11. PROFILE HASH V3
+
+`ProfileHash()` V3 должен canonical-hash ВЕСЬ semantic contract.
+
+Включить:
+
+```text
+name
+schema version
+block order
+block ID
+mode
+all capability keys
+capability match
+fact families
+factual methods
+period name
+period anchor
+formula policy
+serialization rule
+supporting K
+supporting sort
+supporting semantic scope
+supporting period.
+```
+
+Target:
+
+```go
+func (p ExecutableProfileV3) ProfileHash() string {
+    return canonicaljson.Hash(p.canonicalPayload())
+}
+```
+
+Не использовать старый payload V2.
+
+---
+
+# 12. PROFILE HASH SENSITIVITY TESTS
+
+Обязательные tests:
+
+```text
+change limit
+→ hash changes
+
+change sort
+→ hash changes
+
+change semantic_scope
+→ hash changes
+
+change capability
+→ hash changes
+
+change fact family
+→ hash changes
+
+change factual method
+→ hash changes
+
+change period anchor
+→ hash changes
+
+change serialization
+→ hash changes.
+```
+
+---
+
+# 13. REMOVE PRODUCTION DEPENDENCY ON OLD Profile
+
+Current production Detail does:
+
+```go
+skuProfile := SKUDetailProfile()
+campProfile := CampaignDetailProfile()
+```
+
+Это V1.
+
+Удалить это из production.
+
+---
+
+# 14. CHANGE DetailDataSource INTERFACE
+
+Current:
+
+```go
+type DetailDataSource interface {
+    LoadSKUDetailExtras(
+        ...,
+        profile Profile,
+    )
+
+    LoadCampaignDetailExtras(
+        ...,
+        profile Profile,
+    )
+}
+```
+
+Target:
+
+```go
+type DetailDataSource interface {
+    LoadSKUDetailExtras(
+        ctx context.Context,
+        sealed factualapi.FactualReadContext,
+        skuIDs []int64,
+        profile ExecutableProfileV3,
+    ) (map[int64]SKUDetailExtras, error)
+
+    LoadCampaignDetailExtras(
+        ctx context.Context,
+        sealed factualapi.FactualReadContext,
+        campaignIDs []int64,
+        profile ExecutableProfileV3,
+    ) (map[int64]CampaignDetailExtras, error)
+}
+```
+
+Modify:
+
+```text
+backend/internal/analysis/landscape/source.go
+backend/internal/analysis/landscape/detail_source.go
+backend/internal/analysis/landscape/detail.go
+backend/internal/analysis/landscape/mem_source.go
+backend/internal/analysis/landscape/detail_source_batch_test.go
+```
+
+---
+
+# 15. V3 PROFILE HELPERS
+
+Добавить:
+
+```go
+func (p ExecutableProfileV3) Supporting(
+    blockID string,
+) (SupportingSpec, bool)
+```
+
+Detail MUST read limits from V3 profile:
+
+```go
+campaignSpec, ok :=
+    skuProfile.Supporting(
+        "sku.detail.campaign_context",
+    )
+```
+
+Не hardcode:
+
+```text
+5
+10
+```
+
+в builder.
+
+---
+
+# 16. TARGET V3 DETAIL CONFIG
+
+Use exactly these defaults for current pilot.
+
+SKU Detail:
+
+```text
+CampaignContext
+K = 5
+sort = PAID_SPEND_DESC
+semantic_scope = TOP_N_BY_PAID_SPEND
+window =
+    fact family ADVERTISING.TRAFFIC
+    source-native CURRENT_7D
+
+PromotionContext
+K = 5
+sort = PROMOTION_ID_ASC
+semantic_scope = TOP_N_ACTIVE_OR_CANDIDATE
+
+SearchQueryContext
+K = 5
+sort = PROVIDER_SEARCH_RANK
+semantic_scope = TOP_N_PROVIDER_RANKED
+window =
+    fact family SEARCH.QUERY_DETAILS
+    source-native CURRENT_7D
+```
+
+Campaign Detail:
+
+```text
+SKUContext
+K = 10
+sort = PAID_SPEND_DESC
+semantic_scope = TOP_N_OBSERVED_PERFORMANCE
+window =
+    ADVERTISING.TRAFFIC
+    source-native CURRENT_7D
+```
+
+These K values remain implementation policy
+but MUST be sealed by ProfileHash.
+
+---
+
+# 17. BLOCKER C — PROFILE VALIDATOR IS NOT CALLED IN PRODUCTION
+
+Current:
+
+```text
+backend/internal/analysis/landscape/core.go
+backend/internal/analysis/landscape/detail.go
+```
+
+Current `BuildCore()` calls only:
+
+```go
+ValidateLandscapeCore(...)
+```
+
+Current `BuildDetail()` calls only:
+
+```go
+ValidateLandscapeDetail(...)
+```
+
+Это недостаточно.
+
+---
+
+# 18. CORE MUST VALIDATE V3 CONFORMANCE
+
+После:
+
+```go
+SortSet(&set)
+```
+
+в `BuildCore()` выполнить:
+
+```go
+if err := ValidateLandscapeCore(
+    set,
+    sealed.SellerAccountID(),
+); err != nil {
+    ...
+}
+
+if err := ValidateCoreProfileConformanceV3(
+    set,
+    profiles,
+); err != nil {
+    return LandscapeSet{},
+        nil,
+        "",
+        fmt.Errorf(
+            "landscape: profile v3 conformance: %w",
+            err,
+        )
+}
+```
+
+---
+
+# 19. DETAIL MUST VALIDATE V3 CONFORMANCE
+
+Перед Marshal:
+
+```go
+if err := ValidateLandscapeDetail(...); err != nil {
+    ...
+}
+
+if err :=
+    ValidateDetailProfileConformanceV3(
+        out,
+        DefaultDetailProfilesV3(),
+    );
+    err != nil {
+    return ...
+}
+```
+
+---
+
+# 20. V3 CONFORMANCE RULES
+
+Implement:
+
+```text
+BlockRequired:
+    block MUST exist.
+    required capability missing → stage fail.
+
+BlockOptionalCapability:
+    capability READY/PARTIAL
+        → block MUST exist.
+
+    capability unavailable/missing
+        → block MUST NOT contain factual values;
+          serialize according policy.
+
+BlockDerived:
+    derived prerequisites available
+        → block MUST exist.
+
+BlockNotSupportedBySemantics:
+    block MUST NOT contain factual data.
+
+Profile does not declare block:
+    block MUST NOT appear.
+```
+
+Critical rule:
+
+```text
+OPTIONAL != optional implementation.
+```
+
+Optional means:
+
+```text
+optional data capability,
+not optional coding.
+```
+
+---
+
+# 21. DELETE THIS ACCEPTANCE LOGIC
+
+Current unit semantics allow:
+
+```text
+optional block omitted
+even when capability is READY.
+```
+
+Change tests.
+
+New test:
+
+```go
+func TestOptionalCapabilityReadyBlockMissingFails(t *testing.T)
+```
+
+Expected FAIL.
+
+New test:
+
+```go
+func TestOptionalCapabilityUnavailableBlockOmittedPasses(t *testing.T)
+```
+
+Expected PASS.
+
+---
+
+# 22. BLOCKER D — SOURCE-NATIVE WINDOWS LABEL != ACTUAL FACTUAL CALL
+
+Current code builds lagged Search window:
+
+```go
+searchWin, searchLag :=
+    laggedPeriodWindow(
+        sealed,
+        "SEARCH",
+        "SEARCH.SELLER_SUMMARY",
+    )
+```
+
+but actual SKU Search read calls:
+
+```go
+BatchGetSKUSearchSummary(
+    ...,
+    PeriodCurrent7D,
+    nil,
+)
+```
+
+`ResolvePeriod()` anchors CURRENT_7D to AnalysisDate.
+
+Therefore Search can be labelled:
+
+```text
+11–17 Aug
+```
+
+while query actually asks:
+
+```text
+13–19 Aug.
+```
+
+This is a correctness blocker.
+
+---
+
+# 23. CREATE SOURCE-NATIVE PERIOD RESOLVER
+
+Create in:
+
+```text
+backend/internal/analysis/landscape/windows.go
+```
+
+Target:
+
+```go
+type FactualPeriodPair struct {
+    Current  factualapi.Period
+    Previous factualapi.Period
+}
+
+func ResolveFactFamilyPeriodPair(
+    sealed factualapi.FactualReadContext,
+    domain string,
+    factFamily string,
+) (FactualPeriodPair, error) {
+
+    b, ok := sealed.Binding(
+        domain,
+        factFamily,
+    )
+
+    if !ok {
+        return FactualPeriodPair{},
+            fmt.Errorf(
+                "fact family binding missing: %s/%s",
+                domain,
+                factFamily,
+            )
+    }
+
+    if b.CoverageTo == nil {
+        return FactualPeriodPair{},
+            fmt.Errorf(
+                "fact family coverage_to missing: %s/%s",
+                domain,
+                factFamily,
+            )
+    }
+
+    anchor := dateOnly(*b.CoverageTo)
+
+    return FactualPeriodPair{
+        Current: factualapi.Period{
+            From: anchor.AddDate(0, 0, -6),
+            To:   anchor,
+        },
+        Previous: factualapi.Period{
+            From: anchor.AddDate(0, 0, -13),
+            To:   anchor.AddDate(0, 0, -7),
+        },
+    }, nil
+}
+```
+
+Use Moscow/business-date semantics
+consistent with existing Temporal Framework.
+
+---
+
+# 24. USE SAME PERIOD FOR LABEL AND READ
+
+For Search Seller Summary:
+
+```go
+p, err :=
+    ResolveFactFamilyPeriodPair(
+        sealed,
+        "SEARCH",
+        "SEARCH.SELLER_SUMMARY",
+    )
+```
+
+Then:
+
+```go
+BatchGetSKUSearchSummary(
+    ctx,
+    sealed,
+    ids,
+    "",
+    &p.Current,
+)
+```
+
+Previous:
+
+```go
+&p.Previous
+```
+
+DomainWindow MUST be constructed
+from the SAME `p`.
+
+Never calculate label separately.
+
+---
+
+# 25. FINANCE SOURCE-NATIVE WINDOW
+
+Apply same rule to:
+
+```text
+FINANCE.DAILY_LEDGER
+```
+
+Account Finance Current/Previous
+must use Finance binding coverage,
+not fake Sales dates.
+
+---
+
+# 26. QUERY DETAILS USE THEIR OWN FAMILY
+
+Search Query Detail MUST use:
+
+```text
+SEARCH.QUERY_DETAILS
+```
+
+not:
+
+```text
+SEARCH.SELLER_SUMMARY
+```
+
+because their coverage may differ.
+
+---
+
+# 27. CHANGE QUERY DETAIL API
+
+Current:
+
+```go
+BatchGetSKUQueryDetails(
+    ctx,
+    c,
+    skuIDs,
+    perSKULimit,
+)
+```
+
+Replace internal API contract with:
+
+```go
+BatchGetSKUQueryDetails(
+    ctx context.Context,
+    c factualapi.FactualReadContext,
+    skuIDs []int64,
+    standard factualapi.StandardPeriod,
+    explicit *factualapi.Period,
+    perSKULimit int,
+) (
+    factualapi.BatchSKUQueryDetailsResult,
+    error,
+)
+```
+
+Modify:
+
+```text
+backend/internal/factualapi/service.go
+backend/internal/factual/search.go
+backend/internal/analysis/landscape/detail_source.go
+all stubs/tests.
+```
+
+---
+
+# 28. QUERY DETAIL SQL MUST FILTER EXACT PERIOD
+
+Current bad SQL effectively:
+
+```sql
+FROM search_query_details
+WHERE seller_account_id=$1
+  AND canonical_sku_id=ANY($2)
+  AND observed_at<=$4
+```
+
+across many periods.
+
+Target:
+
+```sql
+FROM search_query_details
+WHERE seller_account_id = $1
+  AND canonical_sku_id = ANY($2)
+  AND period_start = $3
+  AND period_end = $4
+  AND observed_at <= $5
+```
+
+Then latest revision only inside the requested period.
+
+Example target skeleton:
+
+```sql
+WITH requested AS (
+    SELECT id, ord
+    FROM unnest($2::bigint[])
+         WITH ORDINALITY q(id, ord)
+),
+eligible AS (
+    SELECT
+        r.id,
+        r.ord,
+        cs.id AS found
+    FROM requested r
+    LEFT JOIN canonical_skus cs
+      ON cs.id = r.id
+     AND cs.seller_account_id = $1
+     AND cs.first_observed_at <= $5
+),
+latest AS (
+    SELECT DISTINCT ON (
+        search_query_id,
+        source_sku
+    )
+        *
+    FROM search_query_details
+    WHERE seller_account_id = $1
+      AND canonical_sku_id = ANY($2)
+      AND period_start = $3
+      AND period_end = $4
+      AND observed_at <= $5
+    ORDER BY
+        search_query_id,
+        source_sku,
+        observed_at DESC,
+        revision_no DESC,
+        id DESC
+),
+ranked AS (
+    SELECT
+        l.*,
+        ROW_NUMBER() OVER (
+            PARTITION BY canonical_sku_id
+            ORDER BY provider_rank ASC NULLS LAST,
+                     id ASC
+        ) rn,
+        COUNT(*) OVER (
+            PARTITION BY canonical_sku_id
+        ) total
+    FROM latest l
+)
+...
+```
+
+No mixed historical periods.
+
+---
+
+# 29. DETAIL SEARCH CONTEXT MUST CARRY PERIOD
+
+In V3 SupportingContext add:
+
+```go
+WindowRef string `json:"window_ref,omitempty"`
+Period    *DateRange `json:"period,omitempty"`
+```
+
+For QueryContext:
+
+```text
+WindowRef = SEARCH_QUERY_DETAILS_CURRENT
+Period = exact QUERY_DETAILS current period.
+```
+
+Do not repeat dates in every query item.
+
+---
+
+# 30. BLOCKER E — SupportingContext READINESS LOST IN FINAL ARTIFACT
+
+Current final DTO:
+
+```go
+CampaignContext  *TruncatedList[...]
+PromotionContext *TruncatedList[...]
+QueryContext     *TruncatedList[...]
+```
+
+But source layer uses:
+
+```go
+SupportingContext[T]
+```
+
+Then:
+
+```go
+truncatedFromSupporting(...)
+```
+
+drops:
+
+```text
+State
+Limitations.
+```
+
+This is forbidden.
+
+---
+
+# 31. LANDSCAPE_SCHEMA_V3 MUST STORE SupportingContext DIRECTLY
+
+Modify:
+
+```text
+backend/internal/analysis/landscape/types.go
+```
+
+Target SKU:
+
+```go
+type SKULandscape struct {
+    ...
+
+    CampaignContext *
+        SupportingContext[
+            CampaignContextItem
+        ] `json:"campaign_context,omitempty"`
+
+    PromotionContext *
+        SupportingContext[
+            PromotionContextItem
+        ] `json:"promotion_context,omitempty"`
+
+    QueryContext *
+        SupportingContext[
+            SearchQueryContextItem
+        ] `json:"query_context,omitempty"`
+}
+```
+
+Campaign:
+
+```go
+SKUContext *
+    SupportingContext[
+        SKUAdsContextItem
+    ] `json:"sku_context,omitempty"`
+```
+
+V1/V2 old readers may keep `TruncatedList`.
+
+Production V3 does NOT.
+
+---
+
+# 32. DELETE PRODUCTION truncatedFromSupporting
+
+For V3:
+
+не использовать:
+
+```go
+truncatedFromSupporting(...)
+```
+
+DetailBuilder:
+
+```go
+ctx := ApplySupportingTruncation(
+    ex.CampaignContext,
+    spec.Limit,
+    spec.SortBasis,
+    spec.SemanticScope,
+)
+
+out.SKUs[i].CampaignContext = &ctx
+```
+
+State and Limitations preserved.
+
+---
+
+# 33. SUPPORTING ERROR SEMANTICS
+
+Current:
+
+```go
+if isFactualRecoverableDetailErr(err) {
+    return nil, 0, nil
+}
+```
+
+in campaign target context is forbidden.
+
+Target classification:
+
+```text
+CodeInvalidArgument
+→ PROGRAMMING / PROFILE CONTRACT ERROR
+→ return error
+→ stage FAIL.
+
+CodePeriodUnsupported
+→ SupportingContext{
+       State: UNAVAILABLE,
+       Limitations: PERIOD_UNSUPPORTED
+   }
+
+CodeNotFound for expected selected entity
+→ integrity error
+unless API semantics mean
+"relationship set known empty".
+
+Known relationship set empty
+→ READY_EMPTY.
+
+Internal invariant violation
+→ return error.
+```
+
+---
+
+# 34. REMOVE GENERIC RECOVERABLE HELPER
+
+Delete or heavily narrow:
+
+```go
+isFactualRecoverableDetailErr
+```
+
+Do not group:
+
+```text
+InvalidArgument
+PeriodUnsupported
+NotFound
+InternalInvariant
+```
+
+into one behavior.
+
+---
+
+# 35. TARGET DETAIL ERROR HELPERS
+
+Implement:
+
+```go
+func supportingUnavailableFromError[T any](
+    err error,
+    sortBasis,
+    semanticScope string,
+) (
+    SupportingContext[T],
+    bool,
+) {
+    var fe *factualapi.Error
+
+    if !errors.As(err, &fe) {
+        return SupportingContext[T]{}, false
+    }
+
+    switch fe.Code {
+    case factualapi.CodePeriodUnsupported:
+        return unavailableSupportingContext[T](
+            sortBasis,
+            semanticScope,
+            string(fe.Code),
+        ), true
+
+    default:
+        return SupportingContext[T]{}, false
+    }
+}
+```
+
+InvalidArgument and InternalInvariant
+must propagate error.
+
+---
+
+# 36. BLOCKER F — SKU CAMPAIGN BATCH FALLBACK
+
+Current:
+
+```go
+batch, err :=
+    s.API.BatchListSKUCampaignPerformance(...)
+
+if err != nil &&
+   isFactualInternalReadErr(err) {
+
+    return s.fallbackLoadSKUCampaignContext(...)
+}
+```
+
+Delete this fallback completely.
+
+Delete production function:
+
+```go
+fallbackLoadSKUCampaignContext
+```
+
+after the batch query is fixed.
+
+---
+
+# 37. BATCH FAILURE POLICY
+
+If batch query fails due real DB/internal problem:
+
+```text
+return error
+→ stage retry/fail
+```
+
+Do not silently switch to N+1.
+
+---
+
+# 38. BLOCKER G — CAMPAIGN DETAIL IS STILL N+1
+
+Current:
+
+```go
+for _, id := range campaignIDs {
+    items, total, err :=
+        s.listCampaignTargetSKUsBounded(
+            ctx,
+            sealed,
+            id,
+            limit,
+        )
+}
+```
+
+Forbidden.
+
+---
+
+# 39. ADD BATCH CAMPAIGN TARGET API
+
+Modify:
+
+```text
+backend/internal/factualapi/service.go
+backend/internal/factualapi/verticals.go
+backend/internal/factual/advertising.go
+backend/internal/analysis/landscape/detail_source.go
+```
+
+Add DTO:
+
+```go
+type BatchCampaignTargetSKUItem struct {
+    CampaignID int64
+    Status     BatchStatus
+    Items      []CampaignTarget
+    HasMore    bool
+    Limitation *Limitation
+}
+
+type BatchCampaignTargetSKUResult struct {
+    Items []BatchCampaignTargetSKUItem
+}
+```
+
+API:
+
+```go
+BatchListCampaignTargetSKUs(
+    ctx context.Context,
+    c FactualReadContext,
+    campaignIDs []int64,
+    perCampaignLimit int,
+) (
+    BatchCampaignTargetSKUResult,
+    error,
+)
+```
+
+---
+
+# 40. TARGET SQL SHAPE — CAMPAIGN TARGETS
+
+One query:
+
+```sql
+WITH requested AS (
+    SELECT id, ord
+    FROM unnest($2::bigint[])
+         WITH ORDINALITY q(id, ord)
+),
+latest AS (
+    SELECT DISTINCT ON (
+        advertising_campaign_id,
+        canonical_sku_id
+    )
+        advertising_campaign_id,
+        canonical_sku_id,
+        source_sku,
+        assignment_state,
+        observed_from,
+        observed_to,
+        id
+    FROM advertising_campaign_targets
+    WHERE seller_account_id = $1
+      AND advertising_campaign_id = ANY($2)
+      AND observed_from <= $3
+      AND (
+            observed_to IS NULL
+            OR observed_to > $3
+          )
+    ORDER BY
+        advertising_campaign_id,
+        canonical_sku_id,
+        observed_from DESC,
+        id DESC
+),
+ranked AS (
+    SELECT
+        l.*,
+        ROW_NUMBER() OVER (
+            PARTITION BY advertising_campaign_id
+            ORDER BY canonical_sku_id
+        ) rn,
+        COUNT(*) OVER (
+            PARTITION BY advertising_campaign_id
+        ) total
+    FROM latest l
+)
+...
+WHERE rn <= $4
+```
+
+Adapt exact table/column names
+to current schema,
+but keep one set-based query.
+
+---
+
+# 41. NO DETAIL N+1
+
+After change:
+
+```text
+40 selected SKU
+→ one/few SKU Campaign batch calls
+
+15 selected Campaigns
+→ one Campaign Target batch call
+
+not:
+40 + 15 calls.
+```
+
+---
+
+# 42. BLOCKER H — MATERIALITY STILL HAS UNKNOWN/INVALID → ZERO PATHS
+
+Current:
+
+```text
+backend/internal/analysis/materiality/exact.go
+```
+
+Bad:
+
+```go
+func parseRat(d Exact) (*big.Rat, error) {
+    s := strings.TrimSpace(string(d))
+
+    if s == "" {
+        return new(big.Rat), nil
+    }
+    ...
+}
+```
+
+Empty != zero.
+
+Bad:
+
+```go
+func parseRatOrZero(d Exact) *big.Rat {
+    r, err := parseRat(d)
+
+    if err != nil {
+        return new(big.Rat)
+    }
+
+    return r
+}
+```
+
+Invalid != zero.
+
+---
+
+# 43. DELETE parseRatOrZero FROM SEMANTIC RANKING PATH
+
+Target:
+
+```go
+func parseRat(
+    d Exact,
+) (*big.Rat, error) {
+
+    s := strings.TrimSpace(string(d))
+
+    if s == "" {
+        return nil,
+            fmt.Errorf(
+                "materiality: empty exact value",
+            )
+    }
+
+    r, ok :=
+        new(big.Rat).SetString(s)
+
+    if !ok {
+        return nil,
+            fmt.Errorf(
+                "materiality: invalid decimal %q",
+                d,
+            )
+    }
+
+    return r, nil
+}
+```
+
+No zero fallback.
+
+---
+
+# 44. COMPUTED ZERO MUST BE EXPLICIT
+
+If RRF accumulator starts at zero:
+
+```go
+sum := new(big.Rat)
+```
+
+That is legitimate computed zero.
+
+Do NOT encode that via:
+
+```go
+parseRatOrZero(Exact(""))
+```
+
+---
+
+# 45. CHANGE RANKING HELPERS TO RETURN ERRORS
+
+Current functions that call `parseRatOrZero` must be refactored.
+
+Files:
+
+```text
+backend/internal/analysis/materiality/rrf.go
+backend/internal/analysis/materiality/ranking.go
+backend/internal/analysis/materiality/diversity.go
+backend/internal/analysis/materiality/artifacts.go
+backend/internal/analysis/materiality/audit.go
+backend/internal/analysis/materiality/exact.go
+```
+
+Functions that parse factual/ranking Exact
+must return `(value,error)`.
+
+Example target:
+
+```go
+func compareExact(
+    a,
+    b Exact,
+) (int, error) {
+
+    ar, err := parseRat(a)
+    if err != nil {
+        return 0, err
+    }
+
+    br, err := parseRat(b)
+    if err != nil {
+        return 0, err
+    }
+
+    return ar.Cmp(br), nil
+}
+```
+
+---
+
+# 46. DO NOT USE EMPTY Exact FOR MISSING FEATURE
+
+Current:
+
+```go
+func featureExact(
+    f MoneyFeature,
+) Exact {
+    if f.IsKnown() {
+        return *f.Value
+    }
+    return Exact("")
+}
+```
+
+This creates a trap.
+
+Delete this semantic pattern.
+
+Target:
+
+```go
+func featureExact(
+    f MoneyFeature,
+) (Exact, bool) {
+    if !f.IsKnown() {
+        return Exact(""), false
+    }
+
+    return *f.Value, true
+}
+```
+
+Lane checks:
+
+```go
+v, ok := featureExact(f)
+if !ok {
+    continue
+}
+```
+
+Only then parse.
+
+---
+
+# 47. CountFeature MUST BE INTEGER
+
+Current:
+
+```go
+type CountFeature struct {
+    State FeatureState
+    Value *float64
+}
+```
+
+Wrong.
+
+Target:
+
+```go
+type CountFeature struct {
+    State FeatureState `json:"state"`
+    Value *int64       `json:"value,omitempty"`
+}
+```
+
+Target constructor:
+
+```go
+func KnownCount(
+    v int64,
+) CountFeature {
+    return CountFeature{
+        State: FeatureKnown,
+        Value: &v,
+    }
+}
+```
+
+No float for:
+
+```text
+ordered units
+stock units
+counts
+days.
+```
+
+---
+
+# 48. DECIMAL FEATURE
+
+For:
+
+```text
+coverage
+search position
+DRR
+CTR
+share
+percentage
+```
+
+use:
+
+```go
+MoneyFeature
+```
+
+or rename to:
+
+```go
+DecimalFeature
+```
+
+Preferred cleanup:
+
+```go
+type DecimalFeature struct {
+    State FeatureState
+    Value *Exact
+}
+```
+
+and:
+
+```text
+MoneyFeature
+```
+
+either becomes alias
+or stays only for money.
+
+Do not use float64.
+
+---
+
+# 49. MATERIALITY POLICY VERSION
+
+Because semantic handling changes materially,
+do NOT continue using:
+
+```text
+MATERIALITY_POLICY_V1_2
+```
+
+Introduce:
+
+```text
+MATERIALITY_POLICY_V1_3
+```
+
+or:
+
+```text
+MATERIALITY_POLICY_V2
+```
+
+Use `V1_3` unless current convention demands V2.
+
+Existing V1_2 immutable.
+
+---
+
+# 50. BLOCKER I — ACTUAL PROFILE MATRIX INCOMPLETE
+
+Do not solve by making every block Core.
+
+Use the exact split below.
+
+---
+
+# 51. ACCOUNT_DISCOVERY_V3
+
+Account always goes to Discovery.
+
+Blocks:
+
+```text
+account.sales
+    REQUIRED
+
+account.assortment
+    DERIVED REQUIRED
+
+account.stock
+    OPTIONAL_CAPABILITY
+    STOCK.SKU_CURRENT
+
+account.price
+    OPTIONAL_CAPABILITY
+    PRICE.CUSTOMER_PRICE / PRICE.HISTORY
+
+account.advertising
+    OPTIONAL_CAPABILITY
+    ADVERTISING.ACCOUNT_SPEND
+
+account.funnel
+    OPTIONAL_CAPABILITY
+    FUNNEL.ACCOUNT
+
+account.search
+    OPTIONAL_CAPABILITY
+    SEARCH.SELLER_SUMMARY
+
+account.finance
+    OPTIONAL_CAPABILITY
+    FINANCE.ACCOUNT_NET
+
+account.promotions
+    OPTIONAL_CAPABILITY
+    PROMOTIONS.DEFINITIONS
+
+account.health
+    OPTIONAL_CAPABILITY
+    HEALTH.CURRENT_RATINGS
+
+account.supply
+    OPTIONAL_CAPABILITY
+    SUPPLY.STATE
+
+account.concentration
+    DERIVED
+```
+
+---
+
+# 52. ACCOUNT BUILD ORDER MUST CHANGE
+
+Current `LoadCoreFeed()` calls:
+
+```go
+loadAccountBlocks(...)
+```
+
+before SKU/Campaign/Categories are built.
+
+This prevents correct derived Account aggregates.
+
+Reorder.
+
+Target high-level flow:
+
+```go
+GetAccount()
+
+buildDomainWindows()
+
+load categories
+load SKU universe
+batch all SKU facts
+load campaigns
+batch campaign facts
+
+build eligible SKU Landscapes
+
+build Category Landscapes
+
+build Campaign Landscapes
+
+THEN:
+
+build Account direct blocks
+
+THEN:
+
+derive Account blocks from
+already-built SKU/Category/Campaign facts
+
+THEN:
+
+validate profile.
+```
+
+---
+
+# 53. SPLIT ACCOUNT FUNCTIONS
+
+Replace monolithic:
+
+```go
+loadAccountBlocks
+enrichAccountAssortment
+```
+
+with:
+
+```go
+func (
+    s FactualAPISource
+) loadAccountDirectBlocks(...)
+
+func deriveAccountBlocks(
+    feed *CoreFeed,
+    profile ExecutableProfileV3,
+) error
+```
+
+---
+
+# 54. ACCOUNT SALES TARGET
+
+`AccountSalesBlock` must contain:
+
+```text
+current7
+previous7
+
+analysis_day
+previous_day
+
+trend_30d amount
+trend_30d units.
+```
+
+Current code only fills 7d + 30d.
+
+Add:
+
+```go
+day, err :=
+    s.API.GetAccountDemand(
+        ctx,
+        sealed,
+        factualapi.PeriodAnalysisDay,
+        nil,
+    )
+
+prevDay, err :=
+    s.API.GetAccountDemand(
+        ctx,
+        sealed,
+        factualapi.PeriodPreviousDay,
+        nil,
+    )
+```
+
+Target:
+
+```go
+cmpAmount :=
+    BuildMoneyComparison(
+        moneyFromValue(day.OrderedAmount),
+        moneyFromValue(prevDay.OrderedAmount),
+    )
+
+cmpUnits :=
+    BuildCountComparison(
+        intFromValue(day.OrderedUnits),
+        intFromValue(prevDay.OrderedUnits),
+    )
+
+block.AnalysisDayAmount = &cmpAmount
+block.AnalysisDayUnits  = &cmpUnits
+```
+
+If unavailable:
+block PARTIAL + limitation,
+not fake zero.
+
+---
+
+# 55. ACCOUNT STOCK TARGET
+
+Derive from eligible SKU Core facts.
+
+Need:
+
+```text
+TotalSellableUnits
+DemandPositiveSKUCount
+ZeroSellableWithDemandCount
+NoDemandSKUCount
+
+CoverageP25
+CoverageP50
+CoverageP75
+
+SalesExposureZeroStockPct.
+```
+
+Implement deterministic percentile policy:
+
+```text
+landscape_nearest_rank_quantile_v1
+```
+
+Formula:
+
+```text
+sort known coverage ascending
+
+rank(p) = ceil(p*N)
+
+index = max(rank-1,0)
+```
+
+p:
+
+```text
+0.25
+0.50
+0.75.
+```
+
+No float.
+
+Use `big.Rat` / Decimal.
+
+---
+
+# 56. ZERO-STOCK ACCOUNT SALES EXPOSURE
+
+Numerator:
+
+```text
+SUM current7 ordered_amount
+for SKU where:
+
+Sales current KNOWN > 0
+AND
+Stock sellable KNOWN == 0.
+```
+
+Denominator:
+
+```text
+SUM current7 ordered_amount
+for eligible SKU with KNOWN Sales current.
+```
+
+Result:
+
+```text
+numerator / denominator * 100
+```
+
+If denominator zero:
+no denominator state / nil,
+not 0%.
+
+If stock coverage incomplete:
+Account Stock state PARTIAL
+
+* limitation.
+
+---
+
+# 57. ACCOUNT PRICE TARGET
+
+Derive from SKU Price:
+
+```text
+SKUWithObservedPriceCount
+
+PriceIncreasedSKUCount
+PriceDecreasedSKUCount
+PriceUnchangedSKUCount
+
+PriceChangeCoverage.
+```
+
+Classification from:
+
+```text
+LastObservedChange.ChangeState.
+```
+
+Coverage:
+
+```text
+SKU with usable price history
+/
+SKU with current observed price.
+```
+
+No average seller price.
+
+---
+
+# 58. ACCOUNT SEARCH TARGET
+
+Derive from SKU Search current/previous:
+
+```text
+SKUWithSearchData
+
+PositionP25
+PositionP50
+PositionP75
+
+SKUPositionUpCount
+SKUPositionDownCount.
+```
+
+Remember lower provider position
+is numerically better.
+
+But Landscape must only report numerical movement.
+
+Do not label better/worse.
+
+---
+
+# 59. ACCOUNT CONCENTRATION TARGET
+
+Calculate exact:
+
+```text
+Top5SKUOrderedAmountShare
+
+Top3CategoryOrderedAmountShare
+
+Top5CampaignSpendShare.
+```
+
+Use only KNOWN amounts.
+
+If denominator unavailable:
+nil + limitation.
+
+No risk label.
+
+---
+
+# 60. ACCOUNT ADVERTISING MUST STOP RETURNING IMPLEMENTATION PLACEHOLDERS
+
+Current code does things like:
+
+```go
+block.Impressions =
+    BuildCountComparison(nil,nil)
+
+block.Clicks =
+    BuildCountComparison(nil,nil)
+
+block.AttributedOrderAmount =
+    BuildMoneyComparison(nil,nil)
+```
+
+despite campaign facts existing.
+
+Fix.
+
+Use already-built Campaign Performance aggregation.
+
+For current and previous:
+
+```text
+sum paid spend
+sum bonus spend
+sum impressions
+sum clicks
+sum attributed amount
+sum attributed units.
+```
+
+Only sum compatible provider/default attribution semantics.
+
+Then calculate:
+
+```text
+CTR = clicks / impressions * 100
+
+CPC = paid_spend / clicks
+
+CPM = paid_spend / impressions * 1000
+
+Calculated DRR =
+    paid_spend / attributed_amount * 100.
+```
+
+Add to `AccountAdsBlock`:
+
+```go
+CPC *MoneyComparison
+CPM *MoneyComparison
+
+ProviderDRR *
+    PercentagePointComparison
+```
+
+ProviderDRR stays separate.
+
+---
+
+# 61. CAMPAIGN PERFORMANCE ALSO NEEDS CPC/CPM + PROVIDER DRR
+
+Modify:
+
+```text
+backend/internal/factualapi/verticals.go
+backend/internal/factual/advertising.go
+backend/internal/analysis/landscape/types.go
+backend/internal/analysis/landscape/factual_source.go
+```
+
+Extend factual:
+
+```go
+type CampaignPeriodPerformance struct {
+    ...
+
+    CTRPct Value[Decimal]
+
+    CalculatedDRRPct Value[Decimal]
+
+    ProviderDRRPct Value[Decimal]
+
+    CPC Value[Money]
+    CPM Value[Money]
+}
+```
+
+If CPC/CPM are derived:
+include FormulaPolicy.
+
+Landscape Campaign:
+
+```go
+CPC *MoneyComparison
+CPM *MoneyComparison
+
+CalculatedDRR *
+    PercentagePointComparison
+
+ProviderDRR *
+    PercentagePointComparison
+```
+
+Rename old ambiguous `DRR`
+to `CalculatedDRR`
+in schema V3.
+
+---
+
+# 62. ACCOUNT FUNNEL MUST USE DIRECT FACTUAL API
+
+Current wrong behavior:
+
+```go
+feed.Account.Funnel =
+    &AccountFunnelBlock{
+        State: BlockPartial,
+        Limitations: [{
+            Code:
+              "NOT_SUPPORTED_BY_SEMANTICS",
+        }],
+    }
+```
+
+But:
+
+```go
+GetAccountFunnelPeriod(...)
+```
+
+already exists.
+
+Implement actual fields.
+
+---
+
+# 63. TARGET FUNNEL V3 TYPES
+
+In:
+
+```text
+backend/internal/analysis/landscape/types.go
+```
+
+Add:
+
+```go
+type FunnelSurfaceBlock struct {
+    Impressions *
+        CountComparison
+        `json:"impressions,omitempty"`
+
+    CartAdds *
+        CountComparison
+        `json:"cart_adds,omitempty"`
+
+    Conversion *
+        PercentagePointComparison
+        `json:"conversion,omitempty"`
+
+    Limitations []Limitation
+        `json:"limitations,omitempty"`
+}
+
+type AccountFunnelBlock struct {
+    State BlockState `json:"state"`
+
+    SearchSurface *
+        FunnelSurfaceBlock
+        `json:"search_surface,omitempty"`
+
+    PDPSurface *
+        FunnelSurfaceBlock
+        `json:"pdp_surface,omitempty"`
+
+    Limitations []Limitation
+        `json:"limitations,omitempty"`
+}
+```
+
+Use same structure for SKU/Category
+where valid.
+
+---
+
+# 64. FUNNEL METRICS
+
+Use canonical registry keys already present:
+
+```text
+FUNNEL.SEARCH_IMPRESSIONS
+FUNNEL.SEARCH_CART_ADDS
+FUNNEL.SEARCH_CART_CONVERSION
+
+FUNNEL.PDP_IMPRESSIONS
+FUNNEL.PDP_CART_ADDS
+FUNNEL.PDP_CART_CONVERSION.
+```
+
+Current/previous calls.
+
+Do NOT create fake linear funnel.
+
+---
+
+# 65. ACCOUNT FINANCE V3
+
+Use Finance source-native period.
+
+At minimum:
+
+```text
+NetAccrual current/previous
+
+MappingCoverage
+```
+
+Account component breakdown is normative.
+
+Add typed Factual API if current API cannot provide
+one set-based summary.
+
+Preferred method:
+
+```go
+GetFinanceAccountBreakdown(
+    ctx,
+    readContext,
+    standard,
+    explicit,
+) (
+    factualapi.FinanceAccountBreakdown,
+    error,
+)
+```
+
+DTO:
+
+```go
+type FinanceComponentAmount struct {
+    ProviderTypeID string
+    Category       string
+    Amount         Value[SignedMoney]
+    MappingStatus  string
+}
+
+type FinanceAccountBreakdown struct {
+    Period factualapi.Period
+
+    Components []FinanceComponentAmount
+
+    MappedAmount   Value[SignedMoney]
+    UnmappedAmount Value[SignedMoney]
+
+    MappingCoverage Value[Decimal]
+
+    Meta FactMeta
+}
+```
+
+No profit/margin.
+
+---
+
+# 66. ACCOUNT PROMOTIONS — NO FIRST PAGE COUNTS
+
+Current implementation counts first page
+and if truncated emits PARTIAL.
+
+For Account summary create deterministic set-based summary.
+
+Add:
+
+```go
+GetPromotionAccountSummary(...)
+```
+
+or equivalent.
+
+Need:
+
+```text
+ActiveProviderPromotionCount
+ActiveSellerPromotionCount
+ParticipatingSKUCount
+CandidateSKUCount
+SalesExposureParticipating.
+```
+
+Do not infer candidate=participant.
+
+---
+
+# 67. ACCOUNT SUPPLY — NO FIRST PAGE SUMMARY
+
+Create typed account aggregate:
+
+```go
+GetSupplyAccountSummary(...)
+```
+
+Need at least:
+
+```text
+OpenSupplyOrderCount
+SKUWithOpenInboundCount
+PendingAcceptanceActCount
+OverdueSupplyCount
+```
+
+Optional additional normative counts
+where canonical support exists:
+
+```text
+shortcoming
+surplus
+defect
+stages.
+```
+
+No future stock.
+
+---
+
+# 68. CATEGORY_CORE_V3
+
+Core contains cheap Materiality basis:
+
+```text
+category.sales
+category.stock
+category.price
+category.advertising
+category.supply
+```
+
+Do NOT put every Detail block into Core.
+
+V3 Core Profile:
+
+```text
+sales = REQUIRED
+
+stock =
+    OPTIONAL_CAPABILITY
+
+price =
+    OPTIONAL_CAPABILITY
+
+advertising =
+    OPTIONAL_CAPABILITY
+
+supply =
+    OPTIONAL_CAPABILITY
+```
+
+These are enough for current active Category Materiality lanes
+plus factual context.
+
+---
+
+# 69. CATEGORY ZERO STOCK EXPOSURE MUST BE REAL
+
+Current active lane:
+
+```text
+ZERO_STOCK_SALES_EXPOSURE
+```
+
+depends on:
+
+```text
+CategoryStockBlock.SalesExposureZeroStock.
+```
+
+Calculate exact.
+
+For every Category:
+
+```text
+sum current Sales amount
+of category SKU
+with:
+
+Sales current KNOWN > 0
+Stock current KNOWN == 0.
+```
+
+Do not treat unknown stock as zero.
+
+---
+
+# 70. CATEGORY STOCK PERCENTILES
+
+Use the same exact nearest-rank policy.
+
+Populate:
+
+```text
+CoverageP25
+CoverageP50
+CoverageP75.
+```
+
+---
+
+# 71. CATEGORY PRICE V3
+
+Derive safely from SKU:
+
+```text
+SKUPriceIncreasedCount
+SKUPriceDecreasedCount
+SKUPriceUnchangedCount
+
+MedianPriceChangePct
+PriceChangeCoverage.
+```
+
+No average category price.
+
+---
+
+# 72. CATEGORY DETAIL V3
+
+Detail may include:
+
+```text
+category.funnel
+category.search
+category.promotions
+```
+
+Only safe semantics.
+
+Finance:
+
+current canonical Finance does not expose
+SKU/entity mapping in `FinanceAccrual`.
+
+Therefore do NOT fake Category Finance.
+
+Mark profile entry:
+
+```text
+BlockNotSupportedBySemantics
+```
+
+until factual model truly provides:
+
+```text
+FINANCE.CATEGORY_DIRECT.
+```
+
+Do not just query Account Finance
+and assign it to Category.
+
+---
+
+# 73. CATEGORY SEARCH
+
+Category Search can be derived
+from SKU Search only if Category attribution
+is stable over the exact Search period.
+
+If existing Factual API
+`GetCategorySearchSummary`
+already enforces that contract,
+use it.
+
+Otherwise:
+
+do not recreate unsafe current-category attribution
+inside Landscape.
+
+---
+
+# 74. CATEGORY FUNNEL
+
+Use:
+
+```go
+GetCategoryFunnelPeriod(...)
+```
+
+only for registry-approved metrics.
+
+Additive:
+allowed.
+
+Non-additive:
+only when Factual API returns a direct safe value.
+
+No SUM(unique sessions).
+
+No AVG(conversion).
+
+---
+
+# 75. SKU_CORE_V3
+
+Core must include:
+
+```text
+Sales:
+    current7
+    previous7
+    D
+    D-1
+    30d
+    shares
+    ranks
+
+Stock
+Coverage
+
+Price
+Price History
+
+Advertising
+
+Search current/previous
+
+Promotion compact counts
+
+Supply compact state.
+```
+
+Funnel:
+put in DETAIL V3
+to keep Core cheap,
+because current Materiality does not use Funnel.
+
+Finance:
+DETAIL-only and only when direct mapping exists.
+
+---
+
+# 76. SKU SALES V3 FIELDS
+
+Extend `SKUSalesBlock`:
+
+```go
+AnalysisDayAmount *
+    MoneyComparison
+
+AnalysisDayUnits *
+    CountComparison
+
+DaysWithoutOrdersRecent *int64
+```
+
+Current has 30d amount/units
+but not complete 30d context.
+
+---
+
+# 77. ADD SET-BASED SKU SALES CONTEXT API
+
+Current `BatchGetSKUDemand(Trend30D)`
+gives total 30d,
+but not:
+
+```text
+days_with_orders_30d
+days_without_orders_recent.
+```
+
+Add Factual API:
+
+```go
+type SKUTrendContext struct {
+    CanonicalSKUID int64
+
+    OrderedAmount30D Value[Money]
+    OrderedUnits30D  Value[int64]
+
+    DaysWithOrders30D Value[int64]
+
+    TrailingDaysWithoutOrders Value[int64]
+
+    Period Period
+
+    FormulaPolicy string
+
+    Meta FactMeta
+}
+
+type BatchSKUTrendContextItem struct {
+    ID int64
+    Status BatchStatus
+    Trend *SKUTrendContext
+    Limitation *Limitation
+}
+
+type BatchSKUTrendContextResult struct {
+    Items []BatchSKUTrendContextItem
+}
+```
+
+Method:
+
+```go
+BatchGetSKUTrendContext(
+    ctx,
+    readContext,
+    skuIDs,
+) (
+    BatchSKUTrendContextResult,
+    error,
+)
+```
+
+Implement ONE set-based SQL query.
+
+---
+
+# 78. DAYS WITHOUT ORDERS POLICY
+
+Exact policy:
+
+```text
+window = last 30 complete analysis business days
+
+days_with_orders_30d =
+    count of days where KNOWN ordered_units > 0.
+
+trailing_days_without_orders =
+    consecutive days ending AnalysisDate
+    with KNOWN ordered_units == 0,
+    capped at 30.
+
+UNKNOWN/missing day stops
+the deterministic streak
+and marks context PARTIAL.
+```
+
+Formula policy:
+
+```text
+sku_sales_trend_context_v1.
+```
+
+---
+
+# 79. SKU D / D-1
+
+Use two batch calls:
+
+```text
+ANALYSIS_DAY
+PREVIOUS_DAY.
+```
+
+Not one call per SKU.
+
+---
+
+# 80. SKU PROMOTION COUNTS IN CORE
+
+Use existing:
+
+```go
+BatchGetSKUPromotions(...)
+```
+
+over eligible SKU set,
+with a Core-safe summary method.
+
+Do not load full details for all SKU.
+
+Preferred add:
+
+```go
+BatchGetSKUPromotionSummary(
+    ...,
+    skuIDs,
+)
+```
+
+return:
+
+```text
+active count
+candidate count.
+```
+
+Full promotion rows remain Detail.
+
+---
+
+# 81. SKU DETAIL V3
+
+Detail adds:
+
+```text
+Funnel
+
+direct Finance if truly supported
+
+CampaignContext
+
+PromotionContext
+
+QueryContext
+
+richer Supply context
+
+optional Price context.
+```
+
+No Materiality metadata.
+
+---
+
+# 82. FINANCE SKU
+
+Current `FinanceAccrual`
+has no SKU relation.
+
+Therefore:
+
+```text
+SKU Finance =
+NOT_SUPPORTED_BY_SEMANTICS
+```
+
+in current V3
+unless Prompt №9.4 introduces
+a real canonical direct mapping.
+
+Do NOT invent one.
+
+---
+
+# 83. CAMPAIGN_CORE_V3
+
+Must include:
+
+```text
+Identity/config
+
+Performance current/previous
+
+Exposure
+
+Targeting.
+```
+
+Performance:
+
+```text
+PaidSpend
+BonusSpend
+Impressions
+Clicks
+AttributedOrderAmount
+AttributedOrderUnits
+
+CTR
+CPC
+CPM
+
+CalculatedDRR
+ProviderDRR.
+```
+
+---
+
+# 84. CAMPAIGN EXPOSURE
+
+Derive after Account Ads aggregation:
+
+```text
+campaign paid spend
+/
+account paid spend
+
+campaign attributed amount
+/
+account attributed amount.
+```
+
+If denominator unavailable/zero:
+nil + limitation.
+
+---
+
+# 85. CAMPAIGN TARGETING
+
+Populate:
+
+```text
+TargetScope
+
+AssignedSKUCount
+SKUWithObservedPerformance.
+```
+
+For:
+
+```text
+ALL_ELIGIBLE_SKUS
+```
+
+do NOT pretend:
+
+```text
+AssignedSKUCount = all seller SKU.
+```
+
+Explicit assignment count only.
+
+---
+
+# 86. CAMPAIGN DETAIL V3
+
+Detail:
+
+```text
+SKUContext
+CampaignStockBlock
+```
+
+Stock context only for explicit assignments
+or explicitly label observed-performance scope.
+
+No implicit whole-catalog assignment.
+
+---
+
+# 87. BLOCKER J — MATERIALITY ACTIVE LANE TEST MUST BE COMPLETE
+
+Current test design is closer to correct,
+but make it authoritative.
+
+Create:
+
+```text
+backend/internal/analysis/materiality/active_lane_manifest.go
+```
+
+`ActiveLaneManifest()` must be production code,
+not only test helper.
+
+Each entry:
+
+```go
+type ActiveLaneContract struct {
+    LaneKey string
+
+    EntityKind EntityKind
+
+    ProfileName string
+    ProfileField string
+
+    CapabilityKey string
+    FactFamily string
+
+    WindowPolicy string
+
+    FactualMethods []string
+}
+```
+
+---
+
+# 88. ACTIVE LANE MANIFEST MUST MATCH REGISTRY 1:1
+
+Test:
+
+```text
+len(active manifest)
+==
+len(active LaneRegistry versions).
+```
+
+No registered active lane
+without manifest.
+
+No manifest lane
+without registry.
+
+---
+
+# 89. HARD ASSERT EVERY SKU LANE
+
+Individually:
+
+```text
+SALES_CURRENT_EXPOSURE
+SALES_30D_EXPOSURE
+
+SALES_ABSOLUTE_INCREASE
+SALES_ABSOLUTE_DECREASE
+
+SALES_RELATIVE_INCREASE
+SALES_RELATIVE_DECREASE
+
+SALES_FROM_ZERO
+SALES_TO_ZERO
+
+ZERO_SELLABLE_WITH_RECENT_DEMAND
+
+STOCK_COVERAGE_ASC
+
+AD_PAID_SPEND_EXPOSURE
+AD_PAID_SPEND_INCREASE
+AD_PAID_SPEND_DECREASE
+
+PRICE_ABSOLUTE_CHANGE
+
+SEARCH_POSITION_CHANGE
+
+SUPPLY_OVERDUE_EXPOSURE
+```
+
+---
+
+# 90. HARD ASSERT EVERY CATEGORY LANE
+
+```text
+CURRENT_SALES_EXPOSURE
+
+SALES_ABSOLUTE_INCREASE
+SALES_ABSOLUTE_DECREASE
+SALES_RELATIVE_CHANGE
+
+ZERO_STOCK_SALES_EXPOSURE
+
+AD_PAID_SPEND_EXPOSURE
+AD_PAID_SPEND_CHANGE
+
+SUPPLY_OVERDUE_SALES_EXPOSURE
+```
+
+---
+
+# 91. HARD ASSERT EVERY CAMPAIGN LANE
+
+```text
+PAID_SPEND_EXPOSURE
+PAID_SPEND_INCREASE
+PAID_SPEND_DECREASE
+
+ATTRIBUTED_AMOUNT_EXPOSURE
+ATTRIBUTED_AMOUNT_INCREASE
+ATTRIBUTED_AMOUNT_DECREASE
+
+DRR_ABSOLUTE_PP_CHANGE
+CTR_ABSOLUTE_PP_CHANGE
+
+PAID_SPEND_FROM_ZERO
+PAID_SPEND_TO_ZERO
+```
+
+---
+
+# 92. NEGATIVE LANE TESTS
+
+For every major transition:
+
+```text
+previous UNKNOWN
+current 100
+→ NOT FROM_ZERO.
+
+previous 100
+current UNKNOWN
+→ NOT TO_ZERO.
+
+stock UNKNOWN
+→ NOT ZERO_STOCK.
+
+supply OPEN
+but not OVERDUE
+→ NOT SUPPLY_OVERDUE.
+
+Search previous missing
+→ NOT SEARCH_POSITION_CHANGE.
+```
+
+---
+
+# 93. BLOCKER K — STAGE 6 HASH USES V1
+
+Current:
+
+```text
+backend/internal/analysis/runtime/inputhash.go
+```
+
+Bad:
+
+```go
+"landscape_schema_profile":
+    landscape.LandscapeSchemaV1 +
+    "|" +
+    landscape.DetailProfileVersionSeal(),
+```
+
+Target V3:
+
+```go
+"landscape_schema_profile":
+    landscape.LandscapeSchemaV3 +
+    "|" +
+    landscape.DetailProfileVersionSealV3(),
+```
+
+---
+
+# 94. STAGE 4 V3 HASH
+
+Stage 4 target:
+
+```go
+"landscape_schema_profile":
+    landscape.LandscapeSchemaV3 +
+    "|" +
+    landscape.CoreProfileVersionSealV3(),
+```
+
+---
+
+# 95. STAGE 5 MUST DIRECTLY HASH LANE REGISTRY
+
+Current Stage 5 relies partly on Contract Bundle.
+
+Make explicit.
+
+Change:
+
+```go
+type MaterialityInput struct {
+    LandscapeCoreHash
+    MaterialityPolicyHash
+    BudgetProfileHash
+    ContractBundleHash
+    StageVersion
+}
+```
+
+to:
+
+```go
+type MaterialityInput struct {
+    LandscapeCoreHash string
+
+    MaterialityPolicyHash string
+
+    LaneRegistryHash string
+
+    BudgetProfileHash string
+
+    ContractBundleHash string
+
+    StageVersion string
+}
+```
+
+Hash:
+
+```go
+"lane_registry_hash":
+    in.LaneRegistryHash
+```
+
+Call sites must pass current registry hash.
+
+---
+
+# 96. CONTRACT BUNDLE V3
+
+Must seal:
+
+```text
+Factual API contract
+
+Fact-family binding contract
+
+Watermark policy
+
+Universe schema
+
+LandscapeSchemaV3#hash if schema hash exists
+
+ACCOUNT_DISCOVERY_V3#hash
+
+CATEGORY_CORE_V3#hash
+CATEGORY_DETAIL_V3#hash
+
+SKU_CORE_V3#hash
+SKU_DETAIL_V3#hash
+
+CAMPAIGN_CORE_V3#hash
+CAMPAIGN_DETAIL_V3#hash
+
+Eligibility policy
+
+Materiality feature contract
+
+MATERIALITY_POLICY_V1_3#hash
+
+LaneRegistry version#hash
+
+Budget version#hash
+
+RRF policy
+
+Anchor policy
+
+Diversity policy
+
+Continuity contract.
+```
+
+No name-only contracts.
+
+---
+
+# 97. BLOCKER L — PRE-DISCOVERY VALIDATOR TOO WEAK
+
+Current:
+
+```text
+backend/internal/analysis/prediscovery.go
+```
+
+only checks a few hashes/entities.
+
+Replace with real deterministic firewall.
+
+---
+
+# 98. NEW PreDiscoveryInput
+
+Target:
+
+```go
+type PreDiscoveryInput struct {
+    SellerAccountID int64
+
+    UniverseID   string
+    UniverseHash string
+
+    AnalysisDate canonicaljson.Date
+    CutoffAt     time.Time
+
+    ContractBundleHash string
+
+    ExpectedCoreSchema string
+    ExpectedCoreProfileSeal string
+
+    ExpectedDetailSchema string
+    ExpectedDetailProfileSeal string
+
+    Core landscape.LandscapeSet
+    CoreHash string
+
+    Ranking materiality.RankingArtifact
+
+    Selection materiality.SelectionArtifact
+
+    Detail landscape.LandscapeSet
+    DetailHash string
+}
+```
+
+Expected values come from runtime contract,
+not artifact itself.
+
+---
+
+# 99. VALIDATE CORE CONTEXT
+
+Check:
+
+```text
+Core seller == input seller
+
+Core UniverseID == input UniverseID
+
+Core UniverseHash == input UniverseHash
+
+Core AnalysisDate == input AnalysisDate
+
+Core cutoff == input Cutoff
+
+Core ContractBundleHash == input ContractBundle
+
+Core schema == landscape_schema_v3
+
+Core Profile seal ==
+expected production Core V3 seal.
+```
+
+---
+
+# 100. VALIDATE DETAIL CONTEXT
+
+Same:
+
+```text
+seller
+UniverseID
+UniverseHash
+AnalysisDate
+cutoff
+ContractBundle
+schema v3
+Detail Profile seal.
+```
+
+Core and Detail context must match
+except profile seal.
+
+---
+
+# 101. RECOMPUTE CORE HASH
+
+Do not trust caller.
+
+Use:
+
+```go
+_, recalculatedCoreHash, err :=
+    landscape.MarshalAndHash(in.Core)
+```
+
+Compare:
+
+```text
+recalculated == CoreHash.
+```
+
+---
+
+# 102. RECOMPUTE DETAIL HASH
+
+Same.
+
+---
+
+# 103. MATERIALITY HASH CHAIN
+
+Validate:
+
+```text
+Ranking.InputCoreHash == CoreHash
+
+Selection.RankingHash ==
+Ranking.RankingHash
+
+Selection.InputBudgetHash ==
+expected budget hash
+if field exists
+
+Detail built for SelectionHash.
+```
+
+If Detail Context does not currently carry
+SelectionHash,
+add to LandscapeContext V3:
+
+```go
+MaterialitySelectionHash string
+    `json:"materiality_selection_hash,omitempty"`
+```
+
+Core leaves empty.
+
+Detail MUST carry exact SelectionHash.
+
+---
+
+# 104. EXACT SELECTED ENTITY SET
+
+Detail must contain:
+
+```text
+Account always
+
+exact selected leaf Categories
+
+exact selected SKU
+
+exact selected Campaigns.
+```
+
+Not merely superset.
+
+Test:
+
+```text
+extra non-selected SKU in Detail
+→ FAIL.
+```
+
+---
+
+# 105. MATERIALITY METADATA LEAK
+
+V3 Detail schema must not contain fields matching:
+
+```text
+materiality_score
+fusion_utility
+lane_rank
+lane_memberships
+rrf
+diversity_penalty
+selection_reason
+anchor_reason
+```
+
+Implement deterministic reflection/JSON key blacklist gate.
+
+---
+
+# 106. SUPPORTING CONTEXT VALIDATION
+
+For each SupportingContext:
+
+```text
+returned_count == len(items)
+
+returned_count <= total_count
+
+truncated ==
+    total_count > returned_count
+
+sort_basis nonempty when returned >0
+
+semantic_scope nonempty when returned >0
+
+READY_EMPTY:
+    len(items)==0
+    total_count==0
+
+UNAVAILABLE:
+    no factual items
+
+NOT_APPLICABLE:
+    no factual items.
+```
+
+---
+
+# 107. DECIMAL VALIDATION
+
+PreDiscovery validator must walk all V3 Landscapes
+and validate all Decimal strings.
+
+No:
+
+```text
+NaN
+Inf
+empty Decimal
+invalid rational.
+```
+
+---
+
+# 108. BLOCKER M — QUERY COUNT GATES MISSING
+
+Need REAL query instrumentation.
+
+Do not use source-string tests.
+
+---
+
+# 109. ADD pgx QUERY COUNTER
+
+Create test helper:
+
+```text
+backend/internal/analysis/query_counter_test.go
+```
+
+Example:
+
+```go
+type queryCounter struct {
+    n atomic.Int64
+}
+
+func (
+    q *queryCounter
+) TraceQueryStart(
+    ctx context.Context,
+    _ *pgx.Conn,
+    _ pgx.TraceQueryStartData,
+) context.Context {
+
+    q.n.Add(1)
+    return ctx
+}
+
+func (
+    q *queryCounter
+) TraceQueryEnd(
+    context.Context,
+    *pgx.Conn,
+    pgx.TraceQueryEndData,
+) {}
+
+func (
+    q *queryCounter
+) Count() int64 {
+    return q.n.Load()
+}
+```
+
+When opening test pool:
+
+```go
+cfg, err :=
+    pgxpool.ParseConfig(dsn)
+
+counter := &queryCounter{}
+
+cfg.ConnConfig.Tracer = counter
+
+pool, err :=
+    pgxpool.NewWithConfig(
+        ctx,
+        cfg,
+    )
+```
+
+---
+
+# 110. CORE 500 SKU QUERY COUNT TEST
+
+Create:
+
+```go
+func TestPrompt94CoreQueryCount500SKU(
+    t *testing.T,
+)
+```
+
+Seed:
+
+```text
+500 eligible SKU
+
+multiple categories
+
+20+ Campaigns
+
+Sales
+Stock
+Price
+Ads
+Search
+Supply
+Funnel
+Promotions
+capabilities.
+```
+
+Reset query counter immediately before:
+
+```go
+BuildCore(...)
+```
+
+Measure only build.
+
+Hard rule:
+
+```text
+query count MUST NOT grow one-per-SKU.
+```
+
+Set initial practical ceiling:
+
+```text
+<= 100 SQL statements
+```
+
+for 500 SKU.
+
+If implementation legitimately needs
+more than 100 due stable bounded batching,
+document exact breakdown
+and reduce/adjust only with explicit evidence.
+
+Do not set ceiling to 500+.
+
+---
+
+# 111. 2000 SKU QUERY SHAPE
+
+Create:
+
+```go
+func TestPrompt94CoreQueryShape2000SKU(
+    t *testing.T,
+)
+```
+
+Test 500 and 2000 in same test.
+
+Acceptance:
+
+```text
+Q2000 <= Q500 + bounded_batch_overhead
+```
+
+With factual `maxBatch=1000`,
+2000 may require approximately twice some SKU batch queries,
+but NOT 4x total query count.
+
+Hard reject:
+
+```text
+Q2000 / Q500 >= 3
+```
+
+unless test demonstrates fixed setup noise
+makes ratio invalid.
+
+Better assertion:
+
+```text
+Q2000 <= Q500 + 50
+```
+
+after actual profiling.
+
+Report both numbers.
+
+---
+
+# 112. DETAIL QUERY COUNT TEST
+
+Use maximum current Budget:
+
+```text
+15 Category
+40 SKU
+15 Campaign.
+```
+
+Create:
+
+```go
+func TestPrompt94DetailQueryCountMaxBudget(
+    t *testing.T,
+)
+```
+
+No N+1.
+
+Practical hard ceiling:
+
+```text
+<= 40 SQL statements
+```
+
+for BuildDetail alone.
+
+Target should be much lower.
+
+---
+
+# 113. ASSERT NO FALLBACK
+
+Source test:
+
+```text
+detail_source.go
+```
+
+must not contain:
+
+```text
+fallbackLoadSKUCampaignContext
+```
+
+Production code must not contain loop
+over selected entity doing one Factual API call each.
+
+---
+
+# 114. BLOCKER N — REPLAY TESTS INCOMPLETE
+
+Add:
+
+```text
+backend/internal/analysis/landscape/profile_replay_test.go
+backend/internal/analysis/runtime/versioned_replay_test.go
+```
+
+---
+
+# 115. V1/V2/V3 DIFFERENT
+
+Assert:
+
+```text
+V1 seal != V2 seal
+V2 seal != V3 seal.
+```
+
+---
+
+# 116. OLD ARTIFACT NOT V3
+
+Serialize old V2 Landscape artifact.
+
+Attempt V3 validation.
+
+Expected:
+
+```text
+schema/profile mismatch
+→ FAIL.
+```
+
+Never silently reinterpret.
+
+---
+
+# 117. SAME V3 REPLAY
+
+Same:
+
+```text
+UniverseHash
+ContractBundle
+Profile hashes
+factual state
+```
+
+twice:
+
+```text
+Core bytes same
+Core hash same
+
+Ranking hash same
+
+Selection hash same
+
+Detail bytes same
+Detail hash same.
+```
+
+---
+
+# 118. PROFILE CHANGE REPLAY
+
+Modify only K in an in-memory cloned Profile:
+
+```text
+5 → 6
+```
+
+Expected:
+
+```text
+ProfileHash changes
+
+Contract seal changes
+
+Stage 6 input hash changes.
+```
+
+---
+
+# 119. LANE REGISTRY CHANGE REPLAY
+
+Clone lane registry,
+change:
+
+```text
+weight
+or capability
+or candidate limit.
+```
+
+Expected:
+
+```text
+LaneRegistryHash changes
+
+ContractBundle changes
+
+Stage5 input hash changes.
+```
+
+---
+
+# 120. BLOCKER O — OLD COLLECTION TEST EXPECTS OLD BUG
+
+Current file:
+
+```text
+backend/internal/collection/repository_integration_test.go
+```
+
+Current old assertion expects:
+
+```go
+persisted.SourceRevisionHash ==
+    contract.SemanticMappingHash
+```
+
+This contradicts Prompt 9.3 fix.
+
+Update.
+
+Target:
+
+```go
+if persisted.SemanticMappingHash.String !=
+    contract.SemanticMappingHash {
+    t.Fatalf(...)
+}
+
+if persisted.SourceRevisionHash.Valid {
+    t.Fatalf(
+        "source revision must be NULL when provider exposes no revision",
+    )
+}
+```
+
+Also assert SourceContractHash independently.
+
+---
+
+# 121. BLOCKER P — DOCS/CURRENT STALE
+
+Update fully:
+
+```text
+docs/current/factual-api.md
+
+docs/current/factual-universe.md
+
+docs/current/temporal-read-context.md
+
+docs/current/entity-landscapes.md
+
+docs/current/materiality-engine.md
+
+docs/current/analysis-runtime.md
+
+docs/current/analysis-contract-bundle.md
+
+docs/current/evals-observability.md
+```
+
+Remove stale claims:
+
+```text
+Prompt 9 CLOSED via 9.1
+
+MATERIALITY_POLICY_V1_1
+
+landscape_schema_v2 as final
+```
+
+Replace with actual V3/V1_3.
+
+---
+
+# 122. ADD V3 PROFILE MATRIX DOC
+
+Create/update section containing table:
+
+```text
+Entity
+Profile
+Block
+Core/Detail
+Mode
+Capability
+Fact Family
+Factual API Method
+Period Anchor
+Supporting K
+Sort
+Semantic Scope
+Serialization.
+```
+
+Every V3 block listed.
+
+---
+
+# 123. ADD MATERIALITY LANE MATRIX DOC
+
+Every active lane:
+
+```text
+LaneKey
+EntityKind
+Profile
+Input field
+Capability
+Fact family
+Window
+Factual method
+Fixture test.
+```
+
+No dead lane.
+
+---
+
+# 124. Factual API BATCH METHODS NEEDED
+
+At minimum after №9.4,
+ensure typed batch APIs exist for:
+
+```text
+BatchGetSKUDemand
+BatchGetSKUTrendContext
+BatchGetSKUStock
+BatchGetStockCoverage
+BatchGetSKUPrice
+BatchGetSKUPriceLastObservedChange
+BatchGetSKUAdvertising
+BatchGetSKUSearchSummary
+BatchGetSKUFunnelPeriod
+BatchGetSKUPromotionSummary
+BatchGetSKUInbound
+
+BatchGetCampaignPeriodPerformance
+
+BatchListSKUCampaignPerformance
+
+BatchListCampaignTargetSKUs
+
+BatchGetSKUQueryDetails(period-aware)
+
+BatchGetSKUPromotions / summary.
+```
+
+No loop wrapping Get method.
+
+---
+
+# 125. ACCOUNT DIRECT METHODS
+
+Ensure typed factual support for:
+
+```text
+GetAccountDemand
+
+GetAdvertisingAccountSummary
+or safe aggregate from Campaign facts
+
+GetAccountFunnelPeriod
+
+GetFinanceAccountSummary
+
+GetFinanceAccountBreakdown
+
+GetPromotionAccountSummary
+
+GetAccountHealthSummary
+
+GetSupplyAccountSummary.
+```
+
+All AS KNOWN AT sealed cutoff.
+
+---
+
+# 126. Factual API BOUNDARY
+
+Landscape files:
+
+```text
+backend/internal/analysis/landscape/**
+```
+
+must import/use:
+
+```text
+factualapi
+```
+
+and NEVER direct canonical SQL.
+
+Existing architecture boundary test must remain green.
+
+---
+
+# 127. NO PROVIDER AFTER SEAL
+
+No:
+
+```text
+internal/integrations/ozon
+```
+
+inside:
+
+```text
+internal/analysis
+internal/analysis/landscape
+internal/analysis/materiality.
+```
+
+---
+
+# 128. NO OPENAI
+
+Prompt 9.4 introduces zero AI calls.
+
+---
+
+# 129. PRODUCTION BUILDCORE V3
+
+`CoreBuilder.BuildCore()` target Context:
+
+```go
+LandscapeContext{
+    AnalysisDate:
+        canonicaljson.Date(
+            sealed.AnalysisDate(),
+        ),
+
+    AnalysisCutoffAt:
+        sealed.CutoffAt().UTC(),
+
+    SellerAccountID:
+        sealed.SellerAccountID(),
+
+    FactualUniverseID:
+        universeID,
+
+    FactualUniverseHash:
+        universeHash,
+
+    ContractBundleHash:
+        contractBundleHash,
+
+    LandscapeSchemaVersion:
+        LandscapeSchemaV3,
+
+    LandscapeProfileVersion:
+        CoreProfileVersionSealV3(),
+
+    BusinessTimezone:
+        "Europe/Moscow",
+
+    ContinuityMode:
+        ContinuityInitialNoBaseV1,
+}
+```
+
+No V2 production output after Prompt94
+except legacy reader/tests.
+
+---
+
+# 130. DETAIL CONTEXT V3
+
+Detail:
+
+```go
+out.Context.LandscapeSchemaVersion =
+    LandscapeSchemaV3
+
+out.Context.LandscapeProfileVersion =
+    DetailProfileVersionSealV3()
+
+out.Context.MaterialitySelectionHash =
+    selectionHash
+```
+
+Change `BuildDetail()` signature to accept selection hash:
+
+```go
+BuildDetail(
+    ctx,
+    sealed,
+    core,
+    selected,
+    selectionHash,
+)
+```
+
+or a typed input struct.
+
+Preferred:
+
+```go
+type DetailBuildInput struct {
+    Core LandscapeSet
+    Selected []EntityRef
+    SelectionHash string
+}
+```
+
+---
+
+# 131. MATERIALITY AUDIT MUST NOT ENTER DETAIL
+
+Keep current rule.
+
+Add reflection/JSON test.
+
+Search final V3 Detail JSON
+for forbidden keys.
+
+Expected none.
+
+---
+
+# 132. PROFILE SERIALIZATION RULE
+
+Global capability unavailable:
+
+for Profile block with:
+
+```text
+OMIT_WHEN_GLOBAL_CAPABILITY_UNAVAILABLE
+```
+
+block omitted.
+
+Global capability entry remains in:
+
+```text
+GlobalCapabilities.
+```
+
+Entity-specific partial/error:
+block present with state/limitation.
+
+This distinction is mandatory.
+
+---
+
+# 133. BLOCK STATES
+
+Use exactly:
+
+```text
+READY
+READY_EMPTY
+PARTIAL
+STALE
+UNAVAILABLE
+NOT_APPLICABLE
+UNKNOWN.
+```
+
+Rules:
+
+```text
+READY_EMPTY only known empty set.
+
+UNAVAILABLE cannot contain current factual value.
+
+STALE must contain explicit as_of where relevant.
+
+PARTIAL can contain known subset
++ limitation.
+
+UNKNOWN does not become zero.
+```
+
+---
+
+# 134. CATEGORY UNMAPPED
+
+Do NOT remove UNMAPPED Landscape.
+
+Correct behavior:
+
+```text
+UNMAPPED Category
+exists for reconciliation
+when unmapped SKU exist.
+
+UNMAPPED
+never enters Materiality target ranking.
+```
+
+Preserve.
+
+---
+
+# 135. ACCOUNT / CATEGORY / SKU / CAMPAIGN COMPLETENESS TEST
+
+Create exact tests:
+
+```text
+TestAccountDiscoveryV3Complete
+
+TestCategoryCoreV3Complete
+
+TestCategoryDetailV3Complete
+
+TestSKUCoreV3Complete
+
+TestSKUDetailV3Complete
+
+TestCampaignCoreV3Complete
+
+TestCampaignDetailV3Complete.
+```
+
+Each:
+
+capability READY
+→ contracted fields present.
+
+capability unavailable
+→ proper omission/state.
+
+---
+
+# 136. CONTENTFUL PRODUCTION FIXTURE
+
+Upgrade Prompt93 fixture
+or create:
+
+```text
+prompt94_production_integration_test.go
+```
+
+Must seed:
+
+```text
+20+ SKU minimum correctness fixture
+
+2+ Categories
+
+UNMAPPED
+
+3+ Campaigns
+
+Sales:
+current7
+previous7
+D
+D-1
+30d
+
+Stock
+coverage
+
+Price
+history
+
+Advertising
+
+Search Seller Summary
+current/previous
+
+Search Query Detail
+
+Funnel
+
+Promotion membership
+
+Supply open
+Supply overdue
+
+Finance Account
+
+Health
+
+Capabilities
+
+Watermark history.
+```
+
+---
+
+# 137. FULL PRODUCTION PATH
+
+Test:
+
+```text
+RESOLVE_CONTEXT
+→ SEAL_UNIVERSE
+→ PREPARE_CONTINUITY
+→ BUILD_LANDSCAPE_CORE
+→ RUN_MATERIALITY
+→ BUILD_LANDSCAPE_DETAIL
+→ ValidatePreDiscoveryFoundationV3.
+```
+
+Do NOT manually construct final CoreFacts.
+
+---
+
+# 138. PREDISCOVERY HARD ASSERTION
+
+At the end:
+
+```go
+if err :=
+    analysis.ValidatePreDiscoveryFoundation(
+        input,
+    );
+    err != nil {
+
+    t.Fatalf(
+        "pre-discovery foundation: %v",
+        err,
+    )
+}
+```
+
+No log-only.
+
+---
+
+# 139. STAGE 7 MUST REMAIN BLOCKED
+
+Assert:
+
+```text
+BUILD_DISCOVERY_PACK
+NOT_READY
+NOT_EXECUTED.
+```
+
+---
+
+# 140. FULL ACTIVE LANE E2E
+
+The contentful fixture MUST exercise
+every active lane intentionally.
+
+If one fixture cannot naturally
+exercise contradictory increase/decrease lanes,
+create multiple deterministic scenarios.
+
+But ALL active lanes must have
+production-path E2E assertion.
+
+---
+
+# 141. DO NOT ASSERT IMPOSSIBLE OPPOSITE LANES IN ONE ENTITY
+
+Use several SKU/Categories/Campaigns:
+
+Example:
+
+```text
+SKU A
+sales increase
+
+SKU B
+sales decrease
+
+SKU C
+FROM_ZERO
+
+SKU D
+TO_ZERO
+
+SKU E
+zero stock
+
+SKU F
+Search movement
+
+SKU G
+Price movement
+
+SKU H
+Supply overdue.
+```
+
+Campaigns same pattern.
+
+---
+
+# 142. QUERY COUNT TESTS MUST USE REAL POSTGRES
+
+Require:
+
+```text
+TEST_DATABASE_URL
+```
+
+Do not pass query-count gate
+with mock Factual API.
+
+---
+
+# 143. REDIS/ASYNQ E2E
+
+Run real Redis.
+
+Must prove stages 1–6
+still work after V3 changes.
+
+---
+
+# 144. DUPLICATE TASK IDEMPOTENCY
+
+Same stage task delivered twice:
+
+```text
+same stage input hash
+
+same immutable artifact
+
+same accepted result.
+```
+
+---
+
+# 145. RECOVERY
+
+Artifact persisted,
+worker crashes before status commit,
+retry:
+
+```text
+verify existing artifact
+reuse
+
+not write alternative semantic result.
+```
+
+---
+
+# 146. BUILD AND MIGRATIONS
+
+If schema changes require DB persistence
+for Profile registry / contract bundle etc,
+use next free forward migration.
+
+Do NOT modify migrations 000061–000089.
+
+Full chain:
+
+```text
+1 → latest
+```
+
+PASS.
+
+---
+
+# 147. ACCEPTANCE COMMANDS
+
+Run at minimum:
+
+```bash
+gofmt
+
+go test ./backend/internal/readiness/...
+go test ./backend/internal/factualapi/...
+go test ./backend/internal/factual/...
+go test ./backend/internal/analysis/landscape/...
+go test ./backend/internal/analysis/materiality/...
+go test ./backend/internal/analysis/...
+
+go vet ./backend/internal/readiness/...
+go vet ./backend/internal/factualapi/...
+go vet ./backend/internal/factual/...
+go vet ./backend/internal/analysis/...
+
+go build ./backend/cmd/api
+go build ./backend/cmd/worker
+```
+
+Use actual repository module root
+for exact command paths.
+
+Then:
+
+```bash
+go test ./...
+```
+
+---
+
+# 148. WINDOWS ACCESS DENIED
+
+If unrelated:
+
+```text
+internal/unifiedanalysis/prompt
+Access is denied on .test.exe
+```
+
+occurs:
+
+1. remove stale test binary;
+2. identify locking process;
+3. rerun exact package;
+4. rerun full suite.
+
+Do NOT call acceptance PASS
+unless the failure is proven environmental.
+
+---
+
+# 149. GITLEAKS
+
+PASS.
+
+---
+
+# 150. RACE
+
+If Windows/CGO prevents:
+
+```text
+RACE = NOT_RUN
+```
+
+allowed with exact reason.
+
+No other gate may be skipped
+because of Windows.
+
+---
+
+# 151. DELETE / DEPRECATE OLD PRODUCTION HELPERS
+
+After V3 production cutover,
+no production caller should use:
+
+```text
+AccountDiscoveryProfile()
+CategoryCoreProfile()
+CategoryDetailProfile()
+SKUCoreProfile()
+SKUDetailProfile()
+CampaignCoreProfile()
+CampaignDetailProfile()
+```
+
+These V1 helpers may remain
+only for:
+
+```text
+legacy artifact reader/tests.
+```
+
+Add architecture test:
+
+```text
+production landscape runtime files
+do not call V1 Profile helpers.
+```
+
+---
+
+# 152. ARCHITECTURE STATIC GATE — V1/V2 IN NEW RUNTIME
+
+Search:
+
+```text
+runtime/
+landscape/core.go
+landscape/detail.go
+landscape/factual_source.go
+```
+
+No:
+
+```text
+LandscapeSchemaV1
+LandscapeSchemaV2
+*_V1
+*_V2
+```
+
+in current production execution path,
+except explicit compatibility code.
+
+New path = V3 only.
+
+---
+
+# 153. DO NOT DROP V1/V2 DECODING
+
+Old immutable artifacts remain auditable.
+
+Do not mutate them.
+
+---
+
+# 154. FINAL MACHINE-READABLE STATUS
+
+Output exactly:
+
+```text
+PROMPT_09_4_STATUS =
+CODE_COMPLETE / BLOCKED
+
+ARCHITECTURE_DOCS_READ =
+PASS / FAIL
+
+SOURCE_NATIVE_WINDOWS =
+PASS / FAIL
+
+SEARCH_QUERY_DETAIL_PERIOD_BOUND =
+PASS / FAIL
+
+FINANCE_SOURCE_NATIVE_WINDOW =
+PASS / FAIL
+
+SEALED_CAPABILITY_FAIL_CLOSED =
+PASS / FAIL
+
+CAPABILITY_ALIAS_REMOVED =
+PASS / FAIL
+
+LANDSCAPE_SCHEMA_V3 =
+PASS / FAIL
+
+LANDSCAPE_PROFILE_V3_EXECUTABLE =
+PASS / FAIL
+
+LANDSCAPE_PROFILE_V3_FULL_HASH =
+PASS / FAIL
+
+LANDSCAPE_PROFILE_V3_LIMIT_HASH =
+PASS / FAIL
+
+LANDSCAPE_PROFILE_V3_SORT_HASH =
+PASS / FAIL
+
+LANDSCAPE_PROFILE_V3_SERIALIZATION_HASH =
+PASS / FAIL
+
+LANDSCAPE_PROFILE_CONFORMANCE_PRODUCTION =
+PASS / FAIL
+
+LANDSCAPE_NO_V1_PROFILE_IN_V3_DETAIL =
+PASS / FAIL
+
+ACCOUNT_DISCOVERY_V3_COMPLETE =
+PASS / FAIL
+
+ACCOUNT_SALES_DAILY_PULSE =
+PASS / FAIL
+
+ACCOUNT_STOCK_DISTRIBUTION =
+PASS / FAIL
+
+ACCOUNT_ZERO_STOCK_EXPOSURE =
+PASS / FAIL
+
+ACCOUNT_PRICE_DISTRIBUTION =
+PASS / FAIL
+
+ACCOUNT_ADVERTISING_COMPLETE =
+PASS / FAIL
+
+ACCOUNT_FUNNEL_DIRECT =
+PASS / FAIL
+
+ACCOUNT_SEARCH_DISTRIBUTION =
+PASS / FAIL
+
+ACCOUNT_FINANCE_COMPLETE =
+PASS / FAIL
+
+ACCOUNT_PROMOTIONS_COMPLETE =
+PASS / FAIL
+
+ACCOUNT_SUPPLY_COMPLETE =
+PASS / FAIL
+
+ACCOUNT_CONCENTRATION =
+PASS / FAIL
+
+CATEGORY_CORE_V3_COMPLETE =
+PASS / FAIL
+
+CATEGORY_ZERO_STOCK_SALES_EXPOSURE =
+PASS / FAIL
+
+CATEGORY_PRICE_DISTRIBUTION =
+PASS / FAIL
+
+CATEGORY_DETAIL_V3_COMPLETE =
+PASS / FAIL
+
+SKU_CORE_V3_COMPLETE =
+PASS / FAIL
+
+SKU_D_D1_CONTEXT =
+PASS / FAIL
+
+SKU_30D_CONTEXT =
+PASS / FAIL
+
+SKU_PROMOTION_COUNTS =
+PASS / FAIL
+
+SKU_DETAIL_V3_COMPLETE =
+PASS / FAIL
+
+CAMPAIGN_CORE_V3_COMPLETE =
+PASS / FAIL
+
+CAMPAIGN_CPC_CPM =
+PASS / FAIL
+
+CAMPAIGN_PROVIDER_DRR_SEPARATE =
+PASS / FAIL
+
+CAMPAIGN_EXPOSURE =
+PASS / FAIL
+
+CAMPAIGN_TARGETING =
+PASS / FAIL
+
+CAMPAIGN_DETAIL_V3_COMPLETE =
+PASS / FAIL
+
+SUPPORTING_CONTEXT_STATE_PRESERVED =
+PASS / FAIL
+
+SUPPORTING_CONTEXT_ERROR_NOT_EMPTY =
+PASS / FAIL
+
+DETAIL_NO_SKU_CAMPAIGN_FALLBACK =
+PASS / FAIL
+
+BATCH_CAMPAIGN_TARGET_SKUS =
+PASS / FAIL
+
+LANDSCAPE_DETAIL_N_PLUS_ONE =
+PASS / FAIL
+
+FUNNEL_BATCH_SET_BASED =
+PASS / FAIL
+
+MATERIALITY_COUNT_INTEGER =
+PASS / FAIL
+
+MATERIALITY_NO_EMPTY_TO_ZERO =
+PASS / FAIL
+
+MATERIALITY_NO_PARSE_ERROR_TO_ZERO =
+PASS / FAIL
+
+MATERIALITY_EXACT_RANKING =
+PASS / FAIL
+
+MATERIALITY_POLICY_VNEXT =
+PASS / FAIL
+
+MATERIALITY_ACTIVE_LANE_MANIFEST =
+PASS / FAIL
+
+MATERIALITY_ALL_ACTIVE_SKU_LANES =
+PASS / FAIL
+
+MATERIALITY_ALL_ACTIVE_CATEGORY_LANES =
+PASS / FAIL
+
+MATERIALITY_ALL_ACTIVE_CAMPAIGN_LANES =
+PASS / FAIL
+
+MATERIALITY_NO_DEAD_ACTIVE_LANES =
+PASS / FAIL
+
+STAGE_4_V3_INPUT_HASH =
+PASS / FAIL
+
+STAGE_5_LANE_REGISTRY_INPUT_HASH =
+PASS / FAIL
+
+STAGE_6_V3_INPUT_HASH =
+PASS / FAIL
+
+CONTRACT_BUNDLE_V3 =
+PASS / FAIL
+
+VERSIONED_REPLAY_V1_V2_V3 =
+PASS / FAIL
+
+PROFILE_HASH_SENSITIVITY =
+PASS / FAIL
+
+LANE_REGISTRY_HASH_SENSITIVITY =
+PASS / FAIL
+
+PRE_DISCOVERY_CONTEXT_COHERENCE =
+PASS / FAIL
+
+PRE_DISCOVERY_HASH_RECOMPUTE =
+PASS / FAIL
+
+PRE_DISCOVERY_EXACT_SELECTION =
+PASS / FAIL
+
+PRE_DISCOVERY_NO_MATERIALITY_LEAK =
+PASS / FAIL
+
+PRE_DISCOVERY_SUPPORTING_CONTEXT =
+PASS / FAIL
+
+PRE_DISCOVERY_FOUNDATION_VALIDATOR =
+PASS / FAIL
+
+CORE_QUERY_COUNT_500 =
+PASS / FAIL
+
+CORE_QUERY_SHAPE_2000 =
+PASS / FAIL
+
+DETAIL_QUERY_COUNT_MAX_BUDGET =
+PASS / FAIL
+
+PRODUCTION_CONTENTFUL_E2E =
+PASS / FAIL
+
+PRODUCTION_ALL_ACTIVE_LANES_E2E =
+PASS / FAIL
+
+DUPLICATE_TASK_IDEMPOTENCY =
+PASS / FAIL
+
+RECOVERY_E2E =
+PASS / FAIL
+
+FACTUAL_API_BOUNDARY_GATE =
+PASS / FAIL
+
+NO_PROVIDER_AFTER_SEAL =
+PASS / FAIL
+
+NO_OPENAI_CALLS =
+PASS / FAIL
+
+SELLER_ISOLATION =
+PASS / FAIL
+
+AS_KNOWN_AT_FUTURE_LEAK_AUDIT =
+PASS / FAIL
+
+COLLECTION_PROVENANCE_REGRESSION_TEST =
+PASS / FAIL
+
+DOCS_CURRENT_V3 =
+PASS / FAIL
+
+POSTGRESQL_ACCEPTANCE =
+PASS / FAIL
+
+REDIS_ASYNQ_INTEGRATION =
+PASS / FAIL
+
+AUTOMATED_ACCEPTANCE =
+PASS / FAIL
+
+RACE =
+PASS / NOT_RUN / FAIL
+
+STAGES_1_TO_6 =
+PASS / FAIL
+
+STAGE_7_NOT_EXECUTED =
+PASS / FAIL
+
+PROMPT_08_STATUS =
+CLOSED / BLOCKED
+
+PROMPT_09_STATUS =
+CLOSED / BLOCKED
+
+PROMPT_10_READINESS =
+PASS / BLOCKED
+```
+
+---
+
+# 155. ABSOLUTE HARD GATE
+
+You MUST NOT output:
+
+```text
+PROMPT_09_4_STATUS = CODE_COMPLETE
+```
+
+unless ALL gates above
+except allowed `RACE=NOT_RUN`
+are PASS.
+
+No PARTIAL.
+
+No NOT_RUN for:
+
+```text
+query count
+PostgreSQL
+Redis
+active lanes
+replay
+PreDiscovery validator.
+```
+
+---
+
+# 156. PROMPT 08 FINAL CLOSURE
+
+Set:
+
+```text
+PROMPT_08_STATUS = CLOSED
+```
+
+ONLY IF:
+
+```text
+source provenance regression test fixed
+
+fact-family windows exact
+
+FinalizedAt semantics preserved
+
+AS-KNOWN-AT future leak audit PASS
+
+Universe / sealed context regressions PASS.
+```
+
+---
+
+# 157. PROMPT 09 FINAL CLOSURE
+
+Set:
+
+```text
+PROMPT_09_STATUS = CLOSED
+```
+
+ONLY IF:
+
+```text
+Landscape V3 contract executable
+
+Profile V3 fully hash-sealed
+
+Capability fail-closed
+
+Account/Category/SKU/Campaign V3 complete
+
+source-native windows match actual calls
+
+missing != zero
+
+no parse fallback zero
+
+every active lane production-capable
+
+SupportingContext readiness survives serialization
+
+Core/Detail no N+1
+
+query-count gates measured
+
+Stage hashes V3
+
+versioned replay proven
+
+PreDiscovery validator PASS.
+```
+
+---
+
+# 158. PROMPT 10 READINESS
+
+Set:
+
+```text
+PROMPT_10_READINESS = PASS
+```
+
+ONLY IF:
+
+```text
+PROMPT_08_STATUS = CLOSED
+PROMPT_09_STATUS = CLOSED
+```
+
+AND real accepted artifacts pass:
+
+```text
+ValidatePreDiscoveryFoundationV3.
+```
+
+---
+
+# 159. DO NOT RETURN ANOTHER PROGRESS REPORT
+
+Do not stop after:
+
+```text
+"major parts completed"
+"remaining optional"
+"query test not run"
+"fallback still present"
+"docs pending"
+```
+
+These are not acceptable outcomes.
+
+Continue implementation until:
+
+```text
+CODE_COMPLETE
+```
+
+or until a genuinely external environment blocker
+makes further work impossible.
+
+If external blocker exists,
+report exact command/error/evidence.
+
+---
+
+# 160. FINAL RESPONSE FORMAT
+
+Return:
+
+## Baseline
+
+```text
+branch
+baseline SHA
+final SHA/working tree
+migrations
+```
+
+## Exact blocker closure
+
+For every blocker A–P:
+
+```text
+old behavior
+files changed
+new behavior
+tests.
+```
+
+## V3 Profile Matrix
+
+Full matrix.
+
+## Active Lane Matrix
+
+Every active lane.
+
+## Query counts
+
+Actual measured:
+
+```text
+Core 500 SKU = X
+
+Core 2000 SKU = Y
+
+Detail 15/40/15 = Z.
+```
+
+## Replay
+
+Actual hashes / assertions.
+
+## E2E
+
+Stages 1–6.
+
+## Verification
+
+Commands and results.
+
+## Machine-readable status
+
+Exact block from section 154.
+
+---
+
+# 161. FINAL PRINCIPLE
+
+After Prompt №9.4 the exact production chain must be:
+
+```text
+Canonical factual state
+        ↓
+AS-KNOWN-AT sealed context
+        ↓
+source-native fact-family windows
+        ↓
+capability fail-closed
+        ↓
+Landscape Schema V3
+        ↓
+fully executable + hash-sealed Profiles V3
+        ↓
+cheap batch-built Core
+        ↓
+true Missing/Zero-aware Materiality
+        ↓
+every active lane production-capable
+        ↓
+immutable Selection
+        ↓
+batch-built bounded Detail
+        ↓
+SupportingContext with preserved readiness
+        ↓
+ValidatePreDiscoveryFoundationV3
+        ↓
+STOP
+```
+
+No AI.
+
+No Discovery.
+
+No semantic interpretation.
+
+No N+1.
+
+No fake zeros.
+
+No ambiguous versioning.
+
+No V1 execution hidden behind V3 labels.
+
+Only after this chain passes
+may Prompt №10 begin.
+</user_query>

@@ -1,0 +1,2525 @@
+
+Главный вывод: Unified Canonical Data Model не должен быть одной огромной универсальной таблицей фактов. Это должен быть единый типизированный граф сущностей и фактов, у которого общие правила identity, времени, provenance, ownership, aggregation, missing/zero, revisions и seller isolation.
+Все отдельные модели уже дают для этого достаточно прочный фундамент: SKU имеет стабильную seller-scoped identity и не смешивает metadata с бизнес-фактами; Category имеет собственную глобальную taxonomy и historical assignments; Sales разводит demand и fulfillment; Temporal Framework различает period/event/snapshot/versioned state; Stock — snapshot по inventory pools; Campaign — самостоятельная entity; Search Query — supporting entity; Promotions разделяет eligibility и membership; Supply разделяет Order/Supply/Bundle/Act; Finance — самостоятельный accrual ledger. ProductSKU Model.docxDOCX Sales Core.docxDOCX 
+
+1. Что именно является Unified Canonical Data Model
+Я предлагаю дать ему такое определение:
+Unified Canonical Data Model Aivion — единая фактическая модель состояния marketplace-кабинета, состоящая из стабильных canonical entities, их исторических состояний и relations, source-backed period/snapshot/event facts, deterministic derived facts и полного provenance, позволяющего воспроизвести factual universe продавца таким, каким Aivion знал его на конкретный analysis cutoff.
+Очень важно последнее:
+не просто:
+"что сейчас лежит в БД"
+
+а:
+"что Aivion знал
+на момент T
+о бизнес-состоянии,
+относящемся к периоду/моменту X"
+Это фактически selective bitemporal architecture: мы различаем effective/business time и record/knowledge time. Именно это классически решает проблему поздних исправлений исторических данных: сегодняшнее знание о прошлом может отличаться от того, что система знала вчера. martinfowler.com
+Но делать полноценную generic bitemporal database поверх каждой строки я не рекомендую. Мы реализуем нужную семантику через наши конкретные period, effective_at, as_of_at, valid_from, observed_at, revision и analysis_cutoff_at.
+
+2. Unified Model не является новой AI-моделью
+Очень важно не перепутать уровни.
+Цепочка должна стать такой:
+Ozon
+ ↓
+Source / Raw Layer
+ ↓
+Unified Canonical Data Model
+ ↓
+Deterministic Derived Facts
+ ↓
+Business Data Capabilities
+ ↓
+Data Quality / Readiness
+ ↓
+Factual Universe @ cutoff
+ ↓
+Entity Landscapes
+ ↓
+Material Entities
+ ↓
+Discovery Pack
+ ↓
+Discovery AI
+ ↓
+Evidence Expansion
+ ↓
+Deep Analysis AI
+ ↓
+Publication
+То есть UCDM находится ниже AI.
+AI никогда:
+не создаёт canonical SKU;
+не определяет Category;
+не исправляет Finance;
+не создаёт Stock;
+не классифицирует unknown provider type;
+не решает, что missing = zero.
+И наоборот, canonical layer не должен решать:
+товар плохой;
+цена высокая;
+реклама неэффективна;
+поставка недостаточна;
+акция выгодна;
+кабинет нездоров.
+
+3. Главная архитектурная ошибка, которой нужно избежать
+Я не рекомендую делать:
+canonical_entities
+------------------
+id
+type
+attributes_json
+
+canonical_facts
+---------------
+entity_id
+metric
+value
+date
+как Source of Truth.
+На первый взгляд это выглядит красиво:
+всё универсально;
+легко добавить новый fact;
+одна таблица;
+один API.
+На практике мы потеряем самые важные гарантии.
+Например:
+SKU identity
+≠ Campaign identity
+≠ Promotion identity
+≠ Search Query identity
+≠ Supply identity.
+У них разные natural keys, lifecycle и constraints.
+То же самое с фактами:
+ordered_amount
+— additive flow.
+unique_search_users
+— direct-period non-additive.
+stock
+— snapshot.
+current_price
+— snapshot/versioned state.
+SELLER_DELAY
+— event.
+rating_on_time
+— provider rolling-period metric.
+Если всё положить в универсальное:
+metric/value/date
+рано или поздно кто-нибудь сделает:
+SUM(unique_search_users)
+AVG(conversion)
+SUM(stock)
+и получит математически неверные показатели.
+Поэтому:
+хранилище остаётся типизированным. Унификация происходит через contracts и services, а не через уничтожение типов данных.
+
+4. Но единый Entity Reference слой всё-таки нужен
+Для AI/Evidence/Actions нам действительно нужен единый язык ссылок.
+Например:
+account:1
+sku:417
+category:75
+campaign:58
+posting:734
+promotion:52
+search_query:815
+supply:71
+Но это не означает generic entity storage.
+Source of Truth:
+canonical_skus
+canonical_categories
+canonical_ad_campaigns
+canonical_postings
+canonical_promotions
+...
+А поверх них существует runtime type:
+EntityRef {
+    kind
+    id
+}
+Например:
+{
+  "kind": "SKU",
+  "id": 417
+}
+Его можно использовать в:
+Evidence
+AI Pack
+Actions
+Chat
+Traceability
+
+5. Action Targets остаются отдельным подмножеством EntityRef
+Утверждённый allowlist не меняем:
+ACCOUNT
+CATEGORY
+SKU
+CAMPAIGN
+Supporting entities:
+POSTING
+ORDER
+RETURN
+PROMOTION
+SEARCH_QUERY
+PRODUCT_TYPE
+WAREHOUSE
+CLUSTER
+SUPPLY_ORDER
+SUPPLY
+ACCEPTANCE_ACT
+PRICING_STRATEGY
+могут появляться в Evidence, но не становиться Action Target.
+Search-модель прямо фиксирует Search Query как самостоятельную analytical entity, но не Action Target. Promotions и Account Health придерживаются того же принципа. Canonical Promotions Model.docxDOCX 
+
+6. Корневая сущность — Seller Account
+Вся seller-specific модель должна начинаться с:
+Canonical Seller Account
+Существующую seller_accounts можно оставить root entity.
+Концептуально:
+seller_accounts
+---------------
+
+id
+
+provider
+provider_market
+
+provider_seller_identity
+
+first_connected_at
+last_seen_at
+
+state
+...
+Для текущего продукта:
+provider = OZON
+provider_market = RU
+API credentials сюда класть не нужно — это security/connection layer.
+
+7. Нам нужны три разных scope данных
+Это критично.
+SELLER scope
+Принадлежит конкретному кабинету:
+SKU
+Order
+Posting
+Campaign
+Promotion
+Pricing Strategy
+Supply Order
+Supply
+Inventory Pool
+Sales
+Stock
+Advertising
+Finance
+Ratings
+У такой строки в canonical layer должен быть однозначный seller scope.
+PROVIDER_MARKET scope
+Общий справочник Ozon RU:
+Category taxonomy
+Product Type taxonomy
+Ozon Cluster
+часть Ozon Warehouse directory
+Search Query market identity
+Market Search intelligence
+Category уже спроектирована именно как provider-market entity, а seller universe категорий определяется через текущие SKU продавца. 
+SELLER_OWNED_REFERENCE scope
+Например seller warehouse:
+provider warehouse ID
++
+seller_account_id
+может принадлежать конкретному seller.
+
+8. Canonical Entity Catalog
+Я бы формально зафиксировал следующий каталог.
+Entity
+Scope
+Stable identity
+Versioned state
+Action Target
+Seller Account
+Seller
+internal seller account
+Да
+Да
+SKU
+Seller
+seller + Ozon SKU
+Да
+Да
+Category
+Ozon RU
+provider + market + description_category_id
+Да
+Да
+Product Type
+Ozon RU
+Category + type_id
+Да
+Нет
+Order
+Seller
+seller + order_id
+Нет/minimal
+Нет
+Posting
+Seller
+seller + posting_number
+Да
+Нет
+Return
+Seller
+seller + provider return ID
+Да/observed
+Нет
+Campaign
+Seller
+seller + campaign_id
+Да
+Да
+Promotion
+Seller
+seller + origin + action_id
+Да
+Нет
+Pricing Strategy
+Seller
+seller + strategy_id
+Да
+Нет
+Search Query
+Ozon RU
+provider-market + conservative normalized text
+Нет/minimal
+Нет
+Warehouse
+provider or seller
+scoped provider ID
+Да
+Нет
+Cluster
+Ozon RU
+provider cluster ID
+Да
+Нет
+Inventory Pool
+Seller
+canonical pool identity
+Да
+Нет
+Supply Order
+Seller
+seller + provider order_id
+Да
+Нет
+Supply
+Seller
+seller + provider supply_id
+Да
+Нет
+Acceptance Act
+Seller/Supply
+supply + act ID
+Да
+Нет
+Это не означает, что каждая строка должна жить в таблице с названием canonical_*.
+Это именно semantic entity catalog.
+
+9. Stable identity должна быть максимально маленькой
+Это правило из Product/SKU нужно распространить на весь UCDM.
+Например SKU identity хранит только:
+seller_account_id
+ozon_sku
+first_seen
+last_seen
+Mutable:
+offer_id
+product_id
+name
+category
+status
+живёт в version/state layer. ProductSKU Model.docxDOCX
+То же самое Campaign:
+seller + campaign_id
+стабильно.
+А:
+title
+budget
+state
+payment type
+strategy
+versioned.
+Advertising-модель уже зафиксировала именно такую identity. 
+То же:
+Promotion identity
+≠ promotion configuration
+
+Supply identity
+≠ bundle composition
+
+10. Canonical identities никогда не hard-delete
+Если когда-то появился:
+sku:417
+campaign:58
+promotion:52
+posting:734
+supply:71
+эти IDs не должны использоваться повторно и не должны исчезнуть физически.
+Entity может стать:
+ARCHIVED
+FINISHED
+ENDED
+CANCELLED
+UNOBSERVED
+Но identity остаётся.
+Иначе сломаются:
+historical facts
+old Publications
+old Actions
+Evidence links
+AI audit
+
+11. Унифицируем пять физических temporal patterns
+Все наши домены фактически уже сошлись на пяти шаблонах.
+Pattern A — Stable Identity
+canonical_* 
+Пример:
+canonical_skus
+canonical_ad_campaigns
+canonical_orders
+canonical_postings
+canonical_promotions
+canonical_supply_orders
+canonical_supplies
+
+Pattern B — Versioned State
+Например:
+canonical_sku_versions
+category_versions
+ad_campaign_versions
+promotion_versions
+supply_versions
+pricing_strategy_versions
+Стандартный envelope:
+id
+
+entity_id
+
+valid_from_at
+valid_to_at
+
+observed_at
+
+time_quality
+
+state_hash
+
+source_payload_id
+sync_run_id
+source_contract_version
+
+12. Для version intervals вводим единое правило
+Всегда:
+[valid_from_at, valid_to_at)
+то есть:
+valid_from inclusive
+valid_to exclusive
+Например:
+V1:
+[10 Aug 10:00, 15 Aug 12:00)
+
+V2:
+[15 Aug 12:00, infinity)
+Никаких вариантов, где один домен считает valid_to включительно, а другой нет.
+
+13. Не должно быть двух одновременно активных version rows
+Например SKU:
+SKU 417
+не может одновременно иметь:
+V1 valid 1–20 Aug
+V2 valid 15–∞
+Если остаёмся на PostgreSQL 16, это можно защищать не только backend-кодом, но и tstzrange + GiST exclusion constraint. PostgreSQL прямо поддерживает range types и exclusion constraints для запрета пересекающихся интервалов. PostgreSQL
+То есть для критических relation/state tables я бы реально использовал DB-level guard.
+
+14. Pattern C — Snapshot Fact
+Используют:
+Stock
+Price
+Account Health current
+Market Search
+Promotion eligibility
+Envelope:
+snapshot_run_id
+
+as_of_at
+
+collection_started_at
+collection_completed_at
+
+time_quality
+
+subject FK
+
+values...
+
+source_payload_id
+Snapshot означает:
+Aivion наблюдал это состояние примерно в этот момент.
+Не:
+это состояние действовало весь день.
+Stock и Price уже построены на этой семантике. Canonical Price Model.docxDOCX
+
+15. Pattern D — Period Fact
+Используют:
+Sales
+Advertising
+Funnel
+Search
+часть Finance
+Rating history
+Общий envelope:
+seller_account_id
+
+grain identifiers...
+
+period_from DATE
+period_to DATE
+
+values...
+
+source_revision
+observed_at
+
+source_payload_id
+sync_run_id
+Здесь:
+period_from
+period_to
+всегда inclusive.
+То есть:
+13 Aug – 19 Aug
+означает именно 7 дней.
+
+16. Pattern E — Event Fact
+Используют:
+Lifecycle
+Returns
+Health posting errors
+Premium penalties
+Supply events
+Общий envelope:
+event_type
+
+effective_at NULL
+
+business_date
+
+time_quality
+
+observed_at
+
+source_event_id
+dedupe_key
+
+source_payload_id
+
+17. Я предлагаю улучшить Event contract ещё одним полем
+В текущих моделях у нас уже есть:
+PROVIDER_EXACT
+PROVIDER_DATE
+OBSERVED_APPROX
+UNKNOWN
+Но для OBSERVED_APPROX желательно дополнительно иметь:
+effective_window_from_at
+effective_window_to_at
+Например:
+08:00:
+delivering
+
+12:00:
+delivered
+Мы знаем:
+delivery occurred in:
+(08:00, 12:00]
+а не:
+delivered_at = 12:00.
+Это даст AI и Evidence честное понимание точности события.
+
+18. observed_at становится обязательным практически везде
+Это очень важный итог Unified Model.
+Нам нужно различать:
+Когда произошло / к какому периоду относится
+и:
+Когда Aivion об этом узнал.
+Fowler как раз описывает эту разницу между actual/valid history и record history. martinfowler.com
+Для нас:
+effective / period / as_of
+— business/provider time.
+observed_at
+— knowledge time.
+
+19. Это критично для source corrections
+Например 20 августа Ozon говорил:
+19 Aug ordered_units = 100
+21 августа:
+19 Aug ordered_units = 105
+Обе записи относятся к:
+business date = 19 Aug
+Но Aivion узнал разные версии:
+20 Aug → 100
+21 Aug → 105
+Поэтому current facts:
+105
+а factual universe:
+AS KNOWN AT
+20 Aug 10:00
+должен получить:
+100.
+Вот зачем нужен analysis_cutoff_at.
+Temporal Framework уже требует именно одного immutable cutoff для Discovery, Evidence и Deep. 
+
+20. Не нужен один универсальный metric_date
+Это старый anti-pattern.
+В Unified Model вместо него будут использоваться правильные поля:
+business_date
+period_from / period_to
+effective_at
+as_of_at
+valid_from / valid_to
+provider_date
+observed_at
+Каждое соответствует своей temporal semantics.
+
+21. Unified Metric Registry
+Вот здесь, на мой взгляд, появляется один из самых важных новых компонентов.
+У нас уже отдельно возникли:
+Funnel Metric Registry
+Finance Type Registry
+Health Metric Registry
+Price field semantics
+Supply State Registry
+Я предлагаю добавить над ними единый semantic catalog canonical metrics:
+canonical_metric_definitions
+canonical_metric_definition_versions
+Но он не хранит значения.
+Он только объясняет системе, что означает metric.
+
+22. Пример canonical_metric_definitions
+Концептуально:
+metric_key
+owner_domain
+
+value_type
+unit
+
+temporal_class
+
+time_aggregation
+entity_aggregation
+
+zero_semantics
+missing_semantics
+
+currency_required
+
+provider_or_derived
+
+formula_policy_version NULL
+
+description
+
+23. Например
+ordered_amount
+owner = SALES
+
+temporal_class = PERIOD
+
+time_aggregation = SUM
+entity_aggregation = SUM_SAFE
+
+unit = MONEY
+unique_search_users
+owner = SEARCH
+
+temporal_class = PERIOD
+
+time_aggregation = DIRECT_PERIOD
+entity_aggregation = NON_ADDITIVE
+
+unit = COUNT
+coverage_days_7d
+owner = STOCK/DERIVED
+
+temporal_class = SNAPSHOT_X_PERIOD_DERIVED
+
+time_aggregation = NONE
+entity_aggregation = NON_ADDITIVE
+
+unit = DAYS
+provider_average_position
+owner = SEARCH
+
+time_aggregation = DIRECT_PERIOD
+entity_aggregation = NON_ADDITIVE
+
+unit = RANK
+
+24. Это НЕ означает generic EAV storage
+Важно.
+Значение:
+ordered_amount
+остаётся в Sales tables.
+paid_spend_amount — Advertising.
+customer_price — Price.
+Registry только предотвращает неправильные операции.
+
+25. Исключение — действительно динамические metric domains
+Например Funnel.
+Ozon регулярно меняет provider metric names.
+Там уже оправдано:
+canonical_metric_key
+value_numeric
+потому что это действительно dynamic metric family. Funnel-модель именно это и предусматривает. Funnel.docxDOCX
+Account Health тоже естественно имеет registry-backed collection rating keys.
+Но Finance, Price, Stock и Sales не нужно насильно превращать в EAV.
+
+26. Unified rule для процентов
+Я бы прямо сейчас стандартизировал nomenclature:
+*_pct
+= значение в percentage scale:
+8.4
+=
+8.4%
+*_ratio
+= fractional:
+0.084
+*_delta_pp
+= percentage points.
+Например:
+CTR:
+3% → 4%
+
+delta_pp = +1
+а не:
++33%.
+Temporal Framework уже явно фиксирует p.p. для процентных показателей. Temporal Framework.docxDOCX
+
+27. Money contract
+Для всех monetary domains:
+NUMERIC / Decimal
++
+currency_code
+Никогда float.
+И никакого automatic FX conversion в UCDM v1.
+Если валюты различаются:
+aggregation = unavailable
+до появления отдельного FX layer.
+
+28. Самое важное в UCDM — Fact Ownership Matrix
+Именно она защищает Aivion от того, что одна цифра появляется в четырёх доменах.
+Я бы зафиксировал её как архитектурный документ и затем тестами.
+Business fact
+Owner
+Что заказано
+Sales
+ordered_units
+Sales
+ordered_amount
+Sales
+Order / Posting lifecycle
+Sales/Lifecycle
+Return event
+Sales/Lifecycle
+Current sellable inventory
+Stock
+Declared/current inbound
+Supply
+Acceptance discrepancies
+Supply
+Current/customer price
+Price
+Price index
+Price
+Promotion membership
+Promotions
+Promotion action price
+Promotions
+Paid ad spend
+Advertising
+Ad-attributed order amount
+Advertising attribution
+Query-attributed GMV
+Search attribution
+Search query position
+Search
+Search/catalog behavioural metrics
+Funnel
+Ozon financial accrual
+Finance
+Cash/balance
+Finance settlement sublayer
+Provider rating/status
+Account Health
+Category classification
+Category
+
+29. Sales никогда не складывается с attribution domains
+Advertising уже прямо требует:
+Sales ordered_amount = 100 000
+
+Ad attributed amount = 40 000
+не:
+Sales = 140 000.
+Canonical Advertising Model.docxDOCX
+Search выполняет то же правило:
+Search GMV
+≠ Sales ordered_amount.
+Finance:
+product_accrual
+≠ Sales ordered_amount.
+Finance-модель специально сохраняет обе цифры независимо. Finance.docxDOCX
+
+30. Advertising spend и Finance advertising charge тоже не складываются
+У нас есть:
+Advertising paid_spend
+для эффективности рекламы.
+И:
+Finance advertising accrual
+для financial result Ozon.
+Это связанные representations.
+Не:
+total ads expense =
+Performance spend
++
+Finance ad charge.
+Их можно reconciliate, но не double-count.
+
+31. Stock и Supply тоже жёстко разделены
+Например:
+sellable_stock = 20
+
+declared_inbound = 100
+не:
+stock = 120.
+Даже:
+fact accepted = 92
+не добавляет 92 в Stock.
+Stock изменяется только когда Stock source действительно показывает новое текущее состояние. Это центральный invariant Supply Model. Canonical Supply Inbound Model.docxDOCX
+
+32. Price и Promotion тоже не дублируются
+Например:
+Price.customer_price = 1 650
+Promotion.action_price = 1 700
+обе цифры существуют.
+Promotion context не переписывает Price.
+Promotions Model прямо разделяет promotion action price и observed current/customer price. 
+
+33. Account Health никогда не становится дублем операционных доменов
+Например:
+Health:
+SELLER_CANCELLATION
+означает:
+Ozon считает Cancellation значимым для rating.
+Но owner самого cancellation event:
+Sales Lifecycle.
+То же самое:
+Health supply rating
+не создаёт Supply event.
+Health price rating
+не создаёт Price fact.
+Health processing cost
+не создаёт Finance expense.
+Это уже прямо зафиксировано в Account Health Model. Canonical Account Health Ratings Model.docxDOCX
+
+34. Нужен Unified Grain Contract
+Для каждой authoritative fact table должна быть явно записана её grain.
+Примеры.
+Sales
+seller × business_date
+seller × SKU × business_date
+Advertising
+seller × campaign × business_date
+seller × campaign × SKU × business_date
+если source действительно даёт SKU grain.
+Stock
+stock_snapshot
+× SKU
+× inventory_pool
+× warehouse/cluster
+Price
+price_snapshot
+× SKU
+Search summary
+seller
+× SKU
+× period
+Query detail
+seller
+× SKU
+× query
+× period
+× retrieval mode
+Funnel
+seller
+× grain
+× metric
+× period
+Finance
+accrual record
+и отдельно:
+accrual line.
+Promotion
+promotion
+× SKU
+× membership state
+или eligibility snapshot.
+Account Health
+seller
+× rating
+× snapshot/period
+Supply
+Supply
+× bundle version
+× SKU
+или:
+Acceptance Act
+× SKU.
+
+35. Grain должен быть частью code contract
+Нельзя просто сделать функцию:
+SumMetric(metric)
+Она должна знать:
+что является grain;
+можно ли агрегировать;
+по какой оси;
+Это критически важно для non-additive Search/Funnel metrics.
+
+36. Account grain и SKU grain иногда должны существовать одновременно
+Особенно:
+unique visitors
+provider conversions
+advertising attribution
+Нельзя всегда:
+Account = SUM(SKU)
+Например один покупатель видел три SKU.
+SKU visitors:
+1 + 1 + 1
+Account visitor:
+1.
+Поэтому прямой account provider grain, если он существует, является отдельным factual representation.
+
+37. При несовпадении direct account total и SKU sum мы не исправляем цифры
+Например:
+provider account total = 1 000
+SKU sum = 990
+Не:
+995.
+Храним:
+direct account = 1000
+SKU sum = 990
+
+reconciliation_gap = 10
+и Data Quality решает severity.
+
+38. Category — особый derived analytical grain
+Я бы не создавал Category facts как второй independent Source of Truth там, где они могут безопасно вычисляться из SKU.
+Например:
+SKU Sales
+↓
+Historical SKU→Category
+↓
+Category Sales
+Это derived canonical projection.
+
+39. Единый Category Attribution Algorithm
+Это одно из главных преимуществ Unified Model.
+Для каждого temporal class правило своё.
+Daily fact
+Например:
+Sales on 19 Aug
+берём:
+SKU Category AS OF 19 Aug.
+
+Event
+Например Return:
+19 Aug 22:30Z
+→ business date 20 Aug.
+Category определяется на appropriate business/effective time.
+
+Snapshot
+Price:
+20 Aug 05:30
+Category:
+AS OF snapshot as_of_at.
+
+Direct multi-day period
+Search:
+13–19 Aug
+Если SKU:
+13–16 Category A
+17–19 Category B
+мы не можем честно приписать весь direct-period Search fact одной Category.
+Получаем:
+CATEGORY_PERIOD_MAPPING_AMBIGUOUS.
+Search Model уже пришла именно к этому ограничению.
+
+40. UNMAPPED является настоящей Category
+Если Category неизвестна:
+SKU факт не исчезает.
+Он идёт:
+Category = UNMAPPED.
+Category Model специально ввела системную UNMAPPED, а не magic 0/-1. 
+
+41. Account reconciliation всегда включает UNMAPPED
+Например:
+Electronics = 600k
+Home = 300k
+UNMAPPED = 100k
+Тогда:
+Category leaf total = 1m
+и должен reconciliate с SKU fact universe.
+
+42. Parent Category rollups — только derived
+Не храним одновременно:
+SKU fact
+leaf category fact
+parent category fact
+root category fact
+как четыре canonical факта.
+Иначе при SUM получим quadruple count.
+Правильно:
+leaf attribution
+↓
+taxonomy AS OF
+↓
+parent rollup
+как query/materialized projection.
+
+43. Нужен unified allocation/attribution vocabulary
+В разных domains постоянно возникает вопрос:
+можно ли отнести эту сумму/quantity к SKU?
+Я бы ввёл общую taxonomy:
+DIRECT
+DERIVED_SAFE
+PROVIDER_ATTRIBUTED
+ACCOUNT_ONLY
+UNRESOLVED
+PARTIAL
+RECONCILIATION_ONLY
+Например Finance line:
+DIRECT → SKU.
+Account Premium fee:
+ACCOUNT_ONLY.
+Advertising:
+PROVIDER_ATTRIBUTED.
+Health cost:
+RECONCILIATION_ONLY.
+
+44. Synthetic allocation запрещён глобально
+Это очень важное UCDM правило.
+Запрещено:
+Account Finance fee
+× SKU sales share
+→ SKU expense.
+Запрещено:
+Campaign spend
+× SKU order share
+→ SKU spend.
+Запрещено:
+Posting penalty
+÷ products
+→ SKU penalty.
+Запрещено:
+Supply unidentified quantity
+÷ SKU
+→ SKU shortage.
+Все эти individual models уже независимо пришли к одному и тому же принципу.
+Теперь он должен стать глобальным invariant Unified Model.
+
+45. Coverage metadata обязательна при частичной attribution
+Например Finance:
+Total expenses = 100k
+SKU resolved = 70k
+Правильно:
+sku_mapping_coverage = 70%
+Не:
+SKU total magically = 100%.
+Finance Model прямо требует показывать coverage вместо synthetic allocation. Finance.docxDOCX
+То же правило нужно использовать Advertising, Category и Supply.
+
+46. Missing ≠ Zero становится глобальным законом UCDM
+Temporal Framework уже это зафиксировал. 
+Но в Unified Model я бы формализовал ещё сильнее.
+Нужно различать:
+KNOWN_ZERO
+KNOWN_VALUE
+UNKNOWN
+UNAVAILABLE_CAPABILITY
+SOURCE_FAILED
+NOT_APPLICABLE
+NOT_RETURNED_SEMANTICS_UNKNOWN
+Не обязательно иметь эти семь states физически рядом с каждым столбцом.
+Но на уровне metric/source contract система обязана понимать разницу.
+
+47. NULL сам по себе иногда недостаточен
+Например:
+Funnel conversion = NULL
+может означать:
+Premium отсутствует
+provider metric deprecated
+source request failed
+denominator = 0
+metric unavailable
+Для AI это совершенно разные причины.
+Поэтому factual APIs должны возвращать:
+{
+  "value": null,
+  "status": "UNAVAILABLE_SUBSCRIPTION"
+}
+или:
+{
+  "value": null,
+  "status": "NO_DENOMINATOR"
+}
+
+48. Data status нужно разделить на три разных понятия
+Сейчас в отдельных моделях словом status иногда называется всё подряд.
+В UCDM я предлагаю строго разделить.
+Capability status
+Может ли источник вообще дать данные?
+AVAILABLE
+UNAVAILABLE_SUBSCRIPTION
+UNAVAILABLE_SOURCE
+DEPRECATED
+FORBIDDEN
+UNKNOWN
+
+Collection status
+Что произошло в конкретном sync:
+COMPLETE
+PARTIAL
+FAILED
+SKIPPED
+
+Readiness status
+Можно ли использовать данные в Analysis:
+READY
+PARTIAL
+STALE
+UNAVAILABLE
+FAILED
+NOT_APPLICABLE
+Temporal Framework уже определяет последний набор. 
+
+49. Semantic coverage — четвёртая отдельная ось
+Search показывает, зачем это нужно.
+Provider может успешно вернуть весь response:
+transport completeness = COMPLETE
+но API по определению отдаёт только:
+top-15 queries.
+Тогда:
+semantic coverage =
+TOP_N_ONLY
+а не FULL.
+Search Model прямо разделяет transport completeness и semantic coverage. Canonical Search Model.docxDOCX
+Это очень полезный глобальный принцип.
+
+50. Unified Source Provenance Layer
+Все canonical rows должны быть traceable обратно к Ozon.
+Я предлагаю общий foundation:
+source_contract_versions
+
+source_sync_runs
+
+source_payloads
+
+source_sync_issues
+
+51. source_contract_versions
+Это будет глобальная registry:
+provider
+api_surface
+endpoint/family
+
+contract_version
+
+spec_hash
+
+valid_from_at
+valid_to_at
+
+observed_at
+Почему это нужно: текущая Seller API спецификация уже содержит сотни операций и множество одновременно существующих versioned endpoints; актуальные зеркала прямо строятся из официального Ozon swagger и сейчас показывают порядка 460 Seller API operations. GitHub
+То есть assumption:
+endpoint semantics never changes
+для Ozon заведомо плохая архитектура.
+
+52. Domain adapters ссылаются на source contract
+Например:
+Price Source Contract v1
+
+provider field:
+price
+
+canonical meaning:
+provider_current_price
+или:
+Finance Type Mapping Policy v3
+Analysis Run должен позже знать, какая версия использовалась.
+
+53. source_sync_runs
+Я бы не заставлял каждый домен заново придумывать base audit columns.
+Общий envelope:
+id
+
+seller_account_id NULL
+provider
+provider_market
+
+domain
+capability_key
+
+source_contract_version
+
+requested_from
+requested_to
+
+started_at
+completed_at
+
+collection_status
+
+pages_expected
+pages_completed
+
+records_received
+
+input_universe_hash NULL
+
+warnings
+errors
+Domain-specific run tables при необходимости расширяют base run.
+
+54. Snapshot domains всё равно получают specialized runs
+Например:
+stock_snapshot_runs
+price_snapshot_runs
+account_health_snapshot_runs
+потому что им нужны:
+as_of_at
+sku_universe_hash
+collection_span
+expected/resolved SKU
+Но они должны ссылаться:
+source_sync_run_id.
+
+55. Raw/source artifacts — здесь нужно изменить старую архитектуру
+Старый документ говорил:
+raw provider responses сохраняются только при debug. 
+А практически все новые модели теперь требуют:
+source_payload_id
+для:
+audit
+replay
+correction
+source semantics acceptance.
+Это противоречие нужно закрыть.
+Моя рекомендация:
+Production хранит immutable replayable source artifact, но в sanitized/minimized форме.
+Не обязательно хранить полный HTTP JSON со всеми возможными персональными полями.
+
+56. Что именно хранить
+Для безопасных analytics endpoints:
+response payload
+можно хранить практически полностью.
+Для PII-rich:
+postings
+returns
+...
+сохраняем:
+только поля, необходимые canonical model;
+provider IDs;
+timestamps;
+quantities;
+status;
+financial operational values;
+а:
+ФИО;
+адрес покупателя;
+телефон;
+прочие PII
+вообще не должны попадать в AI factual layer.
+
+57. source_payloads
+Концептуально:
+id
+
+sync_run_id
+
+endpoint
+request_hash
+
+payload_hash
+
+observed_at
+
+artifact_uri
+
+redaction_profile
+
+schema_hash
+
+page_no
+cursor_before
+cursor_after
+
+http_status
+Это позволит получить настоящий replay.
+
+58. Canonical layer должен оставаться воспроизводимым без повторного запроса Ozon
+Это важный acceptance criterion.
+Если завтра Ozon выключит старый endpoint, мы всё равно должны суметь объяснить:
+почему Publication №100 получила конкретный факт.
+
+59. Data Quality Issues тоже лучше унифицировать
+Вместо десятков полностью разных tables я бы имел:
+data_quality_issues
+с:
+domain
+
+issue_code
+severity
+
+seller_account_id NULL
+
+entity_ref NULL
+
+sync_run_id NULL
+
+source_payload_id NULL
+
+detected_at
+resolved_at
+
+details_json
+Например:
+UNKNOWN_PROVIDER_CATEGORY
+
+STOCK_RECONCILIATION_MISMATCH
+
+UNMAPPED_FINANCE_TYPE
+
+RATING_METRIC_SEMANTICS_CHANGED
+
+SUPPLY_BUNDLE_PARTIAL
+
+PRICE_SOURCE_MISMATCH
+
+60. Domain-specific detail всё равно может существовать
+Но единый issue layer позволит:
+Dashboard operational status
+Monitoring
+Auditing
+Pilot diagnostics
+делать без UNION 30 таблиц.
+
+61. Unified Derived Facts Layer
+Мы уже договорились:
+Backend считает детерминированные факты.
+Но сейчас важно провести границу.
+Допустимые derived facts:
+coverage_days_7d
+
+CTR
+
+CPC
+
+CPM
+
+calculated_drr
+
+advertising_spend_share
+
+absolute_delta
+
+pct_delta
+
+delta_pp
+
+min_price_headroom
+
+days_until_freeze
+
+time_until_act_deadline
+
+62. Недопустимые derived facts
+Не должны попадать в factual core:
+bad_price
+
+critical_stock
+
+healthy_stock
+
+inefficient_campaign
+
+revenue_at_risk
+
+bad_seller
+
+SEO_problem
+
+promotion_opportunity_score
+Stock Model прямо убрала critical/surplus/revenue at risk как backend interpretation. Canonical Stock Model.docxDOCX
+Account Health убрала composite Aivion Health Score. 
+
+63. Formula definitions должны быть versioned
+Например:
+coverage_days_7d =
+sellable_stock /
+avg ordered_units current_7d
+Если позднее поменяем formula:
+7d → weighted 14d
+мы не должны незаметно пересчитать историю и заявить:
+именно так Aivion считал в прошлом.
+Поэтому:
+derived_metric_policy_version
+фиксируется в Analysis Context.
+
+64. Я не рекомендую хранить каждую derived metric навечно в generic table
+Часть можно вычислять:
+views/materialized views
+factual services
+Хранить стоит:
+дорогие calculations;
+facts needed for deterministic Pack;
+metrics requiring audit/versioned formula.
+Не нужно превращать UCDM в metric warehouse ради самого warehouse.
+
+65. Unified Relationships Graph
+В итоге центральная схема получится примерно такой:
+                         Seller Account
+                               │
+             ┌─────────────────┼──────────────────┐
+             │                 │                  │
+            SKU              Order             Campaign
+             │                 │                  │
+             │              Posting               │
+             │                 │                  │
+             │              Posting Item ─────────┘
+             │                 │
+             │               Return
+             │
+       ┌─────┼─────────┬───────────┬────────────┐
+       │     │         │           │            │
+   Category Price     Stock     Promotion     Search Query
+       │               │           │
+ Product Type     Inventory Pool   │
+                       │           │
+                    Warehouse      │
+                       │           │
+                    Cluster        │
+                                   │
+                               Pricing Strategy
+
+Seller Account
+      │
+ Supply Order
+      │
+    Supply
+      │
+    Bundle
+      │
+    SKU
+      │
+ Acceptance Act
+      │
+    Act Item
+
+Seller Account
+      │
+ Finance Accrual
+      │
+   ┌──┼─────────┐
+   │  │         │
+  SKU Posting Campaign/Supply
+
+Seller Account
+      │
+ Account Health
+      │
+ Health Error Event
+      │
+   Posting
+Это и есть настоящий canonical graph.
+
+66. При этом relations остаются типизированными
+Например:
+canonical_sku_category_assignments
+а не generic:
+entity_relations(
+ source_type,
+ source_id,
+ target_type,
+ target_id
+)
+Generic relation graph очень удобен для AI navigation, но плох как primary relational integrity.
+Если понадобится, мы можем проецировать typed relations в EntityGraphView.
+Но SoT остаётся typed FK.
+
+67. Historical relation contract тоже унифицируем
+Например:
+SKU → Category
+
+Campaign → SKU
+
+Promotion → SKU
+
+Pricing Strategy → SKU
+
+Warehouse → Cluster
+все versioned relations получают:
+valid_from_at
+valid_to_at
+
+observed_at
+
+time_quality
+
+state_hash
+
+source_payload_id
+
+68. Но source semantics relations различаются
+Например:
+Promotion candidate
+вообще не versioned membership.
+Это snapshot eligibility.
+Promotions Model специально разделяет:
+candidate
+≠ participant.
+Canonical Promotions Model.docxDOCX
+Поэтому generic relationship table опять была бы слишком слабой.
+
+69. Reconciliation становится отдельным concept
+Очень часто мы имеем два source views одной бизнес-реальности.
+Например:
+Stock primary
+↔ Stock secondary
+
+Ad daily spend
+↔ Expense report
+
+Finance accrual
+↔ Cash Flow
+
+Price base source
+↔ Premium customer price
+
+Health processing cost
+↔ Finance accrual.
+Никогда:
+average(source_a, source_b)
+и никогда:
+sum(source_a, source_b).
+
+70. Я бы ввёл reconciliation_results
+Концептуально:
+domain
+
+metric/context
+
+primary_fact_ref
+secondary_fact_ref
+
+absolute_gap
+relative_gap
+
+result
+
+checked_at
+
+policy_version
+Но это Data Quality, не canonical business fact.
+
+71. Entity Resolution должна стать общей service
+Сейчас каждый домен говорит:
+SKU unknown
+→ Product refresh
+→ try resolve
+→ unresolved
+Нужно вынести:
+CanonicalEntityResolver
+как единый backend component.
+
+72. SKU resolver
+Вход:
+provider SKU
+product_id
+offer_id
+Но authoritative identity:
+seller + ozon_sku.
+Если SKU отсутствует:
+authoritative catalog refresh.
+Если всё равно отсутствует:
+UNRESOLVED
+Никакой fake SKU.
+Product/SKU Model именно это правило устанавливает. ProductSKU Model.docxDOCX
+
+73. Category resolver
+source description_category_id
+↓
+taxonomy
+Если нет:
+taxonomy refresh
+↓
+UNMAPPED
+Никакой AI classification.
+
+74. Posting resolver
+Finance/Health:
+provider posting_number
+↓
+canonical_posting.
+Если unresolved:
+refresh lifecycle
+↓
+keep unresolved.
+
+75. Resolution может улучшаться позже
+Очень показательный случай Category.
+Вчера source сказал:
+category_id = 123
+taxonomy ещё не знала 123:
+UNMAPPED.
+Сегодня tree получил 123.
+Backend может детерминированно resolve вчерашнее observation.
+Category Model прямо разрешает такую repair, потому что source ID вчера был известен; изменилась только внутренняя способность его разрешить. 
+Это хороший пример record-time semantics.
+
+76. Поэтому у resolution полезно иметь
+source_reference_observed_at
+
+resolution_status
+
+resolved_at
+
+resolver_policy_version
+Тогда audit понимает:
+provider fact не изменился; улучшился internal mapping.
+
+77. Tenant isolation
+Это нужно сделать физическим invariant.
+Все seller-scoped entities и facts должны либо:
+содержать seller_account_id
+либо иметь однозначную FK chain до seller.
+Для больших facts я бы всё равно денормализовал:
+seller_account_id NOT NULL
+даже если он выводится через SKU.
+Это упрощает:
+indexes
+query guards
+seller isolation
+deletion/export
+
+78. Никаких cross-seller FK
+Например:
+Seller A Campaign
+→ Seller B SKU
+должен быть невозможен.
+То же:
+Posting A → Order B
+Promotion A → SKU B
+Supply A → SKU B.
+Лучше защищать compound FK/validation, а не надеяться на service logic.
+
+79. Global entities не должны содержать seller data
+Например:
+canonical_categories
+не содержит:
+seller_account_id.
+А:
+canonical_sku_category_assignments
+seller-specific через SKU.
+Это уже соответствует Category Model. Canonical Category Model.docxDOCX
+
+80. Snapshot Universe
+Stock и Price уже ввели отличный принцип:
+snapshot starts
+↓
+fix expected SKU universe
+↓
+collect
+Я бы вынес его в общий concept:
+snapshot_scope_hash
+или:
+input_universe_hash.
+
+81. Почему это нужно не только Stock
+Можно использовать для:
+Price
+Promotion eligibility
+material Search details collection
+SKU content safety refresh
+Если universe изменился посреди snapshot:
+текущий run не смешивает два состояния каталога.
+
+82. COMPLETE означает больше, чем HTTP 200
+Для authoritative snapshot:
+all pages
++
+all batches
++
+normalization succeeded
++
+scope reconciled
+И только после этого:
+COMPLETE.
+
+83. Отсутствие entity значимо только при complete authoritative enumeration
+Это ещё один глобальный invariant.
+Например SKU исчез из partial product sync:
+ничего не значит.
+SKU отсутствует после полного:
+active + archived
+sync:
+UNOBSERVED.
+Promotion membership можно закрыть только после complete /products.
+Supply bundle absence значима только после полного pagination.
+Category absence — только после полного tree.
+Это один и тот же принцип.
+
+84. Analysis Data Cut
+Теперь самая важная часть для перехода к будущему AI pipeline.
+Одного:
+analysis_cutoff_at
+архитектурно достаточно для semantics, но я предлагаю дополнительно физически создавать Factual Universe Manifest.
+
+85. analysis_temporal_contexts
+У нас Temporal Framework уже предусматривает Context. Temporal Framework.docxDOCX
+Например:
+id
+
+seller_account_id
+
+analysis_date
+analysis_cutoff_at
+
+business_timezone
+
+current_7d_from
+current_7d_to
+
+previous_7d_from
+previous_7d_to
+
+trend_30d_from
+trend_30d_to
+
+temporal_policy_version
+
+86. analysis_domain_bindings
+Добавляем:
+analysis_context_id
+
+domain
+
+readiness_status
+
+selected_snapshot_run_id NULL
+
+latest_complete_business_date NULL
+
+latest_complete_snapshot_at NULL
+
+source_contract_version
+
+history_coverage
+
+data_hash
+
+limitations_json
+
+87. Зачем binding
+Допустим cutoff:
+05:40
+Stock complete:
+05:35
+Advertising sync:
+05:45.
+Binding запишет:
+Stock → snapshot 700
+Advertising → previous eligible source state
+или:
+FAILED/PARTIAL
+
+88. Это будет настоящей границей reproducibility
+Старая публикация сможет сказать:
+Sales data slice:
+hash X
+
+Stock snapshot:
+700
+
+Advertising:
+revision set Y
+
+Price snapshot:
+400
+
+Finance:
+through 18 Aug
+И replay не зависит от текущего состояния DB.
+
+89. Factual Universe Hash
+Предлагаю hierarchical hash.
+Entity state hash
+Например:
+SKU version hash.
+Snapshot hash
+Stock snapshot hash.
+Domain slice hash
+Sales 30d + current revision set.
+Universe hash
+hash(
+ temporal context
+ + domain hashes
+ + policy versions
+)
+
+90. Что не должно входить в deterministic hash
+Не включать:
+DB primary key случайного insert
+updated_at
+query execution time
+JSON property ordering
+Включать:
+business keys
+normalized values
+source revision identity
+policy versions.
+
+91. Canonical serialization
+Для hash должен использоваться один deterministic serializer:
+sorted keys
+canonical numeric representation
+UTC timestamp format
+normalized NULL
+Иначе одинаковые facts могут давать разные hashes.
+
+92. SellerAIDataPack больше не Source of Truth
+Это важное изменение относительно старой документации, где Data Pack назывался источником правды. 
+В новой архитектуре:
+UCDM
++
+Temporal Context
++
+Factual Universe Manifest
+=
+Source of Truth.
+А Pack:
+deterministic serialized projection.
+То есть:
+same factual universe
++
+same pack builder version
+=
+same pack hash.
+
+93. Это важно для будущих двух AI calls
+Получим:
+Factual Universe
+        ↓
+Pack Builder
+        ↓
+Discovery Pack
+        ↓
+AI Discovery
+        ↓
+Evidence request
+        ↓
+Evidence Catalog lookup
+        ↓
+Deep Pack
+        ↓
+AI Deep Analysis
+Оба AI вызова работают по одной factual reality.
+
+94. Discovery не получает SQL freedom
+AI не должен иметь:
+SELECT *
+FROM canonical_...
+Всё идёт через backend factual services.
+Это соответствует уже принятой модели Chat/export: AI определяет намерение, backend безопасно формирует данные. Старый продуктовый контракт также требовал именно безопасные server-side сценарии вместо произвольного SQL. Aivion Product Description.pdfPDF
+
+95. Physical schemas в PostgreSQL
+Логически я бы разделил четыре schema.
+source.*
+canonical.*
+derived.*
+analysis.*
+Если сейчас переезд schema слишком дорогой, можно начать префиксами.
+Но conceptual boundary должна быть.
+
+96. source.*
+Например:
+source.sync_runs
+source.payloads
+source.contract_versions
+source.issues
+
+97. canonical.*
+Stable identities:
+seller_accounts
+
+skus
+categories
+product_types
+
+orders
+postings
+returns
+
+campaigns
+promotions
+pricing_strategies
+
+search_queries
+
+warehouses
+clusters
+inventory_pools
+
+supply_orders
+supplies
+acceptance_acts
+
+98. Version/state tables
+sku_versions
+sku_content_snapshots
+
+category_versions
+product_type_versions
+sku_category_assignments
+
+posting_versions
+posting_item_versions
+posting_relations
+
+campaign_versions
+campaign_sku_assignments
+
+promotion_versions
+promotion_rules
+promotion_sku_memberships
+promotion_eligibility_snapshots
+
+pricing_strategy_versions
+pricing_strategy_sku_assignments
+
+warehouse_versions
+cluster_versions
+warehouse_cluster_assignments
+
+supply_order_versions
+supply_versions
+supply_bundle_versions
+supply_planned_items
+supply_state_observations
+acceptance_act_items
+
+99. Factual tables
+sales_account_daily
+sales_sku_daily
+
+sales_lifecycle_events
+
+stock_snapshot_runs
+stock_snapshot_positions
+
+ad_campaign_daily
+ad_campaign_sku_daily
+ad_attribution_facts
+
+funnel_metric_facts
+
+finance_accrual_records
+finance_accrual_lines
+
+sku_price_snapshots
+sku_price_versions
+
+search_sku_period_facts
+search_sku_query_period_facts
+market_search_query_snapshots
+
+account_rating_snapshots
+account_rating_period_facts
+account_health_error_events
+
+...
+
+100. Category facts я бы не делал authoritative tables по умолчанию
+Например:
+sales_category_daily
+можно иметь как materialized projection для performance.
+Но Source of Truth:
+sales_sku_daily
++
+sku_category_assignments.
+Иначе Category re-resolution может рассинхронизировать две копии фактов.
+
+101. Исключение — provider direct Category fact
+Если когда-нибудь provider действительно даст самостоятельный Category grain, его нужно хранить как:
+provider_category_fact
+а не смешивать с derived canonical Category rollup.
+Они могут использоваться для reconciliation.
+
+102. Large fact indexing
+Типичные indexes:
+Sales:
+(seller_account_id, business_date)
+(seller_account_id, canonical_sku_id, business_date)
+Advertising:
+(seller_account_id, canonical_campaign_id, business_date)
+Search:
+(seller_account_id, canonical_sku_id, period_from, period_to)
+Snapshots:
+(snapshot_run_id, canonical_sku_id)
+Versions:
+(entity_id, valid_from_at DESC)
+
+103. Partitioning
+Я бы не начинал UCDM с агрессивного partition explosion.
+Для пилота на seller с ~2k SKU PostgreSQL спокойно справится с нормальными indexes.
+Самые потенциально крупные:
+daily SKU facts
+Funnel metric facts
+Search query facts
+Advertising
+source payload metadata
+позднее можно partition по:
+business_date/month
+или retention class.
+Но сначала correctness.
+
+104. JSONB — только там, где структура действительно extensible
+Хорошие случаи:
+provider unknown extra fields
+
+Promotion rule components
+
+source warnings
+
+raw normalized fragment
+
+provider operational tags
+Плохие случаи:
+money
+SKU ID
+business date
+campaign ID
+ordered_units
+stock
+Эти данные должны иметь typed columns.
+
+105. Provider enums всегда сохраняем raw
+Например:
+provider_status
+provider_action_type
+provider_stock_state
+provider_rating_key
+Canonical mapping идёт рядом.
+Не:
+normalize → discard provider enum.
+Это позволяет при source contract correction понять исходную информацию.
+
+106. UNKNOWN и UNMAPPED — разные вещи
+Я бы чётко разделил.
+UNKNOWN
+Мы не знаем semantics/value.
+Например:
+unknown provider supply state.
+UNMAPPED
+Мы знаем provider identity, но ещё не сопоставили её canonical taxonomy.
+Например:
+Finance type_id=137
+known source fact
+canonical group unknown.
+или:
+Category provider ID known,
+taxonomy not resolved.
+
+107. UNRESOLVED — третье понятие
+Мы знаем provider reference:
+SKU = 123
+но не можем связать его с existing Canonical SKU.
+Это:
+UNRESOLVED_ENTITY.
+Не:
+UNMAPPED metric.
+Эти статусы не надо смешивать.
+
+108. Старые архитектурные решения, которые Unified Model должен окончательно запретить
+После сравнения всех материалов есть несколько старых формулировок, которые теперь несовместимы с UCDM.
+revenue
+Старый код/документация используют его слишком широко.
+В UCDM:
+Sales = ordered_amount
+
+Advertising =
+attributed_order_amount
+
+Search =
+provider_search_gmv
+
+Finance =
+product_accrual_amount
+И слово revenue без domain qualifier лучше вообще запретить в internal canonical API.
+
+109. Линейная Funnel
+Старая документация ещё содержит:
+impressions
+→ PDP
+→ cart
+→ order
+→ delivered
+как одну математическую воронку. Техническое описание Aivion.docxDOCX
+Новая Funnel Model это уже отвергла: search→PDP не является строгой cohort transition, cart можно получить прямо из search, а ordered_units вообще другая единица измерения. Funnel.docxDOCX
+Unified Model должен использовать только новую semantics.
+
+110. Health Score
+Старые материалы ещё показывают:
+Seller Pulse health score.
+Бизнес-описание Aivion.docxDOCX
+Новая Account Health Model запрещает собственный composite factual Health Score.
+Значит в UCDM:
+никакого health_score fact.
+Если UI когда-нибудь захочет narrative indicator, это будет AI/UI projection, но не canonical fact.
+
+111. Revenue at Risk
+Старый Dashboard использовал:
+revenue_at_risk.
+Новая Stock Model специально убрала его из canonical factual semantics. Canonical Stock Model.docxDOCX
+Можно показать AI:
+stock
+coverage
+ordered_amount share
+и позволить ему описать риск.
+Но не вводить сомнительный canonical KPI.
+
+112. SellerAIDataPack как SoT
+Как уже сказал:
+старое:
+Pack = truth
+заменяется:
+UCDM factual universe = truth
+Pack = projection.
+Это очень важное архитектурное изменение.
+
+113. Semantic backend repair старого AI pipeline тоже не должен проникнуть в UCDM
+Canonical data normalization может:
+resolve provider IDs
+validate types
+reconcile data
+calculate deterministic metrics.
+Но backend не должен:
+додумывать AI meaning
+создавать missing Actions
+изобретать causal explanation
+назначать priority.
+UCDM заканчивается до семантической интерпретации.
+
+114. FBP
+В v1 Unified Model поддерживаем:
+Supply scheme = FBO
+и архитектурное extension point:
+FBP
+но FBP adapter в текущую реализацию не входит.
+
+115. Reviews / Questions
+Мы их не проектировали как самостоятельный domain.
+Поэтому в UCDM v1 я бы:
+не создавал таблицы заранее;
+не делал fake abstraction;
+а оставил extension slots:
+Review entity/facts
+Question/Answer facts
+в EntityRef/metric namespace.
+Account Health rating_review_avg_score_total остаётся provider rating и не превращается в fake Reviews. Это уже зафиксировано. Canonical Account Health Ratings Model.docxDOCX
+
+116. Полный factual path на одном SKU
+Допустим:
+sku:417
+Stable identity:
+seller=1
+ozon_sku=123456789
+
+Product:
+sku version:
+name = ...
+offer_id = ...
+status = ...
+Category:
+SKU → Category 75
+Product Type 201
+
+Sales:
+19 Aug:
+ordered_units = 10
+ordered_amount = 20 000
+
+Stock:
+20 Aug 05:30
+
+Warehouse A:
+sellable = 5
+
+Warehouse B:
+sellable = 10
+
+total unique pools:
+15
+
+Price:
+20 Aug 05:32
+
+current price = 2299
+customer price = 2199
+
+Advertising:
+Campaign 58
+19 Aug
+
+paid_spend = 1000
+attributed_amount = 4000
+
+Search:
+13–19 Aug
+
+"кофемашина автоматическая"
+
+position = 51
+view_conversion = 5.1%
+
+Promotion:
+promotion:52
+SKU participating
+first observed 18 Aug
+
+Supply:
+supply:71
+
+declared inbound = 100
+state = IN_TRANSIT
+
+Finance:
+19 Aug accrual:
+
+commission -300
+logistics -200
+
+Health:
+posting:734
+SELLER_DELAY
+
+117. Unified Model ничего из этого не смешивает
+AI позже получает:
+SKU demand
++
+current stock
++
+current price
++
+ad performance
++
+search performance
++
+promotion context
++
+inbound
++
+financial consequences
++
+health event
+и сам формирует:
+что происходит и что делать.
+Именно это делает Aivion AI-first продуктом, а не очередной системой правил.
+
+118. Analysis Run на этом SKU
+Допустим:
+analysis_date = 19 Aug
+
+analysis_cutoff_at =
+20 Aug 05:40
+Manifest выбирает:
+Sales:
+through 19 Aug
+
+Stock:
+snapshot 05:30
+
+Price:
+snapshot 05:32
+
+Ads:
+through 19 Aug
+
+Finance:
+through 18 Aug
+STALE/PARTIAL context
+
+Search:
+through 18 Aug
+LAGGED
+
+Supply:
+05:34 current state
+
+Health:
+05:20 snapshot
+
+119. Это нормально
+Unified Model не пытается притянуть всё к одной fake date.
+Temporal Framework уже специально фиксирует:
+analysis_date относится к completed period facts, а snapshot domains имеют собственный as_of_at. 
+Это одно из лучших решений всей архитектуры.
+
+120. Acceptance Criteria UCDM
+Я считаю обязательным отдельный suite интеграционных invariants.
+Identity consistency
+Один Ozon SKU во всех domains:
+Sales
+Stock
+Price
+Ads
+Search
+Promotion
+Supply
+Finance
+должен resolve:
+в один canonical_sku_id.
+
+Seller isolation
+Одинаковый:
+ozon_sku=123
+у Seller 1 и Seller 2:
+два разных Canonical SKU.
+
+Category history
+Category change:
+A → B
+не переписывает historical facts.
+
+Version overlap
+Две simultaneous active versions:
+rejected by DB.
+
+Partial source
+Partial Stock:
+никогда не current Stock snapshot.
+
+Missing / zero
+known 0
+≠ NULL
+≠ source failure.
+
+Source correction
+Ozon меняет:
+19 Aug sales
+100 → 105.
+Current UCDM:
+105.
+Old cutoff:
+100.
+Old Publication:
+unchanged.
+
+Attribution isolation
+Sales 100k
+Ads attributed 40k
+Search attributed 20k
+не даёт:
+160k.
+
+Finance isolation
+Sales 100k
+Finance accrual 80k
+обе цифры сохраняются.
+
+Stock / Supply isolation
+stock 20
+inbound 100
+не даёт:
+stock 120.
+
+Health / Finance isolation
+Health processing cost:
+500
+Finance:
+-500
+не даёт:
+expense 1000.
+
+Action target validation
+SearchQuery
+Promotion
+Supply
+Posting
+Warehouse
+не могут быть Action Targets.
+
+Deterministic universe
+Одинаковые:
+seller
+analysis_date
+cutoff
+source revisions
+policy versions
+дают одинаковый:
+factual_universe_hash.
+Temporal Framework уже требует этот determinism. Temporal Framework.docxDOCX
+
+121. Что я бы реально реализовывал первым
+Не стоит сейчас создавать все 70 таблиц одним PR.
+Я бы разбил Unified Model implementation на последовательные slices.
+UCDM-0 — Foundation
+source contract model
+source sync run
+source payload/provenance
+
+EntityRef contract
+
+metric registry foundation
+
+common temporal enums
+
+common readiness/completeness enums
+
+UCDM-1 — Canonical Entity Spine
+Seller
+SKU
+Category/ProductType
+Order/Posting
+Campaign
+Warehouse/Cluster
+Promotion
+Search Query
+Supply
+и все основные typed relations.
+
+UCDM-2 — Core Facts
+Сначала самые важные:
+Sales
+Stock
+Advertising
+Price
+затем:
+Funnel
+Finance
+Search
+Promotions
+Health
+Supply.
+
+UCDM-3 — Unified Temporal / Revision Layer
+watermarks
+source revisions
+snapshot selection
+cutoff queries
+
+UCDM-4 — Derived Facts
+coverage
+deltas
+CTR/CPC/CPM/DRR
+spend share
+threshold distances
+
+UCDM-5 — Factual Universe Manifest
+Temporal Context
+Domain Bindings
+Domain Hashes
+Universe Hash
+После этого factual core можно считать реально собранным.
+
+122. И только потом Business Data Capabilities
+То есть я бы сохранил наш первоначальный roadmap:
+Unified Canonical Data Model
+        ↓
+Business Data Capabilities
+        ↓
+Internal Canonical Factual API
+        ↓
+Data Quality / Readiness
+        ↓
+Entity Landscapes
+        ↓
+Material Entities
+        ↓
+Discovery Pack
+Сейчас не нужно смешивать Capability Model с UCDM до конца.
+UCDM лишь предоставляет правильные factual structures, на которых capabilities будут работать.
+
+123. Моё главное изменение относительно отдельных документов
+После их объединения я бы добавил шесть cross-domain компонентов, которых не было смысла полностью проектировать внутри каждого отдельного domain:
+Новый unified component
+Зачем
+Canonical Metric Registry
+единая semantics metric/aggregation
+EntityRef contract
+общий язык AI/Evidence
+Source Contract Registry
+versioned Ozon semantics
+Unified Sync/Provenance Envelope
+replay/audit
+Unified Data Quality Issue model
+единая диагностика
+Factual Universe Manifest
+immutable data cut для AI
+Именно эти шесть компонентов превращают набор отдельных Canonical Models в одну архитектуру.
+
+124. Что я считаю критически важным не делать
+Это короткий итог самых опасных решений:
+НЕ делать одну giant canonical_facts table.
+
+НЕ делать generic EAV источником истины.
+
+НЕ делать generic entity relation source-of-truth.
+
+НЕ использовать metric_date для всего.
+
+НЕ суммировать attribution с Sales.
+
+НЕ распределять account facts по SKU искусственно.
+
+НЕ backfill'ить current snapshots назад.
+
+НЕ считать partial source отсутствием фактов.
+
+НЕ позволять unknown entity исчезать из account totals.
+
+НЕ позволять Packs становиться вторым Source of Truth.
+
+НЕ давать AI прямой SQL к canonical DB.
+
+НЕ писать AI interpretation обратно в canonical facts.
+
+НЕ вводить Aivion Health Score.
+
+НЕ возвращать линейную mathematically fake Funnel.
+
+НЕ возвращать revenue_at_risk как canonical metric.
+
+125. Предлагаемый архитектурный контракт UCDM
+Я бы зафиксировал его так:
+Unified Canonical Data Model Aivion является типизированным seller-isolated canonical graph, а не универсальным EAV-хранилищем. Stable business identities хранятся отдельно от mutable state; typed canonical entities имеют собственные provider-backed identity constraints, а единый EntityRef используется только как reference abstraction для AI/Evidence/Actions. Все factual domains подчиняются общему Temporal Contract и явно являются period facts, events, snapshots либо versioned states. Business/effective time и knowledge/observation time не смешиваются; revisionable provider facts сохраняют историю revisions, что позволяет воспроизводить factual state AS KNOWN AT analysis_cutoff_at. Missing никогда не превращается в zero без source semantics. Partial enumeration не используется для доказательства отсутствия entity или relation.
+Каждый business fact имеет ровно одного canonical owner domain. Sales является владельцем ordered demand; Stock — текущего sellable inventory; Supply — inbound и acceptance; Price — текущей/customer-facing цены; Promotions — promotion definitions, eligibility и membership; Advertising — paid spend и provider advertising attribution; Search — query-specific provider attribution/performance; Funnel — pre-order behavioural facts; Finance — Ozon financial accrual ledger; Account Health — provider ratings и health classifications. Reconciliation между domains не создаёт новых денежных, товарных или attribution totals. Synthetic allocation по SKU/Category запрещена без explicit source semantics.
+Category analytics является temporal derived projection через historical SKU→Category assignments и системную UNMAPPED; parent Category rollups не дублируют source facts. Non-additive metrics не агрегируются через SUM/AVG без зарегистрированной policy. Metric semantics, units, aggregation rules, zero/missing behaviour и deterministic formulas управляются versioned Metric/Policy registries.
+Все canonical facts имеют provenance до source sync/artifact и source-contract version. Production хранит replayable sanitized source artifacts, достаточные для аудита и повторной нормализации, без ненужного PII. Source corrections могут менять current factual knowledge, но опубликованные Analysis/AI Publications immutable.
+Каждый Analysis Run фиксирует immutable Temporal Context и Factual Universe Manifest: analysis_date, analysis_cutoff_at, domain readiness, выбранные complete snapshots/revisions, source/policy versions и deterministic data hashes. Discovery, Evidence Expansion и Deep Analysis работают исключительно внутри этого factual universe. SellerAIDataPack/Discovery Pack являются детерминированными проекциями UCDM, а не самостоятельными источниками истины.
+Canonical layer содержит только provider facts, canonical normalization и deterministic derived facts. Он не определяет бизнес-смысл, причинность, priority или Actions. AI остаётся единственным владельцем interpretation и recommendations; разрешённые Action Targets v1 — только Account, Category, SKU и Campaign.
+Вопросов, которые требуют твоего продуктового решения, сейчас нет
+Я сознательно не спрашиваю тебя про TTL snapshots, глубину correction window, retention raw artifacts, partitioning, конкретную точность NUMERIC, частоту sync и подобные параметры — это implementation/operational policies, их разумнее определить на реальных данных и сделать versioned.
+С архитектурной точки зрения Unified Canonical Data Model v1 я считаю спроектированным на уровне основных принципов и структуры.
+Следующий шаг я бы сделал не Business Data Capabilities сразу, а сначала отдельно и очень подробно спроектировал физическую модель UCDM / Schema Blueprint: конкретный список таблиц, PK/FK/UNIQUE, common enums, relations, какие старые таблицы удаляются/мигрируют, какие views нужны, какие constraints защищают invariants и в каком порядке это внедрять в текущую БД. После такого blueprint уже можно безопасно переходить к Business Data Capabilities.

@@ -1,0 +1,17 @@
+DROP TRIGGER IF EXISTS fbs_posting_error_events_scope ON fbs_posting_error_events;
+DROP TRIGGER IF EXISTS fbs_error_index_scope ON fbs_error_index_facts;
+DROP TRIGGER IF EXISTS account_penalty_events_scope ON account_penalty_event_facts;
+DROP TRIGGER IF EXISTS account_rating_thresholds_scope ON account_rating_threshold_observations;
+DROP TRIGGER IF EXISTS account_rating_period_facts_scope ON account_rating_period_facts;
+DROP TRIGGER IF EXISTS account_health_snapshot_runs_scope ON account_health_snapshot_runs;
+DROP TRIGGER IF EXISTS account_health_metric_versions_scope ON account_health_metric_versions;
+DROP FUNCTION IF EXISTS enforce_canonical_account_health_scope();
+DROP TABLE IF EXISTS fbs_posting_error_events;
+DROP TABLE IF EXISTS fbs_error_index_facts;
+DROP TABLE IF EXISTS account_penalty_event_facts;
+DROP TABLE IF EXISTS account_rating_threshold_observations;
+DROP TABLE IF EXISTS account_rating_period_facts;
+DROP TABLE IF EXISTS account_rating_snapshots;
+DROP TABLE IF EXISTS account_health_snapshot_runs;
+DROP TABLE IF EXISTS account_health_metric_versions;
+DROP TABLE IF EXISTS account_health_metrics;

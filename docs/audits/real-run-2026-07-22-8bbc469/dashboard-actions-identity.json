@@ -1,0 +1,18 @@
+﻿{
+    "dash_headers":  {
+                         "x-aivion-analysis-source":  "unified",
+                         "x-aivion-publication-id":  "92",
+                         "x-aivion-run-id":  "206",
+                         "x-aivion-metric-date":  "2026-07-08",
+                         "status":  200,
+                         "len":  39037
+                     },
+    "actions_headers":  {
+                            "x-aivion-analysis-source":  "unified",
+                            "x-aivion-publication-id":  "92",
+                            "x-aivion-run-id":  "206",
+                            "x-aivion-metric-date":  "2026-07-08",
+                            "status":  200,
+                            "len":  603
+                        }
+}

@@ -1,0 +1,31 @@
+DROP TRIGGER IF EXISTS trg_publication_release_events_append_only ON publication_release_events;
+DROP TRIGGER IF EXISTS trg_publication_action_group_members_immutable ON publication_action_group_members;
+DROP TRIGGER IF EXISTS trg_publication_action_groups_immutable ON publication_action_groups;
+DROP TRIGGER IF EXISTS trg_publication_sku_focus_rows_immutable ON publication_sku_focus_rows;
+DROP TRIGGER IF EXISTS trg_publication_ad_campaign_rows_immutable ON publication_ad_campaign_rows;
+DROP TRIGGER IF EXISTS trg_publication_stock_sku_rows_immutable ON publication_stock_sku_rows;
+DROP TRIGGER IF EXISTS trg_publication_projections_immutable ON publication_projections;
+DROP TRIGGER IF EXISTS trg_publication_recommendations_immutable ON publication_recommendations;
+DROP TRIGGER IF EXISTS trg_publication_findings_immutable ON publication_findings;
+DROP TRIGGER IF EXISTS trg_publication_components_immutable ON publication_components;
+DROP TRIGGER IF EXISTS trg_analysis_publications_immutable ON analysis_publications;
+DROP FUNCTION IF EXISTS forbid_publication_content_mutation();
+
+ALTER TABLE analysis_runs DROP CONSTRAINT IF EXISTS fk_analysis_runs_base_publication;
+ALTER TABLE action_case_assessments DROP CONSTRAINT IF EXISTS fk_action_case_assessments_publication;
+ALTER TABLE action_case_proposals DROP CONSTRAINT IF EXISTS fk_action_case_proposals_publication;
+ALTER TABLE action_cases DROP CONSTRAINT IF EXISTS fk_action_cases_opened_by_publication;
+
+DROP TABLE IF EXISTS analysis_outbox_events;
+DROP TABLE IF EXISTS publication_action_group_members;
+DROP TABLE IF EXISTS publication_action_groups;
+DROP TABLE IF EXISTS publication_sku_focus_rows;
+DROP TABLE IF EXISTS publication_ad_campaign_rows;
+DROP TABLE IF EXISTS publication_stock_sku_rows;
+DROP TABLE IF EXISTS publication_projections;
+DROP TABLE IF EXISTS publication_recommendations;
+DROP TABLE IF EXISTS publication_findings;
+DROP TABLE IF EXISTS publication_components;
+DROP TABLE IF EXISTS publication_release_events;
+DROP TABLE IF EXISTS seller_current_publications;
+DROP TABLE IF EXISTS analysis_publications;

@@ -1,0 +1,119 @@
+package factualapi
+
+// FACT_FAMILY_CAPABILITY_REGISTRY_V1 is the versioned explicit map between
+// Domain+FactFamily watermark bindings and related capability keys.
+// No prefix/fuzzy matching — only exact registry entries.
+const FACT_FAMILY_CAPABILITY_REGISTRY_V1 = "FACT_FAMILY_CAPABILITY_REGISTRY_V1"
+
+// factFamilyCapabilityRegistry maps each fact family to related capability keys
+// that may attach to the binding. SourceState still comes from watermark/run
+// evidence, never from picking one of these capabilities.
+var factFamilyCapabilityRegistry = map[FactFamilyKey][]string{
+	{"CATALOG", "CATALOG.SKU_UNIVERSE"}: {"CATALOG.SKU_UNIVERSE", "CATALOG.CATEGORY_ATTRIBUTION"},
+	{"SALES_DEMAND", "SALES.ACCOUNT_DEMAND"}: {
+		"SALES.ACCOUNT_DEMAND", "SALES.CATEGORY_DEMAND",
+	},
+	{"SALES_DEMAND", "SALES.SKU_DEMAND"}: {"SALES.SKU_DEMAND"},
+	{"POSTINGS", "LIFECYCLE.POSTINGS"}:   {"LIFECYCLE.POSTINGS", "LIFECYCLE.ORDERS"},
+	{"POSTINGS", "LIFECYCLE.EVENTS"}:     {"LIFECYCLE.EVENTS"},
+	{"RETURNS", "LIFECYCLE.RETURNS"}:     {"LIFECYCLE.RETURNS"},
+	{"STOCK", "STOCK.SNAPSHOT"}: {
+		"STOCK.SKU_CURRENT", "STOCK.LOCATION_BREAKDOWN", "STOCK.PROVIDER_TURNOVER",
+		"STOCK.COVERAGE_7D", "STOCK.COVERAGE_30D",
+	},
+	{"PRICE", "PRICE.SNAPSHOT"}: {
+		"PRICE.CORE_STATE", "PRICE.CUSTOMER_PRICE", "PRICE.PRICE_INDEX",
+		"PRICE.PROMOTION_CONTEXT", "PRICE.HISTORY",
+	},
+	{"ADVERTISING", "ADVERTISING.TRAFFIC"}: {
+		"ADVERTISING.CAMPAIGN_UNIVERSE", "ADVERTISING.CAMPAIGN_CONFIG", "ADVERTISING.TARGET_SCOPE",
+		"ADVERTISING.CAMPAIGN_TRAFFIC", "ADVERTISING.SKU_TRAFFIC",
+		"ADVERTISING.ACCOUNT_SPEND", "ADVERTISING.ACCOUNT_SPEND_SHARE",
+	},
+	{"ADVERTISING", "ADVERTISING.ATTRIBUTION"}: {
+		"ADVERTISING.CAMPAIGN_ATTRIBUTION", "ADVERTISING.SKU_ATTRIBUTION",
+		"ADVERTISING.CAMPAIGN_DRR", "ADVERTISING.ACCOUNT_ATTRIBUTION_DRR",
+	},
+	{"FUNNEL", "FUNNEL.DAILY_ADDITIVE"}: {
+		"FUNNEL.DAILY_ADDITIVE", "FUNNEL.CATEGORY_ADDITIVE",
+		"FUNNEL.SEARCH_IMPRESSIONS", "FUNNEL.PDP_IMPRESSIONS", "FUNNEL.SEARCH_CART_ADDS", "FUNNEL.PDP_CART_ADDS",
+		"FUNNEL.ACCOUNT", "FUNNEL.SKU", "FUNNEL.HISTORY",
+	},
+	{"FUNNEL", "FUNNEL.DIRECT_PERIOD"}: {
+		"FUNNEL.DIRECT_PERIOD",
+		"FUNNEL.SEARCH_VIEW_SESSIONS", "FUNNEL.PDP_VIEW_SESSIONS",
+		"FUNNEL.SEARCH_CART_CONVERSION", "FUNNEL.PDP_CART_CONVERSION",
+	},
+	{"FINANCE", "FINANCE.DAILY_LEDGER"}: {
+		"FINANCE.DAILY_LEDGER", "FINANCE.ACCOUNT_NET", "FINANCE.ACCRUAL_BREAKDOWN", "FINANCE.TYPE_DICTIONARY",
+		"FINANCE.ACCOUNT_NET_ACCRUAL", "FINANCE.TYPE_BREAKDOWN", "FINANCE.SKU_DIRECT", "FINANCE.CATEGORY_DIRECT",
+		"FINANCE.POSTING_DETAIL", "FINANCE.SETTLEMENT_RECONCILIATION", "FINANCE.HISTORY",
+	},
+	{"FINANCE", "FINANCE.BALANCE"}: {"FINANCE.BALANCE"},
+	{"SEARCH", "SEARCH.SELLER_SUMMARY"}: {
+		"SEARCH.SELLER_SUMMARY", "SEARCH.UNIQUE_SEARCH_USERS", "SEARCH.UNIQUE_VIEW_USERS",
+		"SEARCH.PROVIDER_GMV", "SEARCH.PROVIDER_ORDER_COUNT", "SEARCH.HISTORY",
+	},
+	{"SEARCH", "SEARCH.QUERY_DETAILS"}: {
+		"SEARCH.QUERY_DETAILS", "SEARCH.CATEGORY_SUMMARY",
+		"SEARCH.POSITION", "SEARCH.VIEW_CONVERSION",
+	},
+	{"SEARCH", "SEARCH.MARKET_SEARCH"}: {
+		"SEARCH.MARKET_SEARCH", "SEARCH.MARKET_TOP", "SEARCH.MARKET_TEXT", "SEARCH.MARKET_AVG_PRICE",
+	},
+	{"PROMOTIONS", "PROMOTIONS.DEFINITIONS"}: {
+		"PROMOTIONS.DEFINITIONS", "PROMOTIONS.OZON_DEFINITIONS", "PROMOTIONS.SELLER_DEFINITIONS", "PROMOTIONS.HISTORY",
+	},
+	{"PROMOTIONS", "PROMOTIONS.MEMBERSHIP"}: {
+		"PROMOTIONS.MEMBERSHIP", "PROMOTIONS.OZON_MEMBERSHIP", "PROMOTIONS.SELLER_MEMBERSHIP",
+	},
+	{"PROMOTIONS", "PROMOTIONS.ELIGIBILITY"}: {
+		"PROMOTIONS.ELIGIBILITY", "PROMOTIONS.OZON_ELIGIBILITY", "PROMOTIONS.SELLER_ELIGIBILITY",
+	},
+	{"ACCOUNT_HEALTH", "CURRENT_SNAPSHOT"}: {"HEALTH.CURRENT_RATINGS", "HEALTH.THRESHOLDS", "HEALTH.PENALTY_EVENTS"},
+	{"ACCOUNT_HEALTH", "RATING_HISTORY"}:   {"HEALTH.RATING_HISTORY"},
+	{"ACCOUNT_HEALTH", "FBS_INDEX"}:        {"HEALTH.FBS_ERROR_INDEX"},
+	{"ACCOUNT_HEALTH", "FBS_ERROR_EVENTS"}: {"HEALTH.FBS_POSTING_ERRORS"},
+	{"SUPPLY", "SUPPLY.STATE"}: {
+		"SUPPLY.STATE", "SUPPLY.ORDER_UNIVERSE", "SUPPLY.CURRENT_STATE", "SUPPLY.HISTORY",
+	},
+	{"SUPPLY", "SUPPLY.BUNDLE"}: {
+		"SUPPLY.BUNDLE", "SUPPLY.SKU_INBOUND", "SUPPLY.PLANNED_CONTENT", "SUPPLY.ROUTE", "SUPPLY.TIMESLOT",
+	},
+	{"SUPPLY", "SUPPLY.ACCEPTANCE"}: {
+		"SUPPLY.ACCEPTANCE", "SUPPLY.ACCEPTANCE_SUMMARY", "SUPPLY.ACCEPTANCE_PRODUCTS",
+	},
+}
+
+// capabilityFactFamilyIndex is the inverse: each capability key → exactly one FactFamilyKey.
+var capabilityFactFamilyIndex map[string]FactFamilyKey
+
+func init() {
+	capabilityFactFamilyIndex = make(map[string]FactFamilyKey)
+	for family, keys := range factFamilyCapabilityRegistry {
+		for _, key := range keys {
+			if prev, exists := capabilityFactFamilyIndex[key]; exists {
+				panic("factualapi: capability " + key + " maps to both " + prev.String() + " and " + family.String())
+			}
+			capabilityFactFamilyIndex[key] = family
+		}
+	}
+}
+
+// RelatedCapabilityKeys returns the explicit registry capability keys for a
+// Domain+FactFamily binding. Empty when the family is unknown to the registry.
+func RelatedCapabilityKeys(domain, factFamily string) []string {
+	keys := factFamilyCapabilityRegistry[FactFamilyKey{Domain: domain, FactFamily: factFamily}]
+	if len(keys) == 0 {
+		return nil
+	}
+	out := make([]string, len(keys))
+	copy(out, keys)
+	return out
+}
+
+// FactFamilyForCapability returns the unique (Domain, FactFamily) for a capability key.
+func FactFamilyForCapability(capabilityKey string) (FactFamilyKey, bool) {
+	v, ok := capabilityFactFamilyIndex[capabilityKey]
+	return v, ok
+}

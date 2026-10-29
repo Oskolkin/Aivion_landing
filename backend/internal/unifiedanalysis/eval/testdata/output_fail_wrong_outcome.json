@@ -1,0 +1,35 @@
+{
+  "schema_version": "aivion_unified_analysis_v1",
+  "analysis_meta": {
+    "pack_id": "pack_eval_fail",
+    "pack_hash": "sha256:eval",
+    "metric_date": "2026-07-08"
+  },
+  "analysis_outcome": "no_material_actions",
+  "dashboard": {
+    "account_summary": {
+      "status": "available",
+      "headline": "Стабильно",
+      "executive_summary": "Проблем не найдено.",
+      "metric_date": "2026-07-08"
+    },
+    "what_changed": { "status": "available", "groups": [] },
+    "category_summaries": [],
+    "sales_funnel": { "status": "available" },
+    "funnel_analysis": { "status": "available", "ai_analysis": { "status": "available" } },
+    "stock_coverage": { "status": "available" },
+    "ad_efficiency": { "status": "available" },
+    "risk_distribution": { "status": "available" },
+    "seller_pulse": { "kpis": [], "trend_7d": [] },
+    "sku_focus": {
+      "order_drop": [],
+      "stock_risk": [],
+      "no_sales_with_stock": [],
+      "key_skus": []
+    },
+    "top_action_ids": [],
+    "recommended_action_ids": []
+  },
+  "actions": [],
+  "limitations": []
+}

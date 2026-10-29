@@ -1,0 +1,27 @@
+groups:
+  - name: aivion-invariants
+    rules:
+      - alert: SellerIsolationFailure
+        expr: increase(analysis_invariant_violations_total{invariant="seller_isolation"}[5m]) > 0
+        labels:
+          severity: page
+        annotations:
+          summary: Seller isolation invariant violated
+      - alert: ContinuityCoverageLoss
+        expr: increase(analysis_invariant_violations_total{invariant="continuity_coverage"}[5m]) > 0
+        labels:
+          severity: page
+        annotations:
+          summary: Continuity coverage dropped below 100%
+      - alert: CurrentPublicationIntegrityFailure
+        expr: increase(analysis_invariant_violations_total{invariant="publication_integrity"}[5m]) > 0
+        labels:
+          severity: page
+      - alert: PublishTransactionViolation
+        expr: increase(analysis_invariant_violations_total{invariant="publish_transaction"}[5m]) > 0
+        labels:
+          severity: page
+      - alert: FactualAPICrossUniverse
+        expr: increase(analysis_invariant_violations_total{invariant="factual_cross_universe"}[5m]) > 0
+        labels:
+          severity: page

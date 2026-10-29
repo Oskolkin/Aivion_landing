@@ -1,0 +1,2472 @@
+﻿
+1. Р§С‚Рѕ С‚Р°РєРѕРµ Action РІ Aivion
+РџСЂРµРґР»Р°РіР°СЋ Р·Р°С„РёРєСЃРёСЂРѕРІР°С‚СЊ:
+Action вЂ” РєРѕРЅРєСЂРµС‚РЅРѕРµ СѓРїСЂР°РІР»РµРЅС‡РµСЃРєРѕРµ РґРµР№СЃС‚РІРёРµ, РєРѕС‚РѕСЂРѕРµ Deep Analysis СЃС‡РёС‚Р°РµС‚ РѕР±РѕСЃРЅРѕРІР°РЅРЅС‹Рј Findings Рё РґРѕСЃС‚СѓРїРЅС‹РјРё facts Рё РєРѕС‚РѕСЂРѕРµ РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ РјРѕР¶РµС‚ РІС‹РїРѕР»РЅРёС‚СЊ РІ РѕС‚РЅРѕС€РµРЅРёРё РѕРґРЅРѕРіРѕ СЂР°Р·СЂРµС€С‘РЅРЅРѕРіРѕ Action Target.
+РЈ РЅР°СЃ С‡РµС‚С‹СЂРµ Action Target:
+ACCOUNT
+LEAF_CATEGORY
+SKU
+CAMPAIGN
+Р С‚РѕР»СЊРєРѕ РѕРЅРё.
+Р¦РµРїРѕС‡РєР° РІСЃРµРіРґР°:
+Facts
+в†“
+Finding
+в†“
+Recommendation
+в†“
+Action
+РќРµР»СЊР·СЏ:
+Facts
+в†“
+Action
+Рё С‚РµРј Р±РѕР»РµРµ:
+AI intuition
+в†“
+Action
+
+2. Recommendation Рё Action вЂ” РЅРµ РѕРґРЅРѕ Рё С‚Рѕ Р¶Рµ
+РќР°РїСЂРёРјРµСЂ Deep РїСЂРёС€С‘Р» Рє РІС‹РІРѕРґСѓ:
+Search Сѓ SKU СѓС…СѓРґС€РёР»СЃСЏ, РЅРѕ РґР°РЅРЅС‹Рµ РѕС‚СЃС‚Р°СЋС‚ РЅР° РґРІР° РґРЅСЏ Рё Funnel РЅРµРґРѕСЃС‚СѓРїРµРЅ.
+Р­С‚Рѕ РјРѕР¶РµС‚ РґР°С‚СЊ:
+Recommendation:
+РїРѕРЅР°Р±Р»СЋРґР°С‚СЊ РµС‰С‘ РЅРµСЃРєРѕР»СЊРєРѕ РїРµСЂРёРѕРґРѕРІ
+РќРѕ:
+Action:
+РЅРµС‚
+Р”СЂСѓРіРѕР№ РїСЂРёРјРµСЂ:
+РўРµРєСѓС‰РёР№ РѕСЃС‚Р°С‚РѕРє SKU РїРѕРєСЂС‹РІР°РµС‚ РґРІР° РґРЅСЏ СЃРїСЂРѕСЃР°, РѕС‚РєСЂС‹С‚РѕРіРѕ РїРѕРїРѕР»РЅРµРЅРёСЏ РЅРµС‚.
+Recommendation:
+РџРѕРїРѕР»РЅРёС‚СЊ Р·Р°РїР°СЃ.
+Action:
+SKU_INCREASE_REPLENISHMENT
+target = SKU 417
+РўРѕ РµСЃС‚СЊ Action СЃРѕР·РґР°С‘С‚СЃСЏ С‚РѕР»СЊРєРѕ РґР»СЏ Recommendation:
+ACTIONABLE_NOW
+Р•СЃР»Рё Recommendation:
+MONITOR
+INSUFFICIENT_EVIDENCE
+Action Р·Р°РїСЂРµС‰С‘РЅ.
+
+3. V1 РѕСЃС‚Р°С‘С‚СЃСЏ РїРѕР»РЅРѕСЃС‚СЊСЋ read-only
+Р­С‚Рѕ РїСЂРёРЅС†РёРїРёР°Р»СЊРЅРѕ.
+Р”Р°Р¶Рµ РµСЃР»Рё Ozon API С‚РµС…РЅРёС‡РµСЃРєРё РїРѕР·РІРѕР»СЏРµС‚ РјРµРЅСЏС‚СЊ С‡С‚Рѕ-Р»РёР±Рѕ, Aivion v1 РЅРёС‡РµРіРѕ СЃР°РјРѕСЃС‚РѕСЏС‚РµР»СЊРЅРѕ РЅРµ РјРµРЅСЏРµС‚.
+Action:
+SKU_ADJUST_PRICE
+recommended_price = 2190 в‚Ѕ
+РѕР·РЅР°С‡Р°РµС‚:
+Aivion СЂРµРєРѕРјРµРЅРґСѓРµС‚ РїСЂРѕРґР°РІС†Сѓ СѓСЃС‚Р°РЅРѕРІРёС‚СЊ 2 190 в‚Ѕ.
+Рђ РЅРµ:
+Aivion РѕС‚РїСЂР°РІР»СЏРµС‚ POST РІ Ozon.
+Р­С‚Рѕ РѕС‚РґРµР»СЊРЅС‹Р№ Р±СѓРґСѓС‰РёР№ СЃР»РѕР№:
+Action Recommendation
+в†“
+User confirmation
+в†“
+Fresh-state revalidation
+в†“
+Execution Adapter
+в†“
+Ozon write API
+РџСЂРёС‡С‘Рј Action РёР· РІС‡РµСЂР°С€РЅРµР№ Publication РЅРёРєРѕРіРґР° РЅРµР»СЊР·СЏ Р±СѓРґРµС‚ РїСЂРѕСЃС‚Рѕ РѕС‚РїСЂР°РІРёС‚СЊ РІ Ozon СЃРµРіРѕРґРЅСЏ Р±РµР· РїРѕРІС‚РѕСЂРЅРѕР№ РїСЂРѕРІРµСЂРєРё С‚РµРєСѓС‰РµРіРѕ СЃРѕСЃС‚РѕСЏРЅРёСЏ.
+
+4. РџРѕС‡РµРјСѓ taxonomy РІСЃС‘ СЂР°РІРЅРѕ СЃРІРµСЂСЏРµРј СЃ Ozon API
+РҐРѕС‚СЏ v1 read-only, РїРѕР»РµР·РЅРѕ РЅРµ РїСЂРѕРµРєС‚РёСЂРѕРІР°С‚СЊ РґРµР№СЃС‚РІРёСЏ, РєРѕС‚РѕСЂС‹Рµ РІРѕРѕР±С‰Рµ РѕС‚РѕСЂРІР°РЅС‹ РѕС‚ СЂРµР°Р»СЊРЅС‹С… СЂС‹С‡Р°РіРѕРІ seller.
+РўРµРєСѓС‰РёР№ Seller API РїРѕРґС‚РІРµСЂР¶РґР°РµС‚ РЅР°Р»РёС‡РёРµ write-РѕРїРµСЂР°С†РёР№ РґР»СЏ РёР·РјРµРЅРµРЅРёСЏ С†РµРЅС‹ (/v1/product/import/prices) Рё FBS/rFBS stock quantity (/v2/products/stocks). Р”Р»СЏ FBO РїСЂРё СЌС‚РѕРј СЃСѓС‰РµСЃС‚РІСѓРµС‚ РѕС‚РґРµР»СЊРЅС‹Р№ РїРѕР»РЅРѕС†РµРЅРЅС‹Р№ supply workflow: СЃРѕР·РґР°РЅРёРµ draft/supply order, РёР·РјРµРЅРµРЅРёРµ СЃРѕСЃС‚Р°РІР° Р·Р°СЏРІРєРё Рё СЂР°Р±РѕС‚Р° СЃ timeslot. РўРѕ РµСЃС‚СЊ FBO replenishment Рё вЂњРѕР±РЅРѕРІРёС‚СЊ РѕСЃС‚Р°С‚РѕРєвЂќ вЂ” РїСЂРёРЅС†РёРїРёР°Р»СЊРЅРѕ СЂР°Р·РЅС‹Рµ РґРµР№СЃС‚РІРёСЏ, Рё Р±СѓРґСѓС‰РёР№ executor РЅРµ РґРѕР»Р¶РµРЅ СЃРјРµС€РёРІР°С‚СЊ РёС…. GitHub
+РўРµРєСѓС‰РёРµ Ozon promotion API С‚Р°РєР¶Рµ РїРѕР·РІРѕР»СЏСЋС‚ РґРѕР±Р°РІР»СЏС‚СЊ/СѓР±РёСЂР°С‚СЊ С‚РѕРІР°СЂС‹ РёР· Р°РєС†РёР№; РѕС‚РґРµР»СЊРЅР°СЏ beta-family seller actions СѓРјРµРµС‚ СЃРѕР·РґР°РІР°С‚СЊ/РѕР±РЅРѕРІР»СЏС‚СЊ seller-managed Р°РєС†РёРё Рё РјРµРЅСЏС‚СЊ РёС… Р°РєС‚РёРІРЅРѕСЃС‚СЊ. GitHub
+Performance API СЃРµР№С‡Р°СЃ РїРѕР·РІРѕР»СЏРµС‚ РјРµРЅСЏС‚СЊ РїР°СЂР°РјРµС‚СЂС‹ Campaign, Р°РєС‚РёРІРёСЂРѕРІР°С‚СЊ/РґРµР°РєС‚РёРІРёСЂРѕРІР°С‚СЊ РµС‘, РґРѕР±Р°РІР»СЏС‚СЊ/СѓРґР°Р»СЏС‚СЊ С‚РѕРІР°СЂС‹ Рё РёР·РјРµРЅСЏС‚СЊ product-level bids. РџСЂРё СЌС‚РѕРј API Р±С‹СЃС‚СЂРѕ СЌРІРѕР»СЋС†РёРѕРЅРёСЂСѓРµС‚: РІ РјР°Рµ 2026 dailyBudget Р±С‹Р» РїРѕРјРµС‡РµРЅ deprecated, Р° РІ РёСЋРЅРµ РјРµРЅСЏР»РёСЃСЊ bid-related РїР°СЂР°РјРµС‚СЂС‹. РџРѕСЌС‚РѕРјСѓ Action РЅР°Р·С‹РІР°РµС‚СЃСЏ CAMPAIGN_ADJUST_BUDGET, Р° РЅРµ РёРјРµРЅРµРј РєРѕРЅРєСЂРµС‚РЅРѕР№ API-СЂСѓС‡РєРё РёР»Рё РїРѕР»СЏ. GitHub
+
+5. Action Catalog вЂ” Р·Р°РєСЂС‹С‚С‹Р№
+Deep РЅРµ РїРѕР»СѓС‡Р°РµС‚ РёРЅСЃС‚СЂСѓРєС†РёСЋ:
+В«РџСЂРёРґСѓРјР°Р№ РґРµР№СЃС‚РІРёРµВ».
+Backend РїРµСЂРµРґР°С‘С‚:
+Action Menu
+РќР°РїСЂРёРјРµСЂ РґР»СЏ РєРѕРЅРєСЂРµС‚РЅРѕРіРѕ SKU:
+SKU_ADJUST_PRICE
+SKU_INCREASE_REPLENISHMENT
+SKU_ADJUST_AD_BID
+SKU_JOIN_PROMOTION
+...
+Р AI РјРѕР¶РµС‚ РІС‹Р±СЂР°С‚СЊ С‚РѕР»СЊРєРѕ СЃСѓС‰РµСЃС‚РІСѓСЋС‰РёР№ Action Type.
+Р•СЃР»Рё РІ Catalog РЅРµС‚:
+SKU_CHANGE_IMAGES
+РјРѕРґРµР»СЊ РЅРµ РјРѕР¶РµС‚ РїСЂРµРґР»РѕР¶РёС‚СЊ СЌС‚Рѕ РєР°Рє Action.
+РћРЅР° РјРѕР¶РµС‚ СѓРїРѕРјСЏРЅСѓС‚СЊ С‡С‚Рѕ-С‚Рѕ РІ Recommendation С‚РѕР»СЊРєРѕ РµСЃР»Рё РґР°РЅРЅС‹Рµ СЌС‚Рѕ РїРѕРґРґРµСЂР¶РёРІР°СЋС‚, РЅРѕ РѕС‚РґРµР»СЊРЅРѕР№ Action-card РЅРµ РІРѕР·РЅРёРєРЅРµС‚.
+
+6. РџРѕС‡РµРјСѓ СЌС‚Рѕ РѕСЃРѕР±РµРЅРЅРѕ РІР°Р¶РЅРѕ РґР»СЏ Funnel / Content
+РЎРµР№С‡Р°СЃ Сѓ РЅР°СЃ РЅРµС‚ РїРѕР»РЅРѕС†РµРЅРЅРѕРіРѕ Content Quality domain Рё Evidence.
+РџРѕСЌС‚РѕРјСѓ СЏ РЅРµ РІРєР»СЋС‡Р°СЋ РІ Action Catalog v1:
+IMPROVE_PRODUCT_CARD
+CHANGE_TITLE
+CHANGE_IMAGES
+CHANGE_DESCRIPTION
+SEO_OPTIMIZATION
+Р”Р°Р¶Рµ РµСЃР»Рё AI Р·РЅР°РµС‚ РёР· РѕР±С‰РёС… Р·РЅР°РЅРёР№, С‡С‚Рѕ РїР»РѕС…Р°СЏ РєР°СЂС‚РѕС‡РєР° РјРѕР¶РµС‚ СЃРЅРёР¶Р°С‚СЊ conversion.
+РЈ РЅРµРіРѕ РЅРµС‚ factual evidence РїРѕ РєР°СЂС‚РѕС‡РєРµ seller.
+Р­С‚Рѕ С…РѕСЂРѕС€РёР№ РїСЂРёРјРµСЂ С‚РѕРіРѕ, РєР°Рє Р·Р°РєСЂС‹С‚С‹Р№ Action Catalog Р·Р°С‰РёС‰Р°РµС‚ РЅР°СЃ РѕС‚ РіР°Р»Р»СЋС†РёРЅР°С†РёР№.
+
+7. РЎС‚СЂСѓРєС‚СѓСЂР° Action Type
+РљР°Р¶РґС‹Р№ Action Type РёРјРµРµС‚ versioned contract:
+action_type_key
+version
+
+target_kind
+
+action_family
+source_domain
+
+allowed_related_entities
+
+parameter_schema
+
+required_capabilities
+required_factual_context
+
+conflict_group
+
+execution_support
+
+execution_risk
+
+validation_policy
+
+8. Action Family
+РЇ Р±С‹ РёСЃРїРѕР»СЊР·РѕРІР°Р» СЃС‚Р°Р±РёР»СЊРЅС‹Рµ СЃРµРјРµР№СЃС‚РІР°:
+PRICING
+INVENTORY
+ADVERTISING
+PROMOTION
+ASSORTMENT
+ACCOUNT_HEALTH
+РќРµ:
+SEARCH
+FINANCE
+FUNNEL
+РџРѕС‡РµРјСѓ?
+Search, Finance Рё Funnel РІ РѕСЃРЅРѕРІРЅРѕРј СЏРІР»СЏСЋС‚СЃСЏ РґРёР°РіРЅРѕСЃС‚РёС‡РµСЃРєРёРјРё domains.
+РћРЅРё РїРѕРјРѕРіР°СЋС‚ РїРѕРЅСЏС‚СЊ, С‡С‚Рѕ РїСЂРѕРёР·РѕС€Р»Рѕ, РЅРѕ СЃР°РјРё РїРѕ СЃРµР±Рµ РЅРµ СЏРІР»СЏСЋС‚СЃСЏ СѓРїСЂР°РІР»РµРЅС‡РµСЃРєРёРјРё СЂС‹С‡Р°РіР°РјРё.
+РќР°РїСЂРёРјРµСЂ Funnel РјРѕР¶РµС‚ РїРѕРґРґРµСЂР¶Р°С‚СЊ:
+SKU_ADJUST_PRICE
+SKU_ADJUST_AD_BID
+РЅРѕ РјС‹ РЅРµ СЃРѕР·РґР°С‘Рј:
+SKU_FIX_FUNNEL
+РїРѕС‚РѕРјСѓ С‡С‚Рѕ СЌС‚Рѕ Р±РµСЃСЃРјС‹СЃР»РµРЅРЅРѕРµ РґРµР№СЃС‚РІРёРµ.
+
+9. ACCOUNT Actions v1
+Р—РґРµСЃСЊ СЏ СЂРµРєРѕРјРµРЅРґСѓСЋ Р±С‹С‚СЊ РѕС‡РµРЅСЊ РєРѕРЅСЃРµСЂРІР°С‚РёРІРЅС‹Рј.
+ACCOUNT_RATING_REMEDIATION
+Target:
+ACCOUNT
+РСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ, РєРѕРіРґР° Ozon Account Health РїРѕРєР°Р·С‹РІР°РµС‚ РєРѕРЅРєСЂРµС‚РЅСѓСЋ provider-defined РїСЂРѕР±Р»РµРјСѓ.
+РќР°РїСЂРёРјРµСЂ:
+provider rating:
+FBS delays = CRITICAL
+
+provider error events:
+SELLER_DELAY
+Action:
+РЎРЅРёР·РёС‚СЊ РєРѕР»РёС‡РµСЃС‚РІРѕ Р·Р°РґРµСЂР¶РµРє FBS, РІР»РёСЏСЋС‰РёС… РЅР° СЂРµР№С‚РёРЅРі Ozon.
+Parameters:
+primary_rating_key
+related_rating_keys[]
+provider_error_types[]
+Р’СЃРµ keys РґРѕР»Р¶РЅС‹ СЂРµР°Р»СЊРЅРѕ СЃСѓС‰РµСЃС‚РІРѕРІР°С‚СЊ РІ Account Health Evidence.
+
+10. РџРѕС‡РµРјСѓ РїРѕРєР° С‚РѕР»СЊРєРѕ РѕРґРёРЅ Account Action
+РЇ РЅРµ СЂРµРєРѕРјРµРЅРґСѓСЋ СЃСЂР°Р·Сѓ РІРІРѕРґРёС‚СЊ РґРµСЃСЏС‚РѕРє СЂР°Р·РјС‹С‚С‹С… С‚РёРїРѕРІ:
+OPTIMIZE_ACCOUNT
+IMPROVE_FINANCE
+IMPROVE_BUSINESS
+IMPROVE_SUPPLY
+Р­С‚Рѕ РїСЂРµРІСЂР°С‚РёС‚СЃСЏ РІ РјСѓСЃРѕСЂРЅС‹Р№ Action Catalog.
+Р•СЃР»Рё РїСЂРѕР±Р»РµРјР° РјРѕР¶РµС‚ Р±С‹С‚СЊ Р°РґСЂРµСЃРѕРІР°РЅР° РєРѕРЅРєСЂРµС‚РЅРѕР№:
+Category
+SKU
+Campaign
+Р»СѓС‡С€Рµ Р°РґСЂРµСЃРѕРІР°С‚СЊ РµС‘ С‚СѓРґР°.
+Account Action РЅСѓР¶РµРЅ С‚Р°Рј, РіРґРµ СЃР°РјР° РїСЂРѕР±Р»РµРјР° РґРµР№СЃС‚РІРёС‚РµР»СЊРЅРѕ account-level.
+
+11. CATEGORY Actions v1
+Category Actions вЂ” РїРѕ РїСЂРёСЂРѕРґРµ РєРѕРѕСЂРґРёРЅРёСЂРѕРІР°РЅРЅС‹Рµ РїР»Р°РЅС‹, Р° РЅРµ РїСЂСЏРјС‹Рµ Ozon API РєРѕРјР°РЅРґС‹.
+РњС‹ СѓР¶Рµ СЃРїРµС†РёР°Р»СЊРЅРѕ СЃРґРµР»Р°Р»Рё Category РїРѕР»РЅРѕС†РµРЅРЅС‹Рј Action Target, РїРѕСЌС‚РѕРјСѓ СЏ РїСЂРµРґР»Р°РіР°СЋ РїСЏС‚СЊ С‚РёРїРѕРІ.
+CATEGORY_REPRICING_PLAN
+РќР°РїСЂРёРјРµСЂ:
+РџРµСЂРµСЃРјРѕС‚СЂРµС‚СЊ С†РµРЅРѕРІСѓСЋ РїРѕР·РёС†РёСЋ РєР°С‚РµРіРѕСЂРёРё В«РљРѕС„РµРјР°С€РёРЅС‹В», РіРґРµ СЃРЅРёР¶РµРЅРёРµ СЃРѕСЃСЂРµРґРѕС‚РѕС‡РµРЅРѕ СЃСЂРµРґРё SKU СЃ РЅРµРґР°РІРЅРёРј РїРѕРІС‹С€РµРЅРёРµРј С†РµРЅС‹.
+Parameters:
+direction:
+LOWER
+RAISE
+MIXED
+
+affected_material_sku_refs[]
+
+CATEGORY_REPLENISHMENT_PLAN
+РќР°РїСЂРёРјРµСЂ:
+РЈРІРµР»РёС‡РёС‚СЊ РїРѕРїРѕР»РЅРµРЅРёРµ РєР°С‚РµРіРѕСЂРёРё, РїРѕСЃРєРѕР»СЊРєСѓ РЅРµСЃРєРѕР»СЊРєРѕ Р·РЅР°С‡РёРјС‹С… SKU РёРјРµСЋС‚ РЅРёР·РєРѕРµ РїРѕРєСЂС‹С‚РёРµ.
+Parameters:
+direction:
+INCREASE
+DECREASE
+MIXED
+
+affected_material_sku_refs[]
+
+CATEGORY_ADVERTISING_REALLOCATION
+РќР°РїСЂРёРјРµСЂ:
+РџРµСЂРµСЂР°СЃРїСЂРµРґРµР»РёС‚СЊ СЂРµРєР»Р°РјРЅСѓСЋ РЅР°РіСЂСѓР·РєСѓ РІРЅСѓС‚СЂРё РєР°С‚РµРіРѕСЂРёРё.
+Parameters:
+intent:
+INCREASE
+DECREASE
+REALLOCATE
+
+related_material_campaign_refs[]
+affected_material_sku_refs[]
+
+CATEGORY_PROMOTION_PLAN
+intent:
+EXPAND_PARTICIPATION
+REDUCE_PARTICIPATION
+CHANGE_TERMS
+MIXED
+
+CATEGORY_ASSORTMENT_RATIONALIZATION
+Р”Р»СЏ СЃРёС‚СѓР°С†РёРё, РєРѕРіРґР° Category-level evidence РїРѕРєР°Р·С‹РІР°РµС‚ СЃС‚СЂСѓРєС‚СѓСЂРЅСѓСЋ РїСЂРѕР±Р»РµРјСѓ Р°СЃСЃРѕСЂС‚РёРјРµРЅС‚Р°.
+intent:
+REDUCE_ACTIVE_SET
+REACTIVATE_ARCHIVED
+MIXED
+РќРѕ РЅРµ:
+CREATE_NEW_UNKNOWN_SKUS
+РЈ РЅР°СЃ РЅРµС‚ РґР°РЅРЅС‹С…, С‡С‚РѕР±С‹ РїСЂРёРґСѓРјС‹РІР°С‚СЊ seller РЅРѕРІС‹Рµ С‚РѕРІР°СЂС‹.
+
+12. Р’Р°Р¶РЅРѕРµ РїСЂР°РІРёР»Рѕ Category Actions
+Р•СЃР»Рё СЃРёС‚СѓР°С†РёСЏ РїРѕР»РЅРѕСЃС‚СЊСЋ СЃРІРѕРґРёС‚СЃСЏ Рє РѕРґРЅРѕРјСѓ SKU:
+SKU 417
+РЅРµ РЅР°РґРѕ СЃРѕР·РґР°РІР°С‚СЊ РѕРґРЅРѕРІСЂРµРјРµРЅРЅРѕ:
+CATEGORY_REPRICING_PLAN
+
+Рё
+
+SKU_ADJUST_PRICE
+С‚РѕР»СЊРєРѕ СЂР°РґРё РєРѕР»РёС‡РµСЃС‚РІР° Actions.
+Category Action РЅСѓР¶РµРЅ, РєРѕРіРґР° Deep РґРµР№СЃС‚РІРёС‚РµР»СЊРЅРѕ РІРёРґРёС‚ coordinated category pattern.
+Р•СЃР»Рё РїСЂРѕР±Р»РµРјР° Р»РѕРєР°Р»СЊРЅР°СЏ вЂ” SKU Action Р»СѓС‡С€Рµ.
+Р­С‚Рѕ semantic РїСЂР°РІРёР»Рѕ prompt/evals, Р° РЅРµ backend rule.
+
+13. SKU Actions вЂ” РѕСЃРЅРѕРІРЅРѕР№ operational catalog
+РРјРµРЅРЅРѕ Р·РґРµСЃСЊ Р±СѓРґРµС‚ Р±РѕР»СЊС€Р°СЏ С‡Р°СЃС‚СЊ Actions.
+
+14. SKU_ADJUST_PRICE
+Target:
+SKU
+Parameters:
+recommended_price: Money
+РЇ РїСЂРµРґР»Р°РіР°СЋ РѕР±СЏР·Р°С‚РµР»СЊРЅРѕ С‚СЂРµР±РѕРІР°С‚СЊ РєРѕРЅРєСЂРµС‚РЅСѓСЋ С†РµРЅСѓ.
+Р•СЃР»Рё AI СЃРїРѕСЃРѕР±РµРЅ СЃРєР°Р·Р°С‚СЊ С‚РѕР»СЊРєРѕ:
+Р’РѕР·РјРѕР¶РЅРѕ, СЃС‚РѕРёС‚ РїРµСЂРµСЃРјРѕС‚СЂРµС‚СЊ С†РµРЅСѓ,
+СЌС‚Рѕ Recommendation.
+РќРµ Action.
+Action РїРѕСЏРІР»СЏРµС‚СЃСЏ, РєРѕРіРґР° РѕРЅ РіРѕС‚РѕРІ СЃРєР°Р·Р°С‚СЊ:
+Р РµРєРѕРјРµРЅРґРѕРІР°РЅРЅР°СЏ С†РµРЅР° вЂ” 2 190 в‚Ѕ.
+
+15. РџРѕС‡РµРјСѓ РЅРµ РїРµСЂРµРґР°С‘Рј direction
+Р•СЃР»Рё:
+current_price = 2300
+recommended_price = 2190
+backend СЃР°Рј Р·РЅР°РµС‚:
+direction = DECREASE
+delta = -110
+delta_pct = -4.78%
+AI РЅРµ РґРѕР»Р¶РµРЅ РѕРґРЅРѕРІСЂРµРјРµРЅРЅРѕ РѕС‚РїСЂР°РІР»СЏС‚СЊ:
+direction = DECREASE
+recommended_price = 2190
+delta = -110
+Рё СЃРѕР·РґР°РІР°С‚СЊ С‚СЂРё РёСЃС‚РѕС‡РЅРёРєР° РІРѕР·РјРѕР¶РЅРѕР№ Р°СЂРёС„РјРµС‚РёС‡РµСЃРєРѕР№ РѕС€РёР±РєРё.
+
+16. Price validation
+Backend РїСЂРѕРІРµСЂСЏРµС‚:
+recommended_price > 0
+
+currency = current currency
+
+recommended_price != current_price
+Р•СЃР»Рё РёР·РІРµСЃС‚РЅР° provider min-price floor:
+recommended_price >= min_allowed_price
+Р•СЃР»Рё AI СЂРµРєРѕРјРµРЅРґСѓРµС‚:
+1 500 в‚Ѕ
+РїСЂРё РёР·РІРµСЃС‚РЅРѕРј:
+min_allowed = 1 800 в‚Ѕ
+Action invalid.
+Р­С‚Рѕ С‚РµС…РЅРёС‡РµСЃРєР°СЏ РІР°Р»РёРґР°С†РёСЏ, РЅРµ semantic repair.
+
+17. SKU_INCREASE_REPLENISHMENT
+Р”Р»СЏ:
+С‚РµРєСѓС‰РёР№ Р·Р°РїР°СЃ РјР°Р» РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ СЃРїСЂРѕСЃР°
++
+РїРѕРїРѕР»РЅРµРЅРёРµ РѕС‚СЃСѓС‚СЃС‚РІСѓРµС‚/РЅРµРґРѕСЃС‚Р°С‚РѕС‡РЅРѕ
+Parameters:
+recommended_units: integer | null
+Р§РёСЃР»Рѕ РЅРµ РѕР±СЏР·Р°С‚РµР»СЊРЅРѕ.
+РќР°РїСЂРёРјРµСЂ:
+Action:
+СѓРІРµР»РёС‡РёС‚СЊ РїРѕРїРѕР»РЅРµРЅРёРµ SKU
+РјРѕР¶РµС‚ Р±С‹С‚СЊ РїРѕР»РµР·РЅС‹Рј РґР°Р¶Рµ РµСЃР»Рё РґР°РЅРЅС‹С… РЅРµРґРѕСЃС‚Р°С‚РѕС‡РЅРѕ РґР»СЏ С‡РµСЃС‚РЅРѕРіРѕ СЂР°СЃС‡С‘С‚Р° РєРѕРЅРєСЂРµС‚РЅРѕРіРѕ РєРѕР»РёС‡РµСЃС‚РІР°.
+Р•СЃР»Рё AI СЃС‡РёС‚Р°РµС‚ РєРѕР»РёС‡РµСЃС‚РІРѕ РѕР±РѕСЃРЅРѕРІР°РЅРЅС‹Рј:
+recommended_units = 180
+РјРѕР¶РµС‚ РµРіРѕ РґР°С‚СЊ.
+РќРѕ СЌС‚Рѕ:
+СЂРµРєРѕРјРµРЅРґРѕРІР°РЅРЅРѕРµ РєРѕР»РёС‡РµСЃС‚РІРѕ,
+РЅРµ:
+РѕРїС‚РёРјР°Р»СЊРЅРѕРµ РєРѕР»РёС‡РµСЃС‚РІРѕ.
+
+18. SKU_REDUCE_REPLENISHMENT
+РСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ С‚РѕР»СЊРєРѕ РєРѕРіРґР° СЃСѓС‰РµСЃС‚РІСѓРµС‚ factual replenishment/inbound context, РєРѕС‚РѕСЂС‹Р№ СЂРµР°Р»СЊРЅРѕ РјРѕР¶РЅРѕ СЃРѕРєСЂР°С‚РёС‚СЊ.
+Parameters:
+recommended_units_reduction: integer | null
+РќРµР»СЊР·СЏ СЃРѕР·РґР°С‚СЊ РµРіРѕ РїСЂРѕСЃС‚Рѕ РїРѕС‚РѕРјСѓ, С‡С‚Рѕ:
+Stock РІС‹СЃРѕРєРёР№
+РµСЃР»Рё РЅРёРєР°РєРѕРіРѕ Р±СѓРґСѓС‰РµРіРѕ replenishment РІРѕРѕР±С‰Рµ РЅРµС‚.
+РўРѕРіРґР° РЅСѓР¶РЅР° РґСЂСѓРіР°СЏ Recommendation, РЅР°РїСЂРёРјРµСЂ Price/Promotion/Monitor.
+
+19. РћС‡РµРЅСЊ РІР°Р¶РЅР°СЏ Р±СѓРґСѓС‰Р°СЏ execution-РіСЂР°РЅРёС†Р°
+SKU_INCREASE_REPLENISHMENT РЅРёРєРѕРіРґР° РЅРµР»СЊР·СЏ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё РїРµСЂРµРІРѕРґРёС‚СЊ РІ РІС‹Р·РѕРІ /v2/products/stocks, С‡С‚РѕР±С‹ РїСЂРѕСЃС‚Рѕ РЅР°СЂРёСЃРѕРІР°С‚СЊ seller Р±РѕР»СЊС€РёР№ FBS stock.
+Stock API РґРѕР»Р¶РµРЅ РѕС‚СЂР°Р¶Р°С‚СЊ СЂРµР°Р»СЊРЅРѕ РёРјРµСЋС‰РёР№СЃСЏ С„РёР·РёС‡РµСЃРєРёР№ Р·Р°РїР°СЃ, Р° РЅРµ Р¶РµР»Р°РµРјРѕРµ РєРѕР»РёС‡РµСЃС‚РІРѕ.
+Р”Р»СЏ FBO replenishment СЃСѓС‰РµСЃС‚РІСѓРµС‚ РѕС‚РґРµР»СЊРЅС‹Р№ Supply workflow. GitHub
+РџРѕСЌС‚РѕРјСѓ semantic Action:
+INCREASE_REPLENISHMENT
+Рё provider command:
+UPDATE_STOCK
+РЅРµ СЏРІР»СЏСЋС‚СЃСЏ РѕРґРЅРёРј Рё С‚РµРј Р¶Рµ.
+
+20. SKU_ADJUST_AD_BID
+Target:
+SKU
+Related:
+CAMPAIGN
+Parameters:
+campaign_ref
+recommended_bid
+Action РґРѕРїСѓСЃС‚РёРј С‚РѕР»СЊРєРѕ РµСЃР»Рё:
+SKU РґРµР№СЃС‚РІРёС‚РµР»СЊРЅРѕ СЃРІСЏР·Р°РЅ СЃ Campaign;
+bid semantics РґР»СЏ РґР°РЅРЅРѕРіРѕ С‚РёРїР° Campaign РёР·РІРµСЃС‚РЅР°;
+current/minimum/provider limits РґРѕСЃС‚СѓРїРЅС‹ РІ canonical facts;
+Advertising capability usable.
+Current Performance API РёРјРµРµС‚ РѕС‚РґРµР»СЊРЅС‹Рµ РјРµС‚РѕРґС‹ РґР»СЏ РјРёРЅРёРјР°Р»СЊРЅС‹С…/РєРѕРЅРєСѓСЂРµРЅС‚РЅС‹С… СЃС‚Р°РІРѕРє Рё product-level bid updates, РЅРѕ СЌС‚Рё contracts РјРµРЅСЏСЋС‚СЃСЏ, РїРѕСЌС‚РѕРјСѓ bid action Р±СѓРґРµС‚ capability-gated. GitHub
+
+21. SKU_CHANGE_AD_PARTICIPATION
+Parameters:
+campaign_ref
+
+desired_state:
+ENABLED
+DISABLED
+РќР°РїСЂРёРјРµСЂ:
+РћС‚РєР»СЋС‡РёС‚СЊ SKU 417 РѕС‚ Campaign 58.
+РёР»Рё:
+Р”РѕР±Р°РІРёС‚СЊ SKU 417 РІ Campaign 58.
+РќРѕ Campaign РґРѕР»Р¶РЅР° СЂРµР°Р»СЊРЅРѕ СЃСѓС‰РµСЃС‚РІРѕРІР°С‚СЊ РІ Deep factual context.
+
+22. SKU_JOIN_PROMOTION
+Related:
+PROMOTION
+Parameters:
+promotion_ref
+recommended_action_price: Money | null
+Backend РїСЂРѕРІРµСЂСЏРµС‚:
+SKU = candidate/eligible
+SKU != already participant
+Candidate в‰  Participant вЂ” РѕСЃС‚Р°С‘С‚СЃСЏ С„СѓРЅРґР°РјРµРЅС‚Р°Р»СЊРЅС‹Рј invariant.
+РўРµРєСѓС‰РёР№ Ozon API РґРµР№СЃС‚РІРёС‚РµР»СЊРЅРѕ СЂР°Р·РґРµР»СЏРµС‚ candidates Рё participating products Рё РїСЂРµРґРѕСЃС‚Р°РІР»СЏРµС‚ РѕС‚РґРµР»СЊРЅС‹Рµ write-РѕРїРµСЂР°С†РёРё РґРѕР±Р°РІР»РµРЅРёСЏ С‚РѕРІР°СЂР° РІ Р°РєС†РёСЋ. GitHub
+
+23. SKU_LEAVE_PROMOTION
+Related:
+PROMOTION
+Backend С‚СЂРµР±СѓРµС‚:
+current membership = PARTICIPANT.
+РќРµР»СЊР·СЏ РїСЂРµРґР»РѕР¶РёС‚СЊ РІС‹Р№С‚Рё РёР· Р°РєС†РёРё, РІ РєРѕС‚РѕСЂРѕР№ SKU РЅРµ СѓС‡Р°СЃС‚РІСѓРµС‚.
+
+24. SKU_ADJUST_PROMOTION_PRICE
+Related:
+PROMOTION
+Parameters:
+recommended_action_price
+Р РѕСЃРѕР±РµРЅРЅРѕ РІР°Р¶РЅРѕ:
+promotion_action_price
+в‰ 
+canonical current_price.
+Backend Рё schema РЅРµ РїРѕР·РІРѕР»СЏСЋС‚ РёС… РїРµСЂРµРїСѓС‚Р°С‚СЊ.
+
+25. SKU_CHANGE_CATALOG_STATE
+Р’РјРµСЃС‚Рѕ РѕС‚РґРµР»СЊРЅС‹С…:
+ARCHIVE_SKU
+UNARCHIVE_SKU
+СЏ Р±С‹ СЃРґРµР»Р°Р» РѕРґРёРЅ СЃС‚Р°Р±РёР»СЊРЅС‹Р№ semantic Action:
+desired_state:
+ACTIVE
+ARCHIVED
+Backend РѕР±РЅР°СЂСѓР¶РёРІР°РµС‚ no-op.
+РќР°РїСЂРёРјРµСЂ:
+current = ARCHIVED
+desired = ARCHIVED
+в†’ INVALID_NOOP.
+Current Seller API РґРµР№СЃС‚РІРёС‚РµР»СЊРЅРѕ РёРјРµРµС‚ РѕС‚РґРµР»СЊРЅС‹Рµ archive/unarchive operations, РїРѕСЌС‚РѕРјСѓ semantic action С…РѕСЂРѕС€Рѕ СЃРѕРѕС‚РІРµС‚СЃС‚РІСѓРµС‚ СЂРµР°Р»СЊРЅРѕРјСѓ СЂС‹С‡Р°РіСѓ seller. GitHub
+
+26. РС‚РѕРіРѕ SKU v1
+SKU_ADJUST_PRICE
+
+SKU_INCREASE_REPLENISHMENT
+SKU_REDUCE_REPLENISHMENT
+
+SKU_ADJUST_AD_BID
+SKU_CHANGE_AD_PARTICIPATION
+
+SKU_JOIN_PROMOTION
+SKU_LEAVE_PROMOTION
+SKU_ADJUST_PROMOTION_PRICE
+
+SKU_CHANGE_CATALOG_STATE
+Р­С‚Рѕ СѓР¶Рµ РґРѕРІРѕР»СЊРЅРѕ РјРѕС‰РЅС‹Р№ РЅР°Р±РѕСЂ.
+
+27. Р§С‚Рѕ СЏ СЃРѕР·РЅР°С‚РµР»СЊРЅРѕ РќР• РІРєР»СЋС‡Р°СЋ РґР»СЏ SKU
+РџРѕРєР° РЅРµС‚:
+CHANGE_TITLE
+CHANGE_DESCRIPTION
+CHANGE_IMAGES
+
+OPTIMIZE_CARD
+IMPROVE_SEO
+
+CHANGE_CATEGORY
+
+MOVE_TO_WAREHOUSE
+MOVE_TO_CLUSTER
+
+CHANGE_FINANCE
+
+FIX_FUNNEL
+
+CHANGE_RATING
+РџРѕС‚РѕРјСѓ С‡С‚Рѕ Р»РёР±Рѕ:
+РЅРµС‚ СЃРѕРѕС‚РІРµС‚СЃС‚РІСѓСЋС‰РµР№ factual architecture;
+СЌС‚Рѕ supporting entity, Р° РЅРµ Action Target;
+СЌС‚Рѕ РЅРµ РЅР°СЃС‚РѕСЏС‰РёР№ СѓРїСЂР°РІР»РµРЅС‡РµСЃРєРёР№ СЂС‹С‡Р°Рі;
+Р»РёР±Рѕ СЃРµРјР°РЅС‚РёРєР° РїРѕРєР° РЅРµРґРѕСЃС‚Р°С‚РѕС‡РЅРѕ РЅР°РґС‘Р¶РЅР°.
+
+28. CAMPAIGN Actions
+Campaign вЂ” РІС‚РѕСЂРѕР№ РѕСЃРЅРѕРІРЅРѕР№ operational Action Target.
+
+29. CAMPAIGN_ADJUST_BUDGET
+Parameters:
+recommended_budget: Money
+
+budget_period:
+WEEKLY
+PROVIDER_DEFINED
+РЇ Р±С‹ РЅРµ СЃС‚СЂРѕРёР» contract РІРѕРєСЂСѓРі dailyBudget, РїРѕС‚РѕРјСѓ С‡С‚Рѕ Performance API РІ РјР°Рµ 2026 СѓР¶Рµ РїРѕРјРµС‚РёР» РµРіРѕ deprecated, РІ С‚Рѕ РІСЂРµРјСЏ РєР°Рє weeklyBudget СЃСѓС‰РµСЃС‚РІСѓРµС‚ РІ campaign contracts. GitHub
+Semantic Action РѕСЃС‚Р°С‘С‚СЃСЏ:
+ADJUST_BUDGET
+Р° execution adapter РїРѕР·Р¶Рµ Р·РЅР°РµС‚ РєРѕРЅРєСЂРµС‚РЅС‹Р№ provider field.
+
+30. CAMPAIGN_CHANGE_STATE
+Parameters:
+desired_state:
+ACTIVE
+PAUSED
+Backend РїСЂРѕРІРµСЂСЏРµС‚:
+current != desired.
+Current Performance API РёРјРµРµС‚ РѕС‚РґРµР»СЊРЅС‹Рµ activate/deactivate operations. GitHub
+
+31. CAMPAIGN_ADJUST_STRATEGY
+Parameters:
+desired_strategy
+РќРѕ Р·РґРµСЃСЊ РїСЂРёРЅС†РёРїРёР°Р»СЊРЅРѕРµ РѕРіСЂР°РЅРёС‡РµРЅРёРµ:
+desired_strategy РЅРµ СЏРІР»СЏРµС‚СЃСЏ СЃРІРѕР±РѕРґРЅРѕР№ СЃС‚СЂРѕРєРѕР№ AI.
+Action Menu РґР»СЏ РєРѕРЅРєСЂРµС‚РЅРѕР№ Campaign С„РѕСЂРјРёСЂСѓРµС‚ РґРѕРїСѓСЃС‚РёРјС‹Р№ enum РёР· canonical Campaign capability/provider contract.
+Р•СЃР»Рё СЃС‚СЂР°С‚РµРіРёСЏ Campaign РЅРµ РїРѕРґРґРµСЂР¶РёРІР°РµС‚ Р±РµР·РѕРїР°СЃРЅРѕРµ РёР·РјРµРЅРµРЅРёРµ:
+CAMPAIGN_ADJUST_STRATEGY
+РІРѕРѕР±С‰Рµ РѕС‚СЃСѓС‚СЃС‚РІСѓРµС‚ РІ Action Menu.
+
+32. CAMPAIGN_ADJUST_PRODUCT_SET
+Parameters:
+add_sku_refs[]
+remove_sku_refs[]
+РЈСЃР»РѕРІРёСЏ:
+at least one list non-empty
+
+add в€© remove = в€…
+Current Performance API РґРµР№СЃС‚РІРёС‚РµР»СЊРЅРѕ РёРјРµРµС‚ separate add/update/delete product methods РґР»СЏ Campaign. GitHub
+
+33. РћС‡РµРЅСЊ РІР°Р¶РЅРѕРµ РїСЂР°РІРёР»Рѕ РґР»СЏ child SKU
+Р•СЃР»Рё Action:
+CAMPAIGN_ADJUST_PRODUCT_SET
+С…РѕС‡РµС‚ СѓРґР°Р»РёС‚СЊ:
+SKU 417
+С‚Рѕ SKU 417 РґРѕР»Р¶РµРЅ С‚РѕР¶Рµ Р±С‹С‚СЊ:
+Materiality-selected main Entity
++
+present in Discovery/Deep Pack
+РџРѕС‡РµРјСѓ?
+РРЅР°С‡Рµ РјС‹ С„РѕСЂРјР°Р»СЊРЅРѕ РѕР±РѕР№РґС‘Рј СѓР¶Рµ РїСЂРёРЅСЏС‚РѕРµ РїСЂР°РІРёР»Рѕ:
+Evidence-only SKU РЅРµ РјРѕР¶РµС‚ РІРЅРµР·Р°РїРЅРѕ СЃС‚Р°С‚СЊ РѕР±СЉРµРєС‚РѕРј СѓРїСЂР°РІР»РµРЅРёСЏ.
+РҐРѕС‚СЏ target РєР°СЂС‚РѕС‡РєРё Р±СѓРґРµС‚ Campaign, РїРѕ С„Р°РєС‚Сѓ РјС‹ РІСЃС‘ СЂР°РІРЅРѕ РјРµРЅСЏРµРј СЃРѕСЃС‚РѕСЏРЅРёРµ SKU.
+
+34. РўРѕ Р¶Рµ РїСЂР°РІРёР»Рѕ СѓРЅРёРІРµСЂСЃР°Р»СЊРЅРѕ
+РЇ РїСЂРµРґР»Р°РіР°СЋ Р·Р°С„РёРєСЃРёСЂРѕРІР°С‚СЊ:
+Р•СЃР»Рё Action parameter СЃРѕРґРµСЂР¶РёС‚ РґСЂСѓРіСѓСЋ main Action Entity Рё РїСЂРµРґРїРѕР»Р°РіР°РµС‚ РёР·РјРµРЅРµРЅРёРµ РµС‘ СЃРѕСЃС‚РѕСЏРЅРёСЏ, СЌС‚Р° entity С‚РѕР¶Рµ РґРѕР»Р¶РЅР° РїСЂРѕР№С‚Рё Materiality.
+Supporting entities:
+Promotion
+Supply
+Search Query
+Warehouse
+РјРѕРіСѓС‚ РёСЃРїРѕР»СЊР·РѕРІР°С‚СЊСЃСЏ РєР°Рє context Р±РµР· Materiality.
+РќРѕ РµСЃР»Рё РјС‹ СЂРµР°Р»СЊРЅРѕ РјРµРЅСЏРµРј SKU/Campaign:
+РѕРЅ РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ main material entity.
+
+35. РС‚РѕРіРѕ Campaign v1
+CAMPAIGN_ADJUST_BUDGET
+CAMPAIGN_CHANGE_STATE
+CAMPAIGN_ADJUST_STRATEGY
+CAMPAIGN_ADJUST_PRODUCT_SET
+Product-level bid РѕСЃС‚Р°С‘С‚СЃСЏ SKU Action.
+Р­С‚Рѕ РЅР°РјРЅРѕРіРѕ С‡РёС‰Рµ.
+
+36. РџРѕР»РЅС‹Р№ Action Catalog v1
+Р’ РёС‚РѕРіРµ СЏ СЂРµРєРѕРјРµРЅРґСѓСЋ РЅР°С‡Р°С‚СЊ РІСЃРµРіРѕ СЃ 19 СЃС‚Р°Р±РёР»СЊРЅС‹С… Action Types:
+Target
+Action Types
+Account
+ACCOUNT_RATING_REMEDIATION
+Category
+CATEGORY_REPRICING_PLAN, CATEGORY_REPLENISHMENT_PLAN, CATEGORY_ADVERTISING_REALLOCATION, CATEGORY_PROMOTION_PLAN, CATEGORY_ASSORTMENT_RATIONALIZATION
+SKU
+SKU_ADJUST_PRICE, SKU_INCREASE_REPLENISHMENT, SKU_REDUCE_REPLENISHMENT, SKU_ADJUST_AD_BID, SKU_CHANGE_AD_PARTICIPATION, SKU_JOIN_PROMOTION, SKU_LEAVE_PROMOTION, SKU_ADJUST_PROMOTION_PRICE, SKU_CHANGE_CATALOG_STATE
+Campaign
+CAMPAIGN_ADJUST_BUDGET, CAMPAIGN_CHANGE_STATE, CAMPAIGN_ADJUST_STRATEGY, CAMPAIGN_ADJUST_PRODUCT_SET
+РЇ СЃРїРµС†РёР°Р»СЊРЅРѕ РїСЂРµРґР»Р°РіР°СЋ РЅРµ СЂР°Р·РґСѓРІР°С‚СЊ v1 Catalog.
+Р”РѕР±Р°РІРёС‚СЊ РЅРѕРІС‹Р№ Action Type РІРїРѕСЃР»РµРґСЃС‚РІРёРё Р»РµРіРєРѕ.
+РЈРґР°Р»РёС‚СЊ 60 РїР»РѕС…Рѕ СЃРїСЂРѕРµРєС‚РёСЂРѕРІР°РЅРЅС‹С… С‚РёРїРѕРІ РЅР°РјРЅРѕРіРѕ СЃР»РѕР¶РЅРµРµ.
+
+37. Action Proposal Schema
+Deep С„Р°РєС‚РёС‡РµСЃРєРё РІРѕР·РІСЂР°С‰Р°РµС‚ РїСЂРёРјРµСЂРЅРѕ:
+{
+  "action_type": "SKU_ADJUST_PRICE",
+
+  "target": {
+    "kind": "SKU",
+    "id": "417"
+  },
+
+  "parameters": {
+    "recommended_price": {
+      "amount": "2190",
+      "currency": "RUB"
+    }
+  },
+
+  "recommendation_ordinal": 2,
+
+  "finding_ordinals": [1],
+
+  "fact_handles": [
+    "f_021",
+    "ef_007",
+    "ef_012"
+  ]
+}
+
+38. РќРёРєР°РєРёС… system IDs РѕС‚ AI
+РњРѕРґРµР»СЊ РЅРµ РїСЂРёРґСѓРјС‹РІР°РµС‚:
+action_id
+finding_id
+recommendation_id
+РћРЅР° РёСЃРїРѕР»СЊР·СѓРµС‚ local ordinals РІРЅСѓС‚СЂРё СЃРІРѕРµРіРѕ structured output:
+finding #1
+recommendation #2
+РџРѕСЃР»Рµ validation backend СЃРѕР·РґР°С‘С‚ РЅР°СЃС‚РѕСЏС‰РёРµ IDs.
+
+39. Action Proposal РЅРµ СЃРѕРґРµСЂР¶РёС‚ РѕС‚РґРµР»СЊРЅС‹Р№ title
+РќР°РїСЂРёРјРµСЂ AI РЅРµ РЅСѓР¶РЅРѕ РµС‰С‘ СЂР°Р· РїРёСЃР°С‚СЊ:
+title:
+"РЎРЅРёР·СЊС‚Рµ С†РµРЅСѓ!"
+РЈ РЅР°СЃ СѓР¶Рµ РµСЃС‚СЊ:
+Action Type
+Recommendation statement
+Recommendation rationale
+Parameters
+Publication Projector РїРѕР·Р¶Рµ РјРѕР¶РµС‚ РґРµС‚РµСЂРјРёРЅРёСЂРѕРІР°РЅРЅРѕ РїРѕРєР°Р·Р°С‚СЊ:
+РЎРєРѕСЂСЂРµРєС‚РёСЂРѕРІР°С‚СЊ С†РµРЅСѓ SKU
+Рё СЂСЏРґРѕРј:
+2 300 в‚Ѕ в†’ 2 190 в‚Ѕ.
+Р­С‚Рѕ СѓРјРµРЅСЊС€Р°РµС‚ Р»РёС€РЅРёР№ generated prose.
+
+40. Target-state Р»СѓС‡С€Рµ delta
+Р”Р»СЏ Р»СЋР±С‹С… С‡РёСЃР»РѕРІС‹С… Actions СЏ РїСЂРµРґРїРѕС‡РёС‚Р°СЋ:
+recommended_price = 2190
+Р° РЅРµ:
+decrease_price_by = 4.78%
+Campaign:
+recommended_weekly_budget = 70000
+Р° РЅРµ:
+increase_budget_by = 20%.
+Bid:
+recommended_bid = 25
+Р° РЅРµ:
++5.
+РџРѕС‡РµРјСѓ?
+Target state:
+РѕРґРЅРѕР·РЅР°С‡РµРЅ;
+Р»РµРіС‡Рµ РІР°Р»РёРґРёСЂСѓРµС‚СЃСЏ;
+Р»РµРіС‡Рµ РѕС‚РѕР±СЂР°Р¶Р°РµС‚СЃСЏ;
+Р±РµР·РѕРїР°СЃРЅРµРµ РґР»СЏ Р±СѓРґСѓС‰РµРіРѕ executor;
+РЅРµ Р·Р°РІРёСЃРёС‚ РѕС‚ С‚РѕРіРѕ, РёР·РјРµРЅРёР»РѕСЃСЊ Р»Рё РёСЃС…РѕРґРЅРѕРµ Р·РЅР°С‡РµРЅРёРµ РјРµР¶РґСѓ СЂР°СЃС‡С‘С‚Р°РјРё.
+
+41. Delta РІСЃРµРіРґР° СЃС‡РёС‚Р°РµС‚ backend
+РќР°РїСЂРёРјРµСЂ:
+current price:
+2300
+
+recommended:
+2190
+Backend С„РѕСЂРјРёСЂСѓРµС‚:
+absolute_delta = -110
+pct_delta = -4.78%
+AI РЅРµ РїРµСЂРµСЃС‡РёС‚С‹РІР°РµС‚.
+
+42. Numerical recommendations вЂ” С‚РѕР»СЊРєРѕ С‚Р°Рј, РіРґРµ schema СЂР°Р·СЂРµС€Р°РµС‚
+РњРѕР¶РЅРѕ:
+SKU_ADJUST_PRICE
+в†’ recommended_price
+
+CAMPAIGN_ADJUST_BUDGET
+в†’ recommended_budget
+
+SKU_ADJUST_AD_BID
+в†’ recommended_bid
+РќРµ РЅСѓР¶РЅРѕ РїРѕР·РІРѕР»СЏС‚СЊ С‡РёСЃР»РѕРІРѕРµ РїРѕР»Рµ РєР°Р¶РґРѕРјСѓ Action РЅР° РІСЃСЏРєРёР№ СЃР»СѓС‡Р°Р№.
+РќР°РїСЂРёРјРµСЂ:
+ACCOUNT_RATING_REMEDIATION
+РЅРµ РёРјРµРµС‚:
+recommended_rating = 96.4
+РµСЃР»Рё seller РЅР°РїСЂСЏРјСѓСЋ СЌС‚РѕС‚ rating РЅРµ СѓСЃС‚Р°РЅР°РІР»РёРІР°РµС‚.
+
+43. РќРµ РґРѕРїСѓСЃРєР°РµРј expected business outcome
+Action schema РЅРµ СЃРѕРґРµСЂР¶РёС‚:
+expected_revenue_uplift
+expected_orders_growth
+expected_roi
+expected_profit
+success_probability
+РџРѕС‚РѕРјСѓ С‡С‚Рѕ Сѓ РЅР°СЃ РЅРµС‚ causal forecasting model.
+AI РјРѕР¶РµС‚ СЃС„РѕСЂРјСѓР»РёСЂРѕРІР°С‚СЊ intended outcome РІ Recommendation:
+СѓРІРµР»РёС‡РёС‚СЊ РґРѕСЃС‚СѓРїРЅРѕСЃС‚СЊ С‚РѕРІР°СЂР°.
+РќРѕ РЅРµ:
+СЌС‚Рѕ РїСЂРёРЅРµСЃС‘С‚ +320 000 в‚Ѕ.
+
+44. Required Evidence Policy
+РљР°Р¶РґС‹Р№ Action Type РёРјРµРµС‚ metadata:
+required_domains
+required_capabilities
+required_fact_classes
+allowed_readiness
+РќР°РїСЂРёРјРµСЂ:
+SKU_ADJUST_PRICE
+РјРёРЅРёРјР°Р»СЊРЅРѕ С‚СЂРµР±СѓРµС‚:
+current Price usable
+Sales Demand usable
+Price factual context
+
+SKU_INCREASE_REPLENISHMENT
+current Stock usable
+Sales Demand usable
+Supply context:
+required if applicable/available
+
+SKU_ADJUST_AD_BID
+Advertising READY/PARTIAL allowed by policy
+Campaignв†”SKU relation known
+bid semantics known
+
+SKU_JOIN_PROMOTION
+Promotion capability usable
+candidate eligibility known
+
+45. РќРѕ backend РЅРµ РїСЂРѕРІРµСЂСЏРµС‚ В«РїСЂР°РІРёР»СЊРЅРѕСЃС‚СЊ Р±РёР·РЅРµСЃ-СЂРµС€РµРЅРёСЏВ»
+Р­С‚Рѕ РїСЂРёРЅС†РёРїРёР°Р»СЊРЅРѕ.
+РћРЅ РЅРµ РїРёС€РµС‚:
+if coverageDays < 3 {
+    allow replenishment
+}
+РёР»Рё:
+if drr > 30 {
+    allow bid decrease
+}
+Р­С‚Рѕ РѕРїСЏС‚СЊ Р±С‹Р» Р±С‹ semantic rule engine.
+Backend РїСЂРѕРІРµСЂСЏРµС‚:
+РµСЃС‚СЊ Р»Рё РґР°РЅРЅС‹Рµ, РЅРµРѕР±С…РѕРґРёРјС‹Рµ РґР»СЏ С‚Р°РєРѕРіРѕ СЂРµС€РµРЅРёСЏ?
+AI СЂРµС€Р°РµС‚:
+РѕРїСЂР°РІРґР°РЅРѕ Р»Рё СЃР°РјРѕ СЂРµС€РµРЅРёРµ?
+
+46. Action Menu С„РѕСЂРјРёСЂСѓРµС‚СЃСЏ run-specific
+Р“Р»РѕР±Р°Р»СЊРЅРѕ Сѓ РЅР°СЃ:
+19 types.
+РќРѕ РєРѕРЅРєСЂРµС‚РЅРѕРјСѓ seller/run Deep РјРѕР¶РµС‚ СѓРІРёРґРµС‚СЊ С‚РѕР»СЊРєРѕ:
+12.
+РќР°РїСЂРёРјРµСЂ:
+Promotions unavailable в†’ promo actions РёСЃРєР»СЋС‡РµРЅС‹;
+Advertising unavailable в†’ ad actions РёСЃРєР»СЋС‡РµРЅС‹;
+Campaign strategy unknown в†’ strategy action РёСЃРєР»СЋС‡С‘РЅ;
+SKU archived в†’ desired_state=ARCHIVED РЅРµРґРѕСЃС‚СѓРїРµРЅ РєР°Рє no-op;
+Promotion participant в†’ JOIN РЅРµРґРѕСЃС‚СѓРїРµРЅ, РЅРѕ LEAVE РґРѕСЃС‚СѓРїРµРЅ.
+РўРѕ РµСЃС‚СЊ Deep РїРѕР»СѓС‡Р°РµС‚ С‚РѕР»СЊРєРѕ С„Р°РєС‚РёС‡РµСЃРєРё РїСЂРёРјРµРЅРёРјС‹Рµ РґРµР№СЃС‚РІРёСЏ.
+
+47. Р­С‚Рѕ РіРѕСЂР°Р·РґРѕ Р»СѓС‡С€Рµ, С‡РµРј РІР°Р»РёРґРёСЂРѕРІР°С‚СЊ РІСЃС‘ РїРѕСЃР»Рµ
+Р•СЃР»Рё:
+SKU 417 already participates in Promotion 91
+Р·Р°С‡РµРј РІРѕРѕР±С‰Рµ РїРѕРєР°Р·С‹РІР°С‚СЊ AI:
+SKU_JOIN_PROMOTION Promotion 91
+Backend РјРѕР¶РµС‚ Р·Р°СЂР°РЅРµРµ СѓР±СЂР°С‚СЊ РЅРµРІРѕР·РјРѕР¶РЅСѓСЋ РєРѕРјР±РёРЅР°С†РёСЋ.
+
+48. Run-specific parameters С‚РѕР¶Рµ РІРѕР·РјРѕР¶РЅС‹
+РќР°РїСЂРёРјРµСЂ РґР»СЏ:
+CAMPAIGN_ADJUST_STRATEGY
+Action Menu РјРѕР¶РµС‚ СЃРєР°Р·Р°С‚СЊ:
+allowed desired_strategy:
+AUTO
+MANUAL
+С‚РѕР»СЊРєРѕ РµСЃР»Рё С‚Р°РєРёРµ transitions СЂРµР°Р»СЊРЅРѕ СЂР°Р·СЂРµС€РµРЅС‹ РґР»СЏ СЌС‚РѕР№ Campaign.
+
+49. Conflict Groups
+РљР°Р¶РґС‹Р№ Action Type РґРѕР»Р¶РµРЅ Р·РЅР°С‚СЊ, СЃ С‡РµРј РѕРЅ РєРѕРЅС„Р»РёРєС‚СѓРµС‚.
+РќР°РїСЂРёРјРµСЂ:
+SKU_REPLENISHMENT:{sku}
+РЅРµ РјРѕР¶РµС‚ РѕРґРЅРѕРІСЂРµРјРµРЅРЅРѕ СЃРѕРґРµСЂР¶Р°С‚СЊ:
+INCREASE_REPLENISHMENT
+REDUCE_REPLENISHMENT
+
+50. Campaign State conflict
+РќРµР»СЊР·СЏ:
+CAMPAIGN_CHANGE_STATE в†’ ACTIVE
+
+Рё
+
+CAMPAIGN_CHANGE_STATE в†’ PAUSED
+РІ РѕРґРЅРѕРј Deep output.
+
+51. Promotion membership
+Р”Р»СЏ:
+SKU 417 + Promotion 91
+РЅРµР»СЊР·СЏ РѕРґРЅРѕРІСЂРµРјРµРЅРЅРѕ:
+JOIN
+LEAVE.
+
+52. Price
+РќР° РѕРґРёРЅ SKU:
+С‚РѕР»СЊРєРѕ РѕРґРёРЅ SKU_ADJUST_PRICE
+РІ РѕРґРЅРѕР№ Publication.
+
+53. Action normalized key
+РљРѕРЅС†РµРїС‚СѓР°Р»СЊРЅРѕ:
+action_type
++
+target
++
+action_context
+РќР°РїСЂРёРјРµСЂ:
+SKU_ADJUST_AD_BID
++
+SKU 417
++
+Campaign 58
+РёР»Рё:
+SKU_JOIN_PROMOTION
++
+SKU 417
++
+Promotion 91.
+
+54. Exact duplicates вЂ” С‚РµС…РЅРёС‡РµСЃРєР°СЏ РѕС€РёР±РєР°
+Р•СЃР»Рё Deep РІРµСЂРЅСѓР» РґРІР° РѕРґРёРЅР°РєРѕРІС‹С…:
+SKU_ADJUST_PRICE
+SKU 417
+2190 в‚Ѕ
+РјС‹ РЅРµ semantic-dedupe.
+Output:
+DUPLICATE_ACTION_PROPOSAL.
+Rerun вЂ” РїРѕ bounded retry policy.
+
+55. РљРѕРЅС„Р»РёРєС‚РЅС‹Рµ Actions вЂ” С‚РѕР¶Рµ invalid
+РќР°РїСЂРёРјРµСЂ:
+SKU_ADJUST_PRICE:
+2190
+
+SKU_ADJUST_PRICE:
+2500
+Backend РЅРµ РІС‹Р±РёСЂР°РµС‚ Р»СѓС‡С€РёР№.
+РќРµ СѓСЃСЂРµРґРЅСЏРµС‚:
+2345.
+Р РЅРµ СЃРїСЂР°С€РёРІР°РµС‚ РјРѕРґРµР»СЊ repair-loop'РѕРј.
+Output invalid.
+
+56. Action Grounding
+РљР°Р¶РґС‹Р№ Action РѕР±СЏР·Р°РЅ РёРјРµС‚СЊ:
+1 Recommendation
+в‰Ґ1 Finding
+в‰Ґ1 Fact Handle
+Р Recommendation РґРѕР»Р¶РЅР° РёРјРµС‚СЊ:
+actionability = ACTIONABLE_NOW.
+
+57. Fact Handles РґРѕР»Р¶РЅС‹ СЃСѓС‰РµСЃС‚РІРѕРІР°С‚СЊ РёРјРµРЅРЅРѕ РІ Deep Pack
+РќРµР»СЊР·СЏ:
+"РїРѕ РґР°РЅРЅС‹Рј, РєРѕС‚РѕСЂС‹С… РІ Pack РЅРµС‚"
+Р’СЃРµ:
+f_*
+ef_*
+РІР°Р»РёРґРёСЂСѓСЋС‚СЃСЏ.
+
+58. Main target whitelist
+РњС‹ СѓР¶Рµ СѓС‚РІРµСЂРґРёР»Рё:
+Action Target РјРѕР¶РµС‚ Р±С‹С‚СЊ С‚РѕР»СЊРєРѕ Materiality-selected main Entity РёР· Discovery Pack.
+РўРѕ РµСЃС‚СЊ:
+Evidence РѕР±РЅР°СЂСѓР¶РёР» SKU 999
+Deep РјРѕР¶РµС‚:
+СѓРїРѕРјСЏРЅСѓС‚СЊ РµРіРѕ;
+РёСЃРїРѕР»СЊР·РѕРІР°С‚СЊ РєР°Рє explanation;
+РїРѕРєР°Р·Р°С‚СЊ РµРіРѕ РІРєР»Р°Рґ.
+РќРѕ:
+Action Target = SKU 999
+Р·Р°РїСЂРµС‰С‘РЅ.
+
+59. Р С‚РµРїРµСЂСЊ РґРѕР±Р°РІР»СЏРµРј child-state rule
+Р•СЃР»Рё Action target:
+Campaign
+РЅРѕ parameters РіРѕРІРѕСЂСЏС‚:
+remove SKU 999
+С‚Рѕ SKU 999 С‚РѕР¶Рµ РґРѕР»Р¶РµРЅ РїСЂРѕР№С‚Рё Materiality.
+РРЅР°С‡Рµ СЌС‚Рѕ РїСЂРѕСЃС‚Рѕ РѕР±С…РѕРґ whitelist С‡РµСЂРµР· parameters.
+
+60. Supporting entities вЂ” РёСЃРєР»СЋС‡РµРЅРёРµ
+РњРѕР¶РЅРѕ:
+SKU_JOIN_PROMOTION
+target = SKU 417
+promotion_ref = Promotion 91
+С…РѕС‚СЏ Promotion 91 РЅРµ Material Entity.
+РџРѕС‚РѕРјСѓ С‡С‚Рѕ Promotion РЅРµ СЏРІР»СЏРµС‚СЃСЏ СЃР°РјРѕСЃС‚РѕСЏС‚РµР»СЊРЅС‹Рј Action Target.
+РўРѕ Р¶Рµ:
+Supply
+Search Query
+Warehouse
+РјРѕР¶РµС‚ Р±С‹С‚СЊ context.
+
+61. Action order = semantic priority
+РЇ РЅРµ СЂРµРєРѕРјРµРЅРґСѓСЋ РµС‰С‘ РѕРґРёРЅ:
+HIGH
+MEDIUM
+LOW
+РёР»Рё:
+priority_score = 87.
+Deep РІРѕР·РІСЂР°С‰Р°РµС‚ Actions РІ РїРѕСЂСЏРґРєРµ:
+1
+2
+3
+...
+РџРµСЂРІС‹Р№ вЂ” РЅР°РёР±РѕР»РµРµ РІР°Р¶РЅРѕРµ РїСЂРµРґР»Р°РіР°РµРјРѕРµ РґРµР№СЃС‚РІРёРµ.
+Р­С‚Рѕ РґРѕСЃС‚Р°С‚РѕС‡РЅРѕ.
+
+62. РџРѕС‡РµРјСѓ РЅРµ РІРІРѕРґРёРј severity
+РЈ РЅР°СЃ СѓР¶Рµ РµСЃС‚СЊ:
+Materiality;
+Finding ordering;
+Recommendation;
+Action ordering.
+Р•СЃР»Рё РµС‰С‘ РґРѕР±Р°РІРёС‚СЊ:
+severity
+priority
+importance_score
+urgency_score
+РїРѕР»СѓС‡РёРј РїСЏС‚СЊ РєРѕРЅРєСѓСЂРёСЂСѓСЋС‰РёС… СЃРёСЃС‚РµРј РІР°Р¶РЅРѕСЃС‚Рё.
+РќРµ РЅСѓР¶РЅРѕ.
+
+63. Timing РјРѕР¶РЅРѕ РґРѕР±Р°РІРёС‚СЊ РїРѕР·Р¶Рµ
+РќР°РїСЂРёРјРµСЂ:
+within 24h
+within 7d
+РЅРѕ СЃРµР№С‡Р°СЃ СЏ Р±С‹ РЅРµ РІРєР»СЋС‡Р°Р» СЌС‚Рѕ РІ v1 Action Contract.
+РџРѕРєР° РЅРµС‚ РґРѕСЃС‚Р°С‚РѕС‡РЅРѕ С…РѕСЂРѕС€РµР№ РјРµС‚РѕРґРѕР»РѕРіРёРё, РєР°Рє AI РґРѕР»Р¶РµРЅ РІС‹Р±РёСЂР°С‚СЊ СЃСЂРѕРє.
+РСЃРєР»СЋС‡РµРЅРёРµ вЂ” provider explicit deadline, РєРѕС‚РѕСЂС‹Р№ РјРѕР¶РЅРѕ РїРѕРєР°Р·Р°С‚СЊ РєР°Рє factual context.
+
+64. Actions РЅРµ РґРѕР»Р¶РЅС‹ Р±С‹С‚СЊ РїСЂРёРІСЏР·Р°РЅС‹ Рє UI
+Deep Action Proposal:
+SKU_ADJUST_PRICE
+target SKU417
+recommended_price 2190
+Publication Projector РїРѕР·Р¶Рµ СЂРµС€РёС‚, РєР°Рє РїРѕРєР°Р·Р°С‚СЊ:
+Top Actions
+РёР»Рё:
+SKU page
+РёР»Рё:
+Actions page.
+
+65. Actions Рё Ozon write endpoints вЂ” СЂР°Р·РґРµР»СЊРЅС‹Рµ contracts
+РЇ РїСЂРµРґР»Р°РіР°СЋ СЃСЂР°Р·Сѓ РїСЂРµРґСѓСЃРјРѕС‚СЂРµС‚СЊ РѕС‚РґРµР»СЊРЅС‹Р№ Р±СѓРґСѓС‰РёР№ registry:
+Action Type
+в†“
+Execution Mapping
+в†“
+Provider Command
+РќР°РїСЂРёРјРµСЂ:
+SKU_ADJUST_PRICE v1
+в†“
+OZON_SELLER_PRICE_EXECUTOR_v3
+в†“
+POST /v1/product/import/prices
+РќРѕ Execution Mapping РЅРµ РІС…РѕРґРёС‚ РІ Deep Analysis Contract.
+
+66. РџРѕС‡РµРјСѓ versioned execution mapping РѕР±СЏР·Р°С‚РµР»РµРЅ
+Performance API С…РѕСЂРѕС€Рѕ РґРµРјРѕРЅСЃС‚СЂРёСЂСѓРµС‚ РїСЂРѕР±Р»РµРјСѓ: РјРµС‚РѕРґС‹/РїРѕР»СЏ Campaign РјРµРЅСЏСЋС‚СЃСЏ, bid contracts РѕР±РЅРѕРІР»СЏСЋС‚СЃСЏ, dailyBudget СЃС‚Р°РЅРѕРІРёС‚СЃСЏ deprecated. Р•СЃР»Рё AI Action РЅР°Р·С‹РІР°РµС‚СЃСЏ РїРѕ С‚РµРєСѓС‰РµРјСѓ API field, РїСЂРёРґС‘С‚СЃСЏ РјРµРЅСЏС‚СЊ AI architecture РїСЂРё РєР°Р¶РґРѕРј Ozon release. GitHub
+РџСЂР°РІРёР»СЊРЅРѕ:
+CAMPAIGN_ADJUST_BUDGET
+СЃС‚Р°Р±РёР»РµРЅ.
+Рђ:
+Performance API mapping v7
+РјРѕР¶РµС‚ РјРµРЅСЏС‚СЊСЃСЏ.
+
+67. Future Execution Safety
+Р”Р°Р¶Рµ РєРѕРіРґР° РїРѕСЏРІСЏС‚СЃСЏ write-actions, СЏ Р±С‹ Р·Р°С„РёРєСЃРёСЂРѕРІР°Р» СѓР¶Рµ СЃРµР№С‡Р°СЃ:
+Published Action РЅРёРєРѕРіРґР° РЅРµ СЏРІР»СЏРµС‚СЃСЏ РіРѕС‚РѕРІРѕР№ РєРѕРјР°РЅРґРѕР№ Ozon.
+РџРµСЂРµРґ write:
+user explicitly confirms
+в†“
+fetch current state
+в†“
+revalidate capability
+в†“
+revalidate provider constraints
+в†“
+compare current vs analysis state
+в†“
+build provider command
+в†“
+execute
+в†“
+read-after-write confirmation
+РРЅР°С‡Рµ stale AI recommendation РјРѕР¶РµС‚ РёР·РјРµРЅРёС‚СЊ СѓР¶Рµ РёР·РјРµРЅРёРІС€РёР№СЃСЏ РєР°Р±РёРЅРµС‚.
+
+68. High-impact Actions
+РћСЃРѕР±РµРЅРЅРѕ:
+archive SKU
+pause Campaign
+leave Promotion
+reduce replenishment
+РІ Р±СѓРґСѓС‰РµРј РґРѕР»Р¶РЅС‹ РёРјРµС‚СЊ Р±РѕР»РµРµ СЃС‚СЂРѕРіСѓСЋ confirmation policy.
+РќРѕ СЌС‚Рѕ execution-layer metadata, РЅРµ AI semantic priority.
+
+69. execution_support
+Р’ Catalog СЏ Р±С‹ СЃСЂР°Р·Сѓ С…СЂР°РЅРёР»:
+MANUAL_ONLY
+API_PATH_VERIFIED
+API_PATH_POSSIBLE
+РќР°РїСЂРёРјРµСЂ:
+SKU_ADJUST_PRICE
+в†’ API_PATH_VERIFIED
+
+CAMPAIGN_CHANGE_STATE
+в†’ API_PATH_VERIFIED
+
+CATEGORY_REPRICING_PLAN
+в†’ MANUAL_ONLY
+РќРѕ РІ v1:
+execution_enabled = false
+РґР»СЏ РІСЃРµС….
+
+70. Deep РЅРµ РЅСѓР¶РЅРѕ Р·РЅР°С‚СЊ, РєР°РєРѕР№ endpoint СЃСѓС‰РµСЃС‚РІСѓРµС‚
+AI РґРѕР»Р¶РµРЅ СЂРµС€РёС‚СЊ:
+РєР°РєРѕРµ СѓРїСЂР°РІР»РµРЅС‡РµСЃРєРѕРµ РґРµР№СЃС‚РІРёРµ РѕР±РѕСЃРЅРѕРІР°РЅРѕ?
+РќРµ:
+РєР°РєРѕР№ REST endpoint РІС‹Р·РІР°С‚СЊ?
+
+71. Action Type Registry
+Р¤РёР·РёС‡РµСЃРєРё:
+analysis.action_type_definitions
+analysis.action_type_versions
+analysis.action_catalog_versions
+
+72. action_type_definitions
+id
+action_type_key
+target_kind
+action_family
+Stable.
+
+73. action_type_versions
+action_type_definition_id
+
+version
+
+parameter_schema
+
+allowed_related_entity_kinds
+
+required_capability_policy
+
+required_context_policy
+
+conflict_group
+
+execution_support
+
+execution_risk
+
+validation_policy
+
+effective_from
+
+74. Catalog Version
+Bundle:
+action_catalog_v1
+СЃРѕРґРµСЂР¶РёС‚ exact Action Type versions, СЂР°Р·СЂРµС€С‘РЅРЅС‹Рµ РєРѕРЅРєСЂРµС‚РЅРѕРјСѓ Deep Prompt generation.
+Deep Run СѓР¶Рµ С…СЂР°РЅРёС‚:
+action_catalog_version.
+
+75. Future execution mapping РѕС‚РґРµР»СЊРЅРѕ
+РќР°РїСЂРёРјРµСЂ:
+integration.action_execution_mappings
+Fields:
+action_type_version
+
+provider
+provider_contract_version
+
+executor_key
+
+capability_required
+
+status
+РќРµ СЃРјРµС€РёРІР°С‚СЊ СЃ analytical catalog.
+
+76. Deep Action Proposal persistence
+РњС‹ СѓР¶Рµ РїСЂРµРґСѓСЃРјРѕС‚СЂРµР»Рё:
+analysis.deep_action_proposals
+Р”РѕР±Р°РІРёРј РЅРѕСЂРјР°Р»РёР·РѕРІР°РЅРЅС‹Рµ relations:
+analysis.deep_action_proposal_findings
+analysis.deep_action_proposal_fact_basis
+analysis.deep_action_proposal_related_entities
+Type-specific parameters РјРѕР¶РЅРѕ С…СЂР°РЅРёС‚СЊ:
+parameters_jsonb
+РЅРѕ СЃС‚СЂРѕРіРѕ РІР°Р»РёРґРёСЂРѕРІР°С‚СЊ РїСЂРѕС‚РёРІ immutable action_type_version.parameter_schema.
+Р­С‚Рѕ РѕРґРёРЅ РёР· РЅРµРјРЅРѕРіРёС… СЃР»СѓС‡Р°РµРІ, РіРґРµ JSONB РѕРїСЂР°РІРґР°РЅ: payload genuinely varies by closed Action Type, Р° schema versioned.
+
+77. РќРёРєР°РєРѕР№ generic arbitrary JSON
+Р Р°Р·РЅРёС†Р°:
+РџР»РѕС…Рѕ:
+{
+  "action_type": "anything",
+  "params": {
+    "whatever": "whatever"
+  }
+}
+РџСЂР°РІРёР»СЊРЅРѕ:
+Action Type = known version
+в†“
+strict parameter JSON Schema
+в†“
+validated JSONB
+
+78. Action Validator Layers
+РЇ РІРёР¶Сѓ РїСЏС‚СЊ РїРѕСЃР»РµРґРѕРІР°С‚РµР»СЊРЅС‹С… validation levels.
+Level 1 вЂ” Schema
+JSON СЃРѕРѕС‚РІРµС‚СЃС‚РІСѓРµС‚ Structured Output contract.
+Level 2 вЂ” References
+Target/Finding/Recommendation/Facts СЃСѓС‰РµСЃС‚РІСѓСЋС‚.
+Level 3 вЂ” Catalog
+Action Type РґРѕСЃС‚СѓРїРµРЅ target.
+Level 4 вЂ” State/parameters
+РўРµРєСѓС‰РёР№ factual state СЃРѕРІРјРµСЃС‚РёРј.
+Level 5 вЂ” Cross-action invariants
+РќРµС‚ duplicates/conflicts.
+
+79. Р§С‚Рѕ backend РќР• РґРµР»Р°РµС‚
+РћРЅ РЅРµ СЂРµС€Р°РµС‚:
+СЌС‚Р° СЂРµРєРѕРјРµРЅРґР°С†РёСЏ СЃР»РёС€РєРѕРј Р°РіСЂРµСЃСЃРёРІРЅР°СЏ;
+СЌС‚Рѕ РїР»РѕС…Р°СЏ С†РµРЅР°;
+Р»СѓС‡С€Рµ РЅРµ РІС‹РєР»СЋС‡Р°С‚СЊ СЂРµРєР»Р°РјСѓ;
+SKU Р·Р°СЃР»СѓР¶РёРІР°РµС‚ Р°СЂС…РёРІРёСЂРѕРІР°РЅРёСЏ.
+Р­С‚Рѕ semantic judgment Deep.
+
+80. Р§С‚Рѕ backend РґРµР»Р°РµС‚
+РќР°РїСЂРёРјРµСЂ:
+AI recommends price 0 в‚Ѕ
+INVALID.
+AI recommends Campaign PAUSED,
+РЅРѕ Campaign already PAUSED
+INVALID_NOOP.
+AI wants JOIN Promotion,
+but SKU already participant
+INVALID_STATE.
+AI wants bid 5 в‚Ѕ,
+known provider minimum = 10 в‚Ѕ
+INVALID_PROVIDER_BOUND.
+Р’РѕС‚ СЌС‚Рѕ РєРѕСЂСЂРµРєС‚РЅС‹Рµ С‚РµС…РЅРёС‡РµСЃРєРёРµ validations.
+
+81. Provider-defined limits РІР°Р¶РЅС‹
+Performance API СЃРµР№С‡Р°СЃ РёРјРµРµС‚ РјРµС‚РѕРґС‹ РґР»СЏ РїРѕР»СѓС‡РµРЅРёСЏ limit/min/competitive bid context, РїРѕСЌС‚РѕРјСѓ РІ Р±СѓРґСѓС‰РµРј known provider constraints РјРѕР¶РЅРѕ РёСЃРїРѕР»СЊР·РѕРІР°С‚СЊ РґР»СЏ technical Action validation. GitHub
+РќРѕ:
+РєРѕРЅРєСѓСЂРµРЅС‚РЅР°СЏ СЃС‚Р°РІРєР° Ozon
+РЅРµ РѕР·РЅР°С‡Р°РµС‚:
+Aivion РѕР±СЏР·Р°РЅ СЂРµРєРѕРјРµРЅРґРѕРІР°С‚СЊ РёРјРµРЅРЅРѕ РµС‘.
+Р­С‚Рѕ РІСЃРµРіРѕ Р»РёС€СЊ provider fact/bound/context.
+
+82. Example: Price Action
+Facts:
+current Price:
+2300
+
+min allowed:
+1800
+
+Price changed:
+2000 в†’ 2300
+
+Sales:
+100 в†’ 70
+
+Deep Finding:
+Price is a plausible contributor,
+but not proven cause.
+Recommendation:
+Р Р°СЃСЃРјРѕС‚СЂРµС‚СЊ С‡Р°СЃС‚РёС‡РЅС‹Р№ РІРѕР·РІСЂР°С‚ С†РµРЅС‹.
+Deep Action:
+{
+  "action_type": "SKU_ADJUST_PRICE",
+  "target": "SKU:417",
+  "parameters": {
+    "recommended_price": "2190 RUB"
+  }
+}
+Backend:
+2190 > 0 вњ…
+2190 >= 1800 вњ…
+2190 != 2300 вњ…
+SKU material вњ…
+Price capability READY вњ…
+Finding exists вњ…
+Recommendation actionable вњ…
+в†’ VALID.
+
+83. Example: invalid Price Action
+AI:
+recommended_price = 1700
+Known:
+min_allowed = 1800.
+Backend:
+INVALID_PROVIDER_BOUND
+РќРµ РёСЃРїСЂР°РІР»СЏРµС‚ РЅР°:
+1800.
+
+84. Stock example
+Facts:
+Sales:
+10 units/day
+
+Stock:
+20
+
+open inbound:
+0
+Recommendation:
+РџРѕРїРѕР»РЅРёС‚СЊ SKU.
+Action:
+SKU_INCREASE_REPLENISHMENT
+
+recommended_units:
+150
+Р”РѕРїСѓСЃС‚РёРјРѕ.
+РќРѕ СЌС‚Рѕ РѕР·РЅР°С‡Р°РµС‚:
+AI СЂРµРєРѕРјРµРЅРґСѓРµС‚ РїРѕРїРѕР»РЅРµРЅРёРµ 150 РµРґРёРЅРёС†.
+РќРµ:
+РјР°С‚РµРјР°С‚РёС‡РµСЃРєРё РѕРїС‚РёРјР°Р»СЊРЅС‹Р№ Р·Р°РїР°СЃ = 150.
+
+85. Advertising example
+Campaign 58:
+SKU 417 bid = 30
+
+provider min bid = 10
+
+Ads history...
+Deep:
+SKU_ADJUST_AD_BID
+
+campaign = 58
+
+recommended_bid = 24
+Backend РїСЂРѕРІРµСЂСЏРµС‚ bounds Рё Campaignв†”SKU relation.
+
+86. Promotion example
+SKU:
+candidate Promotion 91
+not participant
+
+action price context:
+1990
+Action:
+SKU_JOIN_PROMOTION
+promotion = 91
+recommended_action_price = 1990
+Р’Р°Р»РёРґРЅРѕ.
+Р•СЃР»Рё SKU СѓР¶Рµ participant:
+INVALID_STATE.
+
+87. Category example
+Category В«РљРѕС„РµРјР°С€РёРЅС‹В»:
+РЅРµСЃРєРѕР»СЊРєРѕ Р·РЅР°С‡РёРјС‹С… SKU:
+Sales в†“
+
+Сѓ РЅРµСЃРєРѕР»СЊРєРёС… РѕРґРЅРѕРІСЂРµРјРµРЅРЅРѕ:
+Price в†‘
+Deep СЃС‡РёС‚Р°РµС‚ СЃРёС‚СѓР°С†РёСЋ coordinated.
+Action:
+CATEGORY_REPRICING_PLAN
+
+direction = LOWER
+
+affected_material_skus:
+417
+522
+816
+Р­С‚Рѕ РѕРґРЅР° category-level Action.
+РџСЂРё СЌС‚РѕРј Deep РјРѕР¶РµС‚ РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅРѕ СЃС„РѕСЂРјРёСЂРѕРІР°С‚СЊ РєРѕРЅРєСЂРµС‚РЅС‹Рµ SKU price Actions С‚РѕР»СЊРєРѕ С‚Р°Рј, РіРґРµ С…РІР°С‚Р°РµС‚ Evidence РґР»СЏ exact price.
+
+88. Campaign example
+Campaign 58
+
+weekly budget:
+100 000 в‚Ѕ
+
+spend:
+СЂР°СЃС‚С‘С‚
+
+attributed performance:
+СЃРЅРёР¶Р°РµС‚СЃСЏ
+Deep РјРѕР¶РµС‚ РІРµСЂРЅСѓС‚СЊ:
+CAMPAIGN_ADJUST_BUDGET
+
+recommended_budget:
+75 000 в‚Ѕ / week
+РёР»Рё:
+CAMPAIGN_CHANGE_STATE
+в†’ PAUSED
+РќРѕ РЅРµ РѕР±Р° РѕРґРЅРѕРІСЂРµРјРµРЅРЅРѕ Р±РµР· СЏСЃРЅРѕР№ semantic РЅРµРѕР±С…РѕРґРёРјРѕСЃС‚Рё; prompt/evals РґРѕР»Р¶РЅС‹ РёР·Р±РµРіР°С‚СЊ Р±РµСЃСЃРјС‹СЃР»РµРЅРЅРѕР№ redundancy.
+
+89. Pause + Budget conflict
+РЇ Р±С‹ РЅРµ РґРµР»Р°Р» С‚РµС…РЅРёС‡РµСЃРєРё РёС… mutually exclusive.
+РџРѕС‡РµРјСѓ?
+РњРѕРґРµР»СЊ С‚РµРѕСЂРµС‚РёС‡РµСЃРєРё РјРѕР¶РµС‚ СЂРµРєРѕРјРµРЅРґРѕРІР°С‚СЊ:
+РїСЂРёРѕСЃС‚Р°РЅРѕРІРёС‚СЊ СЃРµР№С‡Р°СЃ Рё РїСЂРё РїРѕРІС‚РѕСЂРЅРѕРј Р·Р°РїСѓСЃРєРµ РёСЃРїРѕР»СЊР·РѕРІР°С‚СЊ РјРµРЅСЊС€РёР№ budget.
+РќРѕ РїРѕСЃРєРѕР»СЊРєСѓ РјС‹ РЅРµ РјРѕРґРµР»РёСЂСѓРµРј action sequencing v1, РІ v1 Р»СѓС‡С€Рµ prompt'РѕРј С‚СЂРµР±РѕРІР°С‚СЊ РІС‹Р±СЂР°С‚СЊ РѕРґРЅРѕ РЅРµРїРѕСЃСЂРµРґСЃС‚РІРµРЅРЅРѕРµ РґРµР№СЃС‚РІРёРµ.
+Р•СЃР»Рё С‚Р°РєРёРµ РєРѕРЅС„Р»РёРєС‚С‹ РЅР°С‡РЅСѓС‚ СЃРёСЃС‚РµРјР°С‚РёС‡РµСЃРєРё РїРѕСЏРІР»СЏС‚СЊСЃСЏ РІ evals, РґРѕР±Р°РІРёРј sequence С‚РѕР»СЊРєРѕ С‚РѕРіРґР°.
+РќРµ СЃС‚РѕРёС‚ СЃРµР№С‡Р°СЃ РїРµСЂРµСѓСЃР»РѕР¶РЅСЏС‚СЊ.
+
+90. Action Contract РЅРµ РїРѕРґРґРµСЂР¶РёРІР°РµС‚ sequences v1
+РќРµС‚:
+Step 1
+Step 2
+Step 3
+РћРґРёРЅ Action = РѕРґРЅРѕ СѓРїСЂР°РІР»РµРЅС‡РµСЃРєРѕРµ РёР·РјРµРЅРµРЅРёРµ/РїР»Р°РЅ.
+Р•СЃР»Рё С‚СЂРµР±СѓРµС‚СЃСЏ РЅРµСЃРєРѕР»СЊРєРѕ РЅРµР·Р°РІРёСЃРёРјС‹С…:
+РЅРµСЃРєРѕР»СЊРєРѕ Actions.
+
+91. РќРµ РїРѕРґРґРµСЂР¶РёРІР°РµРј conditional Actions
+РќРµ:
+Р•СЃР»Рё Р·Р°РІС‚СЂР° РїСЂРѕРґР°Р¶Рё РЅРµ РІС‹СЂР°СЃС‚СѓС‚ вЂ” СѓРјРµРЅСЊС€РёС‚СЊ С†РµРЅСѓ.
+Р­С‚Рѕ СЃРєРѕСЂРµРµ future automation/rule.
+V1 Action вЂ” РґРµР№СЃС‚РІРёРµ, РєРѕС‚РѕСЂРѕРµ Deep СЃС‡РёС‚Р°РµС‚ ACTIONABLE_NOW.
+
+92. РќРµ РїРѕРґРґРµСЂР¶РёРІР°РµРј automatic recurring Actions
+РќР°РїСЂРёРјРµСЂ:
+РєР°Р¶РґС‹Р№ РїРѕРЅРµРґРµР»СЊРЅРёРє СѓРІРµР»РёС‡РёРІР°С‚СЊ bid.
+РќРµС‚.
+Р”СЂСѓРіРѕР№ РїСЂРѕРґСѓРєС‚РѕРІС‹Р№ СЃР»РѕР№.
+
+93. Actions РјРѕРіСѓС‚ Р±С‹С‚СЊ positive-opportunity driven
+РќР°РїСЂРёРјРµСЂ:
+SKU Sales +100%
+Stock coverage 3 days
+Action:
+SKU_INCREASE_REPLENISHMENT.
+РўРѕ РµСЃС‚СЊ Actions РЅРµ СЂР°РІРЅС‹ В«РёСЃРїСЂР°РІР»РµРЅРёСЋ РїСЂРѕР±Р»РµРјВ».
+Р­С‚Рѕ РѕР±СЏР·Р°С‚РµР»СЊРЅРѕ РґРѕР»Р¶РЅРѕ Р±С‹С‚СЊ РІ Deep evals.
+
+94. Finance/Funnel/Search РєР°Рє evidence for Actions
+РќР°РїСЂРёРјРµСЂ Search СѓС…СѓРґС€РёР»СЃСЏ.
+Р­С‚Рѕ РјРѕР¶РµС‚ РїРѕРґРґРµСЂР¶РёРІР°С‚СЊ:
+SKU_ADJUST_AD_BID
+РёР»Рё Promotion/Price recommendation.
+РќРѕ РЅРµС‚:
+SEARCH_ACTION.
+Finance РјРѕР¶РµС‚ РїРѕРґРґРµСЂР¶Р°С‚СЊ СЂРµС€РµРЅРёРµ СЃРѕРєСЂР°С‚РёС‚СЊ РЅРµСЌС„С„РµРєС‚РёРІРЅСѓСЋ Campaign, РЅРѕ РЅРµС‚:
+FINANCE_ACTION.
+Р­С‚Рѕ СЃРѕС…СЂР°РЅСЏРµС‚ СѓРїСЂР°РІР»РµРЅС‡РµСЃРєСѓСЋ taxonomy С‡РёСЃС‚РѕР№.
+
+95. Action contract Рё Publication
+РџРѕСЃР»Рµ validation РїРѕР»СѓС‡Р°РµРј:
+ValidatedActionProposal
+Р С‚РѕР»СЊРєРѕ РѕРЅ РјРѕР¶РµС‚ РїРѕРїР°СЃС‚СЊ РІ:
+Publication.
+Raw invalid AI Action РЅРёРєРѕРіРґР° РЅРµ РїРѕСЏРІР»СЏРµС‚СЃСЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЋ.
+
+96. Publication Projector Р·Р°С‚РµРј СЃРѕР·РґР°С‘С‚ UI
+РќР°РїСЂРёРјРµСЂ validated:
+SKU_ADJUST_PRICE
+SKU417
+2300 в†’ 2190
+Projection:
+РР·РјРµРЅРёС‚СЊ С†РµРЅСѓ SKU 417
+
+РЎРµР№С‡Р°СЃ: 2 300 в‚Ѕ
+Р РµРєРѕРјРµРЅРґСѓРµС‚СЃСЏ: 2 190 в‚Ѕ
+
+РџРѕС‡РµРјСѓ:
+...
+РўРµРєСЃС‚ В«РїРѕС‡РµРјСѓВ» Р±РµСЂС‘С‚СЃСЏ РёР· Recommendation/Finding.
+РќРµ РіРµРЅРµСЂРёСЂСѓРµС‚СЃСЏ РЅРѕРІС‹Рј AI.
+
+97. Chat РёСЃРїРѕР»СЊР·СѓРµС‚ С‚Рµ Р¶Рµ Actions
+Chat РјРѕР¶РµС‚ РѕС‚РІРµС‚РёС‚СЊ:
+РљР°РєРёРµ РґРµР№СЃС‚РІРёСЏ СЃР°РјС‹Рµ РІР°Р¶РЅС‹Рµ?
+РёР·:
+Published Actions.
+РќРµ Р·Р°РїСѓСЃРєР°РµС‚ РґСЂСѓРіРѕР№ Action-generation prompt.
+
+98. РћРґРёРЅ РёСЃС‚РѕС‡РЅРёРє РёСЃС‚РёРЅС‹ РґР»СЏ Actions
+Deep Analysis
+в†’ Validated Action Proposals
+в†’ Publication
+Dashboard, Actions page Рё Chat Р»РёС€СЊ С‡РёС‚Р°СЋС‚ СЌС‚Рѕ.
+
+99. Acceptance Gates
+РЇ Р±С‹ РІРІС‘Р»:
+Gate
+Р§С‚Рѕ Р·Р°С‰РёС‰Р°РµС‚
+action_closed_catalog_gate
+AI РЅРµ РїСЂРёРґСѓРјС‹РІР°РµС‚ type
+action_target_whitelist_gate
+С‚РѕР»СЊРєРѕ 4 target kinds
+action_material_target_gate
+target РїСЂРѕС€С‘Р» Materiality
+action_child_materiality_gate
+РёР·РјРµРЅСЏРµРјС‹Рµ child entities С‚РѕР¶Рµ Material
+action_recommendation_chain_gate
+Action в†’ Recommendation
+action_finding_chain_gate
+Recommendation в†’ Finding
+action_fact_grounding_gate
+Action grounded
+action_actionable_now_gate
+Monitor РЅРµ СЃРѕР·РґР°С‘С‚ Action
+action_parameter_schema_gate
+typed params
+action_provider_bound_gate
+РёР·РІРµСЃС‚РЅС‹Рµ limits СЃРѕР±Р»СЋРґРµРЅС‹
+action_noop_gate
+РґРµР№СЃС‚РІРёРµ СЂРµР°Р»СЊРЅРѕ РјРµРЅСЏРµС‚ state
+action_state_applicability_gate
+JOIN/LEAVE Рё С‚.Рї. РІР°Р»РёРґРЅС‹
+action_duplicate_gate
+РЅРµС‚ exact duplicate
+action_conflict_gate
+РЅРµС‚ РїСЂРѕС‚РёРІРѕРїРѕР»РѕР¶РЅС‹С… Actions
+action_currency_gate
+Money РєРѕСЂСЂРµРєС‚РЅС‹
+action_no_forecast_gate
+РЅРµС‚ unsupported uplift
+action_no_content_v1_gate
+РЅРµС‚ card optimization Р±РµР· Content
+action_no_warehouse_target_gate
+warehouse/cluster РЅРµ target
+action_stock_supply_semantics_gate
+replenishment в‰  stock fake update
+action_execution_disabled_v1_gate
+РЅРёРєР°РєРѕРіРѕ write РІ Ozon
+action_catalog_version_gate
+exact contract reproducible
+
+100. РћС‚РґРµР»СЊРЅС‹Р№ synthetic test вЂ” РјР°Р»РµРЅСЊРєРёР№ SKU
+SKU:
+Sales:
+100 в‚Ѕ в†’ 20 в‚Ѕ
+
+Price changed
+Р•СЃР»Рё РѕРЅ РєР°РєРёРј-С‚Рѕ РѕР±СЂР°Р·РѕРј РѕРєР°Р·Р°Р»СЃСЏ РІ Deep РєР°Рє related Evidence, РЅРѕ РЅРµ Material main:
+Action Target = SKU
+РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ РѕС‚РІРµСЂРіРЅСѓС‚.
+
+101. Evidence-only SKU test
+Category Evidence СЂР°СЃРєСЂС‹РІР°РµС‚ SKU 999.
+Deep:
+Finding:
+SKU999 contributed to category movement.
+VALID.
+Deep:
+Action:
+SKU999 adjust price.
+INVALID_TARGET_NOT_MATERIAL.
+Р­С‚Рѕ РєР°Рє СЂР°Р· РЅР°С€Рµ РїРѕСЃР»РµРґРЅРµРµ Р·Р°С„РёРєСЃРёСЂРѕРІР°РЅРЅРѕРµ СЂРµС€РµРЅРёРµ.
+
+102. Unsupported Content test
+Funnel deteriorates.
+Deep:
+Recommendation:
+РІРѕР·РјРѕР¶РЅР° РїСЂРѕР±Р»РµРјР° PDP, РЅРѕ Content Evidence РѕС‚СЃСѓС‚СЃС‚РІСѓРµС‚.
+Р”РѕРїСѓСЃС‚РёРјРѕ СЃ limitation.
+Action:
+CHANGE_IMAGES
+РЅРµРІРѕР·РјРѕР¶РµРЅ: С‚Р°РєРѕРіРѕ type РїСЂРѕСЃС‚Рѕ РЅРµС‚.
+
+103. Stable seller test
+РќРµС‚ meaningful recommendations.
+Expected:
+actions = []
+Р­С‚Рѕ РІР°Р»РёРґРЅРѕ.
+
+104. Action Catalog СЂР°СЃС€РёСЂСЏРµС‚СЃСЏ С‚РѕР»СЊРєРѕ РІРјРµСЃС‚Рµ СЃ Evidence
+РќРѕРІС‹Р№ Action Type РЅРµР»СЊР·СЏ РґРѕР±Р°РІРёС‚СЊ РїСЂРѕСЃС‚Рѕ РїРѕС‚РѕРјСѓ, С‡С‚Рѕ:
+Р±С‹Р»Рѕ Р±С‹ РїРѕР»РµР·РЅРѕ.
+РќР°РїСЂРёРјРµСЂ С…РѕС‚РёРј:
+SKU_IMPROVE_CONTENT
+РЎРЅР°С‡Р°Р»Р° РґРѕР»Р¶РЅС‹ РїРѕСЏРІРёС‚СЊСЃСЏ:
+Canonical Content domain
+в†“
+Factual API
+в†“
+Landscape/Evidence
+в†“
+Deep evals
+Рё С‚РѕР»СЊРєРѕ РїРѕС‚РѕРј Action.
+Р­С‚Рѕ СЏ Р±С‹ СЃРґРµР»Р°Р» С„СѓРЅРґР°РјРµРЅС‚Р°Р»СЊРЅС‹Рј governance rule.
+
+105. РђСЂС…РёС‚РµРєС‚СѓСЂРЅС‹Р№ РєРѕРЅС‚СЂР°РєС‚ Action Taxonomy / Contract
+РџСЂРµРґР»Р°РіР°СЋ Р·Р°С„РёРєСЃРёСЂРѕРІР°С‚СЊ:
+Action Aivion СЏРІР»СЏРµС‚СЃСЏ Р·Р°РєСЂС‹С‚С‹Рј, versioned Рё fact-grounded СѓРїСЂР°РІР»РµРЅС‡РµСЃРєРёРј РїСЂРµРґР»РѕР¶РµРЅРёРµРј, СЃРѕР·РґР°РІР°РµРјС‹Рј РёСЃРєР»СЋС‡РёС‚РµР»СЊРЅРѕ Deep Analysis РёР· Recommendation СЃРѕ СЃС‚Р°С‚СѓСЃРѕРј ACTIONABLE_NOW. V1 Actions СЏРІР»СЏСЋС‚СЃСЏ read-only recommendations Рё РЅРёРєРѕРіРґР° РЅРµРїРѕСЃСЂРµРґСЃС‚РІРµРЅРЅРѕ РЅРµ РІС‹Р·С‹РІР°СЋС‚ provider write API. Action Proposal РЅРµ СЏРІР»СЏРµС‚СЃСЏ executable command; Р±СѓРґСѓС‰Р°СЏ execution architecture РѕР±СЏР·Р°РЅР° РѕС‚РґРµР»СЊРЅРѕ РїРѕРґС‚РІРµСЂРґРёС‚СЊ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ, РїРµСЂРµС‡РёС‚Р°С‚СЊ current state Рё РїРѕРІС‚РѕСЂРЅРѕ РїСЂРѕРІРµСЂРёС‚СЊ provider constraints.
+Action Target v1 РѕРіСЂР°РЅРёС‡РµРЅ Account, seller-bearing leaf Category, SKU Рё Campaign. Target РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ Materiality-selected main entity Рё РїСЂРёСЃСѓС‚СЃС‚РІРѕРІР°С‚СЊ РІ Discovery Pack. Entity, СЂР°СЃРєСЂС‹С‚Р°СЏ С‚РѕР»СЊРєРѕ Evidence, РјРѕР¶РµС‚ СѓС‡Р°СЃС‚РІРѕРІР°С‚СЊ РІ Findings, РЅРѕ РЅРµ РјРѕР¶РµС‚ СЃС‚Р°С‚СЊ Action Target. Р•СЃР»Рё Action РїР°СЂР°РјРµС‚СЂ С„Р°РєС‚РёС‡РµСЃРєРё РёР·РјРµРЅСЏРµС‚ РґСЂСѓРіСѓСЋ main Action Entity, СЌС‚Р° entity С‚Р°РєР¶Рµ РґРѕР»Р¶РЅР° РїСЂРѕР№С‚Рё Materiality; supporting entities Promotion/Supply/Search Query/Warehouse РјРѕРіСѓС‚ РёСЃРїРѕР»СЊР·РѕРІР°С‚СЊСЃСЏ С‚РѕР»СЊРєРѕ РєР°Рє factual/context refs.
+Deep РїРѕР»СѓС‡Р°РµС‚ run-specific Action Menu, РїРѕСЃС‚СЂРѕРµРЅРЅРѕРµ backend РёР· versioned Action Catalog, Target type, Capabilities Рё factual state. AI РЅРµ РјРѕР¶РµС‚ РёР·РѕР±СЂРµС‚Р°С‚СЊ Action Types РёР»Рё РїСЂРѕРёР·РІРѕР»СЊРЅС‹Рµ parameters. РљР°Р¶РґС‹Р№ Action Type РёРјРµРµС‚ stable business-semantic key, target kind, action family, typed parameter schema, applicability/capability requirements, conflict group Рё optional future execution metadata. Ozon endpoint names РЅРµ СЏРІР»СЏСЋС‚СЃСЏ Action identities.
+V1 Catalog intentionally small: Account Health remediation; coordinated Category pricing/replenishment/advertising/promotion/assortment plans; concrete SKU price/replenishment/advertising/promotion/catalog-state actions; Campaign budget/state/strategy/product-set actions. Content/SEO, warehouse/cluster, arbitrary Finance/Funnel/Search actions РѕС‚СЃСѓС‚СЃС‚РІСѓСЋС‚ РґРѕ РїРѕСЏРІР»РµРЅРёСЏ СЃРѕРѕС‚РІРµС‚СЃС‚РІСѓСЋС‰РµР№ canonical factual architecture.
+Р§РёСЃР»РѕРІС‹Рµ Actions РёСЃРїРѕР»СЊР·СѓСЋС‚ recommended target state, Р° РЅРµ РґСѓР±Р»РёСЂСѓСЋС‚ current/delta calculations. Current values Рё deltas РїСЂРёРЅР°РґР»РµР¶Р°С‚ backend. Known provider bounds, currency, state transitions, membership/eligibility Рё no-op conditions РІР°Р»РёРґРёСЂСѓСЋС‚СЃСЏ С‚РµС…РЅРёС‡РµСЃРєРё. Backend РЅРµ СЂРµС€Р°РµС‚, СЏРІР»СЏРµС‚СЃСЏ Р»Рё Р±РёР·РЅРµСЃ-СЂРµРєРѕРјРµРЅРґР°С†РёСЏ С…РѕСЂРѕС€РµР№, РЅРµ РјРµРЅСЏРµС‚ recommended values Рё РЅРµ semantic-repair'РёС‚ output.
+РљР°Р¶РґС‹Р№ Action РёРјРµРµС‚ РѕР±СЏР·Р°С‚РµР»СЊРЅСѓСЋ chain Action в†’ Recommendation в†’ Finding в†’ Fact Handles в†’ Factual API provenance. Action РЅРµ С…СЂР°РЅРёС‚ unsupported quantitative expected effect, revenue uplift, ROI РёР»Рё self-reported confidence. Actions globally ordered Deep Analysis, РЅРѕ РѕС‚РґРµР»СЊРЅС‹Рµ HIGH/MEDIUM/LOW severity/priority scores v1 РЅРµ РІРІРѕРґСЏС‚СЃСЏ.
+Action Type Рё Provider Execution Mapping СЏРІР»СЏСЋС‚СЃСЏ СЂР°Р·РЅС‹РјРё versioned layers. РўРµРєСѓС‰РёРµ Ozon write capabilities РїРѕРґС‚РІРµСЂР¶РґР°СЋС‚ РЅР°Р»РёС‡РёРµ Р±СѓРґСѓС‰РёС… execution paths РґР»СЏ Price, Campaign, Promotion Рё Supply РѕРїРµСЂР°С†РёР№, РѕРґРЅР°РєРѕ API contracts Р±С‹СЃС‚СЂРѕ РјРµРЅСЏСЋС‚СЃСЏ; semantic Action РѕСЃС‚Р°С‘С‚СЃСЏ СЃС‚Р°Р±РёР»СЊРЅС‹Рј, execution adapter СЌРІРѕР»СЋС†РёРѕРЅРёСЂСѓРµС‚ РЅРµР·Р°РІРёСЃРёРјРѕ.
+
+РћРґРёРЅ РїСЂРѕРґСѓРєС‚РѕРІС‹Р№ РІРѕРїСЂРѕСЃ СЏ Р±С‹ СЃРµР№С‡Р°СЃ РґРµР№СЃС‚РІРёС‚РµР»СЊРЅРѕ Р·Р°РєСЂС‹Р»
+РћРЅ СѓР¶Рµ РѕС‚РЅРѕСЃРёС‚СЃСЏ РЅРµ Рє AI reasoning, Р° Рє С‚РѕРјСѓ, РєР°Рє Actions Р±СѓРґСѓС‚ Р¶РёС‚СЊ РјРµР¶РґСѓ РµР¶РµРґРЅРµРІРЅС‹РјРё РїСѓР±Р»РёРєР°С†РёСЏРјРё.
+РџСЂРёРјРµСЂ:
+20 Р°РІРіСѓСЃС‚Р° Aivion СЃРѕР·РґР°С‘С‚:
+SKU 417
+SKU_INCREASE_REPLENISHMENT
+21 Р°РІРіСѓСЃС‚Р° РЅРѕРІС‹Р№ Р°РЅР°Р»РёР· СЃРЅРѕРІР° РїСЂРёС…РѕРґРёС‚ Рє:
+SKU 417
+SKU_INCREASE_REPLENISHMENT
+РЇ РЅРµ СЂРµРєРѕРјРµРЅРґСѓСЋ РїРѕРєР°Р·С‹РІР°С‚СЊ РїРѕР»СЊР·РѕРІР°С‚РµР»СЋ РґРІРµ СЂР°Р·РЅС‹Рµ РѕРґРёРЅР°РєРѕРІС‹Рµ РєР°СЂС‚РѕС‡РєРё:
+20.08 РџРѕРїРѕР»РЅРёС‚СЊ SKU 417
+21.08 РџРѕРїРѕР»РЅРёС‚СЊ SKU 417
+РЇ РїСЂРµРґР»Р°РіР°СЋ Р±СѓРґСѓС‰СѓСЋ РјРѕРґРµР»СЊ:
+Action Case
+SKU417 + INCREASE_REPLENISHMENT
+        в”‚
+        в”њв”Ђ Proposal 20.08
+        в”њв”Ђ Proposal 21.08
+        в””в”Ђ Proposal 22.08
+РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ РІРёРґРёС‚ РѕРґРЅРѕ РѕС‚РєСЂС‹С‚РѕРµ РґРµР№СЃС‚РІРёРµ, Р° РЅРѕРІС‹Рµ Publications РѕР±РЅРѕРІР»СЏСЋС‚ РµРіРѕ factual basis Рё РїРѕСЃР»РµРґРЅСЋСЋ СЂРµРєРѕРјРµРЅРґР°С†РёСЋ.
+Р•СЃР»Рё РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ РѕС‚РјРµС‚РёР» РµРіРѕ:
+DONE
+Р° С‡РµСЂРµР· РЅРµРєРѕС‚РѕСЂРѕРµ РІСЂРµРјСЏ СЃРёС‚СѓР°С†РёСЏ СЃРЅРѕРІР° РІРѕР·РЅРёРєР»Р°, С‚РѕРіРґР° СЃРѕР·РґР°С‘С‚СЃСЏ РЅРѕРІС‹Р№ occurrence, Р° РЅРµ РѕР¶РёРІР»СЏРµС‚СЃСЏ СЃС‚Р°СЂР°СЏ РІС‹РїРѕР»РЅРµРЅРЅР°СЏ Р·Р°РґР°С‡Р°.
+РўРѕ Р¶Рµ РґР»СЏ:
+DISMISSED
+вЂ” СЃС‚Р°СЂСѓСЋ РєР°СЂС‚РѕС‡РєСѓ РЅРµ РїРµСЂРµРїРёСЃС‹РІР°РµРј Р·Р°РґРЅРёРј С‡РёСЃР»РѕРј; РЅРѕРІР°СЏ РґРµР№СЃС‚РІРёС‚РµР»СЊРЅРѕ РІРѕР·РЅРёРєС€Р°СЏ СЃРёС‚СѓР°С†РёСЏ РјРѕР¶РµС‚ РїРѕР·РґРЅРµРµ РїРѕСЂРѕРґРёС‚СЊ РЅРѕРІС‹Р№ occurrence.
+РЇ СЂРµРєРѕРјРµРЅРґСѓСЋ РёРјРµРЅРЅРѕ С‚Р°РєСѓСЋ persistent Action Case РјРѕРґРµР»СЊ РІРјРµСЃС‚Рѕ РЅРµР·Р°РІРёСЃРёРјРѕРіРѕ СЃРїРёСЃРєР° Actions РєР°Р¶РґРѕР№ РµР¶РµРґРЅРµРІРЅРѕР№ Publication. Р•СЃР»Рё СЃРѕРіР»Р°СЃРµРЅ вЂ” Р·Р°С„РёРєСЃРёСЂСѓРµРј СЌС‚Рѕ РІРјРµСЃС‚Рµ СЃ Action Contract, Рё СЃР»РµРґСѓСЋС‰РёРј СЌС‚Р°РїРѕРј РјРѕР¶РЅРѕ РїСЂРѕРµРєС‚РёСЂРѕРІР°С‚СЊ Publication Model + Projection, РіРґРµ РєР°Рє СЂР°Р· СЃРІСЏР¶РµРј Deep Result, Actions Рё Р±СѓРґСѓС‰РёРµ Dashboard blocks.
+РЇ СЃРѕРіР»Р°СЃРёР»СЃСЏ СЃ СЂРµРєРѕРјРµРЅРґР°С†РёРµР№
+Р”Р°, СЌС‚РѕС‚ РјРѕРјРµРЅС‚ С‚СЂРµР±СѓРµС‚ РѕС‚РґРµР»СЊРЅРѕРіРѕ РґРѕРїРѕР»РЅРµРЅРёСЏ Рє РўР—. РџРѕСЃР»Рµ Р±РѕР»РµРµ РєСЂРёС‚РёС‡РµСЃРєРѕРіРѕ СЂР°Р·Р±РѕСЂР° СЏ Р±С‹ РЅРµРјРЅРѕРіРѕ СѓС‚РѕС‡РЅРёР» РїСЂРµРґС‹РґСѓС‰СѓСЋ РјРѕРґРµР»СЊ: РѕР±СЉРµРґРёРЅРµРЅРёРµ РЅРµСЃРєРѕР»СЊРєРёС… SKU РґРѕР»Р¶РЅРѕ СЃСѓС‰РµСЃС‚РІРѕРІР°С‚СЊ, РЅРѕ РЅРµ РЅР° СѓСЂРѕРІРЅРµ РєР°РЅРѕРЅРёС‡РµСЃРєРѕРіРѕ Action. РљР°РЅРѕРЅРёС‡РµСЃРєРёР№ Action РѕСЃС‚Р°С‘С‚СЃСЏ Р°С‚РѕРјР°СЂРЅС‹Рј, Р° РѕР±С‰РёР№ СЃРјС‹СЃР» РѕР±СЉРµРґРёРЅСЏРµС‚СЃСЏ РЅР° СѓСЂРѕРІРЅРµ multi-entity Recommendation, РїРѕСЃР»Рµ С‡РµРіРѕ Publication С„РѕСЂРјРёСЂСѓРµС‚ РёР· СЃРІСЏР·Р°РЅРЅС‹С… Actions Action Group РґР»СЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ.
+Р­С‚Рѕ РїСЂРёРЅС†РёРїРёР°Р»СЊРЅРѕ РІР°Р¶РЅРѕРµ СЂР°Р·Р»РёС‡РёРµ.
+Р”РѕРїРѕР»РЅРµРЅРёРµ Рє РўР—: Multi-entity Recommendations Рё РіСЂСѓРїРїРёСЂРѕРІРєР° Actions
+Р¦РµР»СЊ РґРѕСЂР°Р±РѕС‚РєРё
+РћР±РµСЃРїРµС‡РёС‚СЊ РєРѕСЂСЂРµРєС‚РЅСѓСЋ РѕР±СЂР°Р±РѕС‚РєСѓ СЃРёС‚СѓР°С†РёР№, РєРѕРіРґР° Deep Analysis С„РѕСЂРјРёСЂСѓРµС‚ РѕРґРЅРѕ РѕР±С‰РµРµ СѓРїСЂР°РІР»РµРЅС‡РµСЃРєРѕРµ СЂРµС€РµРЅРёРµ, РїСЂРёРјРµРЅРёРјРѕРµ СЃСЂР°Р·Сѓ Рє РЅРµСЃРєРѕР»СЊРєРёРј РѕРґРЅРѕС‚РёРїРЅС‹Рј СЃСѓС‰РЅРѕСЃС‚СЏРј, РЅР°РїСЂРёРјРµСЂ:
+РїРѕРїРѕР»РЅРёС‚СЊ 4 SKU СЃ РѕС‚СЃСѓС‚СЃС‚РІСѓСЋС‰РёРј РѕСЃС‚Р°С‚РєРѕРј;
+СЃРЅРёР·РёС‚СЊ С†РµРЅС‹ Сѓ 3 SKU;
+СѓРІРµР»РёС‡РёС‚СЊ СЂРµРєР»Р°РјРЅС‹Рµ СЃС‚Р°РІРєРё Сѓ 5 SKU РѕРґРЅРѕР№ РєР°РјРїР°РЅРёРё;
+РёСЃРєР»СЋС‡РёС‚СЊ РЅРµСЃРєРѕР»СЊРєРѕ SKU РёР· РѕРґРЅРѕР№ Р°РєС†РёРё;
+Р°СЂС…РёРІРёСЂРѕРІР°С‚СЊ РіСЂСѓРїРїСѓ РЅРµР°РєС‚СѓР°Р»СЊРЅС‹С… SKU.
+РџСЂРё СЌС‚РѕРј РЅРµРѕР±С…РѕРґРёРјРѕ СЃРѕС…СЂР°РЅРёС‚СЊ:
+РЅРµР·Р°РІРёСЃРёРјРѕРµ factual grounding РєР°Р¶РґРѕРіРѕ SKU;
+РѕС‚РґРµР»СЊРЅС‹Рµ СЂРµРєРѕРјРµРЅРґСѓРµРјС‹Рµ РїР°СЂР°РјРµС‚СЂС‹;
+РѕС‚РґРµР»СЊРЅС‹Р№ Р¶РёР·РЅРµРЅРЅС‹Р№ С†РёРєР» РєР°Р¶РґРѕРіРѕ РґРµР№СЃС‚РІРёСЏ;
+РєРѕСЂСЂРµРєС‚РЅСѓСЋ РґРµРґСѓРїР»РёРєР°С†РёСЋ Actions РјРµР¶РґСѓ РїСѓР±Р»РёРєР°С†РёСЏРјРё;
+РІРѕР·РјРѕР¶РЅРѕСЃС‚СЊ С‡Р°СЃС‚РёС‡РЅРѕРіРѕ РІС‹РїРѕР»РЅРµРЅРёСЏ;
+РІРѕР·РјРѕР¶РЅРѕСЃС‚СЊ Р±СѓРґСѓС‰РµРіРѕ batch execution С‡РµСЂРµР· Ozon API;
+СѓРґРѕР±РЅРѕРµ РѕС‚РѕР±СЂР°Р¶РµРЅРёРµ РїРѕР»СЊР·РѕРІР°С‚РµР»СЋ Р±РµР· РґРµСЃСЏС‚РєРѕРІ РѕРґРЅРѕС‚РёРїРЅС‹С… РєР°СЂС‚РѕС‡РµРє.
+
+1. РћСЃРЅРѕРІРЅРѕР№ Р°СЂС…РёС‚РµРєС‚СѓСЂРЅС‹Р№ РїСЂРёРЅС†РёРї
+РќРµРѕР±С…РѕРґРёРјРѕ СЂР°Р·Р»РёС‡Р°С‚СЊ С‚СЂРё СѓСЂРѕРІРЅСЏ:
+Recommendation
+    в†“
+Atomic Actions
+    в†“
+Action Group / UI Projection
+РќР°РїСЂРёРјРµСЂ Deep Analysis РѕРїСЂРµРґРµР»РёР»:
+SKU 417 в†’ РѕСЃС‚Р°С‚РѕРє 0 в†’ РїРѕРїРѕР»РЅРёС‚СЊ 120 С€С‚.
+SKU 522 в†’ РѕСЃС‚Р°С‚РѕРє 0 в†’ РїРѕРїРѕР»РЅРёС‚СЊ 40 С€С‚.
+SKU 816 в†’ РѕСЃС‚Р°С‚РѕРє 0 в†’ РїРѕРїРѕР»РЅРёС‚СЊ 250 С€С‚.
+SKU 901 в†’ РѕСЃС‚Р°С‚РѕРє 0 в†’ РїРѕРїРѕР»РЅРёС‚СЊ, qty РѕРїСЂРµРґРµР»РёС‚СЊ РЅРµР»СЊР·СЏ
+РЎРјС‹СЃР»РѕРІР°СЏ СЂРµРєРѕРјРµРЅРґР°С†РёСЏ РѕРґРЅР°:
+РџРѕРїРѕР»РЅРёС‚СЊ С‡РµС‚С‹СЂРµ Р·РЅР°С‡РёРјС‹С… SKU СЃ РѕС‚СЃСѓС‚СЃС‚РІСѓСЋС‰РёРј sellable stock Рё СЃРѕС…СЂР°РЅСЏСЋС‰РёРјСЃСЏ СЃРїСЂРѕСЃРѕРј.
+РќРѕ РєР°РЅРѕРЅРёС‡РµСЃРєРё СЃРѕР·РґР°СЋС‚СЃСЏ С‡РµС‚С‹СЂРµ Actions:
+SKU_INCREASE_REPLENISHMENT в†’ SKU 417
+SKU_INCREASE_REPLENISHMENT в†’ SKU 522
+SKU_INCREASE_REPLENISHMENT в†’ SKU 816
+SKU_INCREASE_REPLENISHMENT в†’ SKU 901
+Рђ РїРѕР»СЊР·РѕРІР°С‚РµР»СЋ РѕРЅРё РјРѕРіСѓС‚ РѕС‚РѕР±СЂР°Р¶Р°С‚СЊСЃСЏ РѕРґРЅРѕР№ РєР°СЂС‚РѕС‡РєРѕР№:
+РџРѕРїРѕР»РЅРёС‚СЊ 4 С‚РѕРІР°СЂР° Р±РµР· РѕСЃС‚Р°С‚РєРѕРІ
+СЃ СЂР°СЃРєСЂС‹РІР°СЋС‰РёРјСЃСЏ СЃРїРёСЃРєРѕРј РєРѕРЅРєСЂРµС‚РЅС‹С… SKU.
+
+2. РћРґРёРЅ Action РїРѕ-РїСЂРµР¶РЅРµРјСѓ РёРјРµРµС‚ СЂРѕРІРЅРѕ РѕРґРёРЅ РѕСЃРЅРѕРІРЅРѕР№ target
+РЈР¶Рµ СѓС‚РІРµСЂР¶РґС‘РЅРЅРѕРµ РїСЂР°РІРёР»Рѕ РЅРµРѕР±С…РѕРґРёРјРѕ СЃРѕС…СЂР°РЅРёС‚СЊ:
+Action.target = exactly 1 Action Target
+Р”РѕРїСѓСЃС‚РёРјС‹Рµ target:
+ACCOUNT
+LEAF_CATEGORY
+SKU
+CAMPAIGN
+РџРѕСЌС‚РѕРјСѓ Р·Р°РїСЂРµС‰С‘РЅ РєРѕРЅС‚СЂР°РєС‚ РІРёРґР°:
+{
+  "action_type": "SKU_INCREASE_REPLENISHMENT",
+  "targets": [
+    "SKU417",
+    "SKU522",
+    "SKU816",
+    "SKU901"
+  ]
+}
+Р”Р»СЏ РѕР±С‹С‡РЅРѕРіРѕ SKU Action.
+РџРѕС‡РµРјСѓ СЌС‚Рѕ РІР°Р¶РЅРѕ: Сѓ РєР°Р¶РґРѕРіРѕ SKU СЃРѕР±СЃС‚РІРµРЅРЅС‹Рµ РґР°РЅРЅС‹Рµ, Recommendation parameters, Action Case Рё eventual execution result.
+
+3. РџРѕС‡РµРјСѓ РЅРµР»СЊР·СЏ С…СЂР°РЅРёС‚СЊ В«РїРѕРїРѕР»РЅРёС‚СЊ 4 SKUВ» РѕРґРЅРёРј Action
+РЎРµРіРѕРґРЅСЏ:
+SKU 417 в†’ РЅСѓР¶РЅРѕ +120
+SKU 522 в†’ РЅСѓР¶РЅРѕ +40
+SKU 816 в†’ РЅСѓР¶РЅРѕ +250
+SKU 901 в†’ quantity РЅРµРёР·РІРµСЃС‚РЅРѕ
+Р—Р°РІС‚СЂР°:
+SKU 417 в†’ СѓР¶Рµ РїРѕРїРѕР»РЅРµРЅ
+SKU 522 в†’ РІСЃС‘ РµС‰С‘ С‚СЂРµР±СѓРµС‚ РїРѕРїРѕР»РЅРµРЅРёСЏ
+SKU 816 в†’ РІСЃС‘ РµС‰С‘ С‚СЂРµР±СѓРµС‚ РїРѕРїРѕР»РЅРµРЅРёСЏ
+SKU 901 в†’ РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ РѕС‚РєР»РѕРЅРёР» СЂРµРєРѕРјРµРЅРґР°С†РёСЋ
+Р•СЃР»Рё РІСЃС‘ Р±С‹Р»Рѕ РѕРґРЅРёРј Action, РІРѕР·РЅРёРєР°РµС‚ РЅРµСЂР°Р·СЂРµС€РёРјР°СЏ РЅРµРѕРґРЅРѕР·РЅР°С‡РЅРѕСЃС‚СЊ:
+Action РІС‹РїРѕР»РЅРµРЅ РёР»Рё РЅРµС‚?
+Р”Р»СЏ С‡РµС‚С‹СЂС‘С… Р°С‚РѕРјР°СЂРЅС‹С… Actions РѕС‚РІРµС‚ РѕС‡РµРІРёРґРµРЅ.
+
+4. РР·РјРµРЅРµРЅРёРµ Deep Analysis Recommendation Contract
+Р’РѕС‚ Р·РґРµСЃСЊ РїСЂРµРґС‹РґСѓС‰РёР№ РєРѕРЅС‚СЂР°РєС‚ РЅСѓР¶РЅРѕ СЂР°СЃС€РёСЂРёС‚СЊ.
+Р Р°РЅРµРµ Recommendation С„Р°РєС‚РёС‡РµСЃРєРё РїРѕРґСЂР°Р·СѓРјРµРІР°Р»Р° РѕРґРёРЅ target_entity.
+Р­С‚РѕРіРѕ РЅРµРґРѕСЃС‚Р°С‚РѕС‡РЅРѕ.
+Recommendation РґРѕР»Р¶РЅР° РїРѕРґРґРµСЂР¶РёРІР°С‚СЊ:
+scope_type:
+SINGLE_ENTITY
+ENTITY_SET
+РџСЂРё SINGLE_ENTITY:
+subject_entities = [SKU417]
+РџСЂРё ENTITY_SET:
+subject_entities = [
+    SKU417,
+    SKU522,
+    SKU816,
+    SKU901
+]
+
+5. РћРіСЂР°РЅРёС‡РµРЅРёРµ ENTITY_SET v1
+РЇ СЂРµРєРѕРјРµРЅРґСѓСЋ РІ v1 СЂР°Р·СЂРµС€РёС‚СЊ С‚РѕР»СЊРєРѕ РѕРґРЅРѕСЂРѕРґРЅС‹Р№ РЅР°Р±РѕСЂ СЃСѓС‰РЅРѕСЃС‚РµР№.
+РќР°РїСЂРёРјРµСЂ:
+4 Г— SKU
+РёР»Рё:
+3 Г— Campaign
+РЅРѕ РЅРµ:
+SKU417
+Campaign58
+Category12
+РІ РѕРґРЅРѕР№ multi-entity Recommendation.
+Р•СЃР»Рё Р±РёР·РЅРµСЃ-СЃРёС‚СѓР°С†РёСЏ СЃРІСЏР·С‹РІР°РµС‚ РЅРµСЃРєРѕР»СЊРєРѕ С‚РёРїРѕРІ СЃСѓС‰РЅРѕСЃС‚РµР№, Deep РјРѕР¶РµС‚ СЃРѕР·РґР°С‚СЊ РЅРµСЃРєРѕР»СЊРєРѕ Findings/Recommendations, СЃРІСЏР·Р°РЅРЅС‹С… РѕР±С‰РёРј reasoning.
+Р­С‚Рѕ СЃСѓС‰РµСЃС‚РІРµРЅРЅРѕ СѓРїСЂРѕС‰Р°РµС‚ РєРѕРЅС‚СЂР°РєС‚.
+
+6. Р’СЃРµ СѓС‡Р°СЃС‚РЅРёРєРё ENTITY_SET РґРѕР»Р¶РЅС‹ РїСЂРѕР№С‚Рё Materiality
+РќР°С€Рµ РїРѕСЃР»РµРґРЅРµРµ РїСЂР°РІРёР»Рѕ РїРѕР»РЅРѕСЃС‚СЊСЋ СЃРѕС…СЂР°РЅСЏРµС‚СЃСЏ.
+РќР°РїСЂРёРјРµСЂ Deep С…РѕС‡РµС‚ СЃС„РѕСЂРјРёСЂРѕРІР°С‚СЊ:
+РџРѕРїРѕР»РЅРёС‚СЊ SKU 417, 522, 816 Рё 999.
+Backend РїСЂРѕРІРµСЂСЏРµС‚:
+417 в†’ Material Entity вњ…
+522 в†’ Material Entity вњ…
+816 в†’ Material Entity вњ…
+999 в†’ РїРѕСЏРІРёР»СЃСЏ С‚РѕР»СЊРєРѕ Evidence вќЊ
+РўР°РєРѕР№ РЅР°Р±РѕСЂ РЅРµРґРѕРїСѓСЃС‚РёРј.
+SKU 999 РјРѕР¶РЅРѕ РёСЃРїРѕР»СЊР·РѕРІР°С‚СЊ РІ Finding РєР°Рє related evidence, РЅРѕ РЅРµР»СЊР·СЏ РІРєР»СЋС‡Р°С‚СЊ РІ СѓРїСЂР°РІР»РµРЅС‡РµСЃРєСѓСЋ Recommendation/Action.
+
+7. Multi-entity Recommendation РЅРµ СЏРІР»СЏРµС‚СЃСЏ Action
+РќР°РїСЂРёРјРµСЂ:
+Recommendation R7
+
+scope = ENTITY_SET
+
+subjects:
+SKU417
+SKU522
+SKU816
+SKU901
+
+statement:
+В«РџРѕРїРѕР»РЅРёС‚СЊ С‚РѕРІР°СЂС‹ СЃ РѕС‚СЃСѓС‚СЃС‚РІСѓСЋС‰РёРј Р·Р°РїР°СЃРѕРј
+Рё СЃРѕС…СЂР°РЅСЏСЋС‰РёРјСЃСЏ СЃРїСЂРѕСЃРѕРјВ»
+
+actionability:
+ACTIONABLE_NOW
+РР· РЅРµС‘ РјРѕРіСѓС‚ РїРѕСЏРІРёС‚СЊСЃСЏ:
+A1 в†’ SKU417
+A2 в†’ SKU522
+A3 в†’ SKU816
+A4 в†’ SKU901
+Р’СЃРµ С‡РµС‚С‹СЂРµ СЃСЃС‹Р»Р°СЋС‚СЃСЏ:
+recommendation_ref = R7
+РќРѕ РєР°Р¶РґС‹Р№ РёРјРµРµС‚ СЃРѕР±СЃС‚РІРµРЅРЅС‹Рµ:
+finding_refs
+fact_handles
+parameters
+target
+
+8. Grounding РѕСЃС‚Р°С‘С‚СЃСЏ РёРЅРґРёРІРёРґСѓР°Р»СЊРЅС‹Рј
+РћР±С‰РёР№ Recommendation РЅРµ РѕР·РЅР°С‡Р°РµС‚, С‡С‚Рѕ РјРѕР¶РЅРѕ РїРµСЂРµСЃС‚Р°С‚СЊ РґРѕРєР°Р·С‹РІР°С‚СЊ РЅРµРѕР±С…РѕРґРёРјРѕСЃС‚СЊ РєР°Р¶РґРѕРіРѕ SKU.
+РќР°РїСЂРёРјРµСЂ:
+Action A1:
+SKU417
+recommended_units = 120
+
+facts:
+stock=0
+recent demand=...
+coverage=0
+Action A2:
+SKU522
+recommended_units = 40
+
+facts:
+stock=0
+recent demand=...
+coverage=0
+Р С‚Р°Рє РґР°Р»РµРµ.
+РћР±С‰Р°СЏ С„РѕСЂРјСѓР»РёСЂРѕРІРєР°:
+РџРѕРїРѕР»РЅРёС‚СЊ С‚РѕРІР°СЂС‹ Р±РµР· РѕСЃС‚Р°С‚РєРѕРІ
+РЅРµ Р·Р°РјРµРЅСЏРµС‚ individual factual basis.
+
+9. РћРґРёРЅ Recommendation РјРѕР¶РµС‚ СЃСЃС‹Р»Р°С‚СЊСЃСЏ РЅР° РЅРµСЃРєРѕР»СЊРєРѕ Findings
+РќР°РїСЂРёРјРµСЂ:
+Finding F1 в†’ SKU417
+Finding F2 в†’ SKU522
+Finding F3 в†’ SKU816
+Finding F4 в†’ SKU901
+Recommendation:
+R7
+в†’ F1
+в†’ F2
+в†’ F3
+в†’ F4
+Рђ РєР°Р¶РґС‹Р№ Action РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅРѕ СѓРєР°Р·С‹РІР°РµС‚ С‚Рµ Findings, РєРѕС‚РѕСЂС‹Рµ РѕС‚РЅРѕСЃСЏС‚СЃСЏ РёРјРµРЅРЅРѕ Рє РµРіРѕ target.
+
+10. Action Group РЅРµ РґРѕР»Р¶РµРЅ СЃС‚Р°РЅРѕРІРёС‚СЊСЃСЏ РЅРѕРІС‹Рј Action Target
+Р­С‚Рѕ РѕСЃРѕР±РµРЅРЅРѕ РІР°Р¶РЅРѕ.
+РќРµ РІРІРѕРґРёРј:
+Action Target = SKU_GROUP
+РёР»Рё:
+Action Target = PRODUCT_SET
+РЈ РЅР°СЃ РїРѕ-РїСЂРµР¶РЅРµРјСѓ С‚РѕР»СЊРєРѕ С‡РµС‚С‹СЂРµ СЂР°Р·СЂРµС€С‘РЅРЅС‹С… target.
+Action Group вЂ” РєРѕРЅС‚РµР№РЅРµСЂ/РїСЂРѕРµРєС†РёСЏ РЅР°Рґ СѓР¶Рµ СЃСѓС‰РµСЃС‚РІСѓСЋС‰РёРјРё Actions.
+
+11. Р“РґРµ С„РѕСЂРјРёСЂСѓРµС‚СЃСЏ Action Group
+РЇ РїСЂРµРґР»Р°РіР°СЋ РЅРµ Р·Р°СЃС‚Р°РІР»СЏС‚СЊ AI РІРѕР·РІСЂР°С‰Р°С‚СЊ РѕС‚РґРµР»СЊРЅС‹Р№ ActionGroup object.
+Deep СѓР¶Рµ СЃРєР°Р·Р°Р» РІСЃС‘ РЅРµРѕР±С…РѕРґРёРјРѕРµ:
+Recommendation R7
+    в†“
+A1
+A2
+A3
+A4
+Publication Projector РґРµС‚РµСЂРјРёРЅРёСЂРѕРІР°РЅРЅРѕ РІРёРґРёС‚:
+РѕРґРёРЅ Recommendation
++
+РѕРґРёРЅР°РєРѕРІС‹Р№ Action Type
++
+РЅРµСЃРєРѕР»СЊРєРѕ targets
+Рё СЃРѕР·РґР°С‘С‚:
+Action Group
+РўР°РєРёРј РѕР±СЂР°Р·РѕРј backend РЅРёС‡РµРіРѕ СЃРµРјР°РЅС‚РёС‡РµСЃРєРё РЅРµ РїСЂРёРґСѓРјС‹РІР°РµС‚.
+
+12. РЈСЃР»РѕРІРёСЏ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРѕР№ РіСЂСѓРїРїРёСЂРѕРІРєРё
+Actions РѕР±СЉРµРґРёРЅСЏСЋС‚СЃСЏ РІ РѕРґРЅСѓ РіСЂСѓРїРїСѓ С‚РѕР»СЊРєРѕ РїСЂРё РѕРґРЅРѕРІСЂРµРјРµРЅРЅРѕРј РІС‹РїРѕР»РЅРµРЅРёРё СЃР»РµРґСѓСЋС‰РёС… СѓСЃР»РѕРІРёР№:
+same Recommendation
++
+same Action Type
++
+same target kind
++
+compatible action context
++
+member count >= 2
+Р­С‚Рѕ РѕС‡РµРЅСЊ РІР°Р¶РЅРѕРµ РїСЂР°РІРёР»Рѕ.
+
+13. РџРѕС‡РµРјСѓ РЅРµРґРѕСЃС‚Р°С‚РѕС‡РЅРѕ РїСЂРѕСЃС‚Рѕ РѕРґРёРЅР°РєРѕРІРѕРіРѕ Action Type
+Р”РѕРїСѓСЃС‚РёРј РµСЃС‚СЊ:
+SKU417 в†’ СЃРЅРёР·РёС‚СЊ С†РµРЅСѓ
+РїРѕС‚РѕРјСѓ С‡С‚Рѕ Price РІС‹СЂРѕСЃР»Р° РїРµСЂРµРґ СЃРЅРёР¶РµРЅРёРµРј Sales.
+Р:
+SKU999 в†’ СЃРЅРёР·РёС‚СЊ С†РµРЅСѓ
+РїРѕС‚РѕРјСѓ С‡С‚Рѕ С‚РѕРІР°СЂ СѓС‡Р°СЃС‚РІСѓРµС‚ РІ РґСЂСѓРіРѕР№ С†РµРЅРѕРІРѕР№ РјРµС…Р°РЅРёРєРµ Рё С‚РµРєСѓС‰Р°СЏ С†РµРЅР° РІС‹Р±РёРІР°РµС‚СЃСЏ РёР· РЅРµРґР°РІРЅРµРіРѕ РєРѕРЅС‚РµРєСЃС‚Р°.
+Р­С‚Рѕ РґРІРµ СЂР°Р·РЅС‹Рµ Recommendations.
+Р”Р°Р¶Рµ РµСЃР»Рё РѕР±Рµ РёРјРµСЋС‚:
+SKU_ADJUST_PRICE
+РёС… РЅРµ РЅР°РґРѕ Р°РІС‚РѕРјР°С‚РёС‡РµСЃРєРё РѕР±СЉРµРґРёРЅСЏС‚СЊ РІ:
+РЎРЅРёР·РёС‚СЊ С†РµРЅС‹ 2 С‚РѕРІР°СЂРѕРІ.
+РРЅР°С‡Рµ РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ РїРѕС‚РµСЂСЏРµС‚ СЃРјС‹СЃР», РїРѕС‡РµРјСѓ РєР°Р¶РґРѕРµ РґРµР№СЃС‚РІРёРµ РїРѕСЏРІРёР»РѕСЃСЊ.
+РџРѕСЌС‚РѕРјСѓ РіР»Р°РІРЅС‹Р№ grouping anchor:
+shared recommendation_ref
+
+14. РќРµР»СЊР·СЏ РґРµР»Р°С‚СЊ semantic grouping РІ backend
+Backend РЅРµ РґРѕР»Р¶РµРЅ РїС‹С‚Р°С‚СЊСЃСЏ РѕРїСЂРµРґРµР»РёС‚СЊ:
+Р­С‚Рё С‡РµС‚С‹СЂРµ СЂРµРєРѕРјРµРЅРґР°С†РёРё РїРѕС…РѕР¶Рё РїРѕ С‚РµРєСЃС‚Сѓ РЅР° 89%, РѕР±СЉРµРґРёРЅРёРј.
+РќРёРєР°РєРёС… embeddings, similarity РёР»Рё rules РїРѕ СЃР»РѕРІР°Рј.
+Deep СЃР°Рј С„РѕСЂРјРёСЂСѓРµС‚ РѕР±С‰СѓСЋ Recommendation, РµСЃР»Рё РґРµР№СЃС‚РІРёС‚РµР»СЊРЅРѕ СЃС‡РёС‚Р°РµС‚ Actions С‡Р°СЃС‚СЊСЋ РѕРґРЅРѕРіРѕ СѓРїСЂР°РІР»РµРЅС‡РµСЃРєРѕРіРѕ СЂРµС€РµРЅРёСЏ.
+Backend Р»РёС€СЊ СЂРµР°Р»РёР·СѓРµС‚ СЌС‚Сѓ СЃС‚СЂСѓРєС‚СѓСЂСѓ.
+
+15. РЎРѕРІРјРµСЃС‚РёРјС‹Р№ Action Context
+РќРµРєРѕС‚РѕСЂС‹Рµ Actions С‚СЂРµР±СѓСЋС‚ РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅРѕРіРѕ context.
+РќР°РїСЂРёРјРµСЂ:
+SKU_ADJUST_AD_BID
+РґРѕР»Р¶РµРЅ РёРјРµС‚СЊ:
+campaign_ref
+РџРѕСЌС‚РѕРјСѓ:
+SKU417 в†’ Campaign58
+SKU522 в†’ Campaign58
+РјРѕР¶РЅРѕ СЃРіСЂСѓРїРїРёСЂРѕРІР°С‚СЊ.
+РќРѕ:
+SKU417 в†’ Campaign58
+SKU522 в†’ Campaign79
+РІ РѕРґРЅРѕР№ Action Group СЏ Р±С‹ РЅРµ РѕР±СЉРµРґРёРЅСЏР».
+РќРµСЃРјРѕС‚СЂСЏ РЅР° РѕРґРёРЅР°РєРѕРІС‹Р№ Action Type.
+
+16. Promotion Actions
+Р”Р»СЏ:
+SKU_JOIN_PROMOTION
+РѕРґРЅР° РіСЂСѓРїРїР° РґРѕР»Р¶РЅР° РѕС‚РЅРѕСЃРёС‚СЊСЃСЏ Рє РѕРґРЅРѕР№ Promotion.
+РњРѕР¶РЅРѕ:
+Р”РѕР±Р°РІРёС‚СЊ 5 С‚РѕРІР°СЂРѕРІ РІ Р°РєС†РёСЋ В«Р Р°СЃРїСЂРѕРґР°Р¶Р° Р°РІРіСѓСЃС‚Р°В».
+РќРµР»СЊР·СЏ:
+Р”РѕР±Р°РІРёС‚СЊ 5 С‚РѕРІР°СЂРѕРІ РІ Р°РєС†РёРё
+РµСЃР»Рё С„Р°РєС‚РёС‡РµСЃРєРё:
+3 в†’ Promotion91
+2 в†’ Promotion105
+Р­С‚Рѕ РґРІРµ РіСЂСѓРїРїС‹.
+
+17. Catalog state
+Р”Р»СЏ:
+SKU_CHANGE_CATALOG_STATE
+РѕРґРёРЅР°РєРѕРІС‹Рј РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ desired_state.
+РњРѕР¶РЅРѕ:
+РђСЂС…РёРІРёСЂРѕРІР°С‚СЊ 5 С‚РѕРІР°СЂРѕРІ.
+РќРѕ РЅРµР»СЊР·СЏ РѕРґРЅРѕР№ РіСЂСѓРїРїРѕР№:
+3 в†’ ARCHIVED
+2 в†’ ACTIVE
+
+18. Price Actions
+Р”Р»СЏ Price РіСЂСѓРїРїРёСЂРѕРІР°С‚СЊ РјРѕР¶РЅРѕ РґР°Р¶Рµ РїСЂРё СЂР°Р·РЅС‹С… recommended prices.
+РќР°РїСЂРёРјРµСЂ:
+SKU417:
+2300 в†’ 2190
+
+SKU522:
+1490 в†’ 1390
+
+SKU816:
+5900 в†’ 5490
+UI:
+РЎРєРѕСЂСЂРµРєС‚РёСЂРѕРІР°С‚СЊ С†РµРЅС‹ 3 С‚РѕРІР°СЂРѕРІ
+Рђ РІРЅСѓС‚СЂРё РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ РІРёРґРёС‚ РёРЅРґРёРІРёРґСѓР°Р»СЊРЅРѕРµ Р·РЅР°С‡РµРЅРёРµ РґР»СЏ РєР°Р¶РґРѕРіРѕ.
+
+19. Replenishment
+РђРЅР°Р»РѕРіРёС‡РЅРѕ:
+РџРѕРїРѕР»РЅРёС‚СЊ 4 С‚РѕРІР°СЂР°
+РјРѕР¶РµС‚ СЃРѕРґРµСЂР¶Р°С‚СЊ:
+SKU417 в†’ 120 С€С‚.
+SKU522 в†’ 40 С€С‚.
+SKU816 в†’ 250 С€С‚.
+SKU901 в†’ quantity РЅРµ РѕРїСЂРµРґРµР»РµРЅРѕ
+Р“СЂСѓРїРїР° РЅРµ С‚СЂРµР±СѓРµС‚ РѕРґРёРЅР°РєРѕРІС‹С… parameters.
+РћРЅР° С‚СЂРµР±СѓРµС‚ РѕРґРёРЅР°РєРѕРІРѕРіРѕ СѓРїСЂР°РІР»РµРЅС‡РµСЃРєРѕРіРѕ РЅР°РјРµСЂРµРЅРёСЏ.
+
+20. РќРµ РіСЂСѓРїРїРёСЂСѓРµРј СЂР°Р·РЅС‹Рµ Action Types
+Р”Р°Р¶Рµ РµСЃР»Рё Recommendation РѕРґРЅР°.
+РќР°РїСЂРёРјРµСЂ Deep СЃС„РѕСЂРјРёСЂРѕРІР°Р» Recommendation:
+РЈСЃРёР»РёС‚СЊ РїРѕРґРґРµСЂР¶РєСѓ Р±С‹СЃС‚СЂРѕСЂР°СЃС‚СѓС‰РёС… С‚РѕРІР°СЂРѕРІ.
+Р СЃРѕР·РґР°Р»:
+SKU417 в†’ INCREASE_REPLENISHMENT
+SKU522 в†’ INCREASE_REPLENISHMENT
+
+SKU417 в†’ ADJUST_AD_BID
+SKU522 в†’ ADJUST_AD_BID
+Р­С‚Рѕ РЅРµ РѕРґРЅР° РіРёРіР°РЅС‚СЃРєР°СЏ РєР°СЂС‚РѕС‡РєР°.
+Publication С„РѕСЂРјРёСЂСѓРµС‚:
+Group 1:
+РџРѕРїРѕР»РЅРёС‚СЊ 2 С‚РѕРІР°СЂР°
+
+Group 2:
+РР·РјРµРЅРёС‚СЊ СЂРµРєР»Р°РјРЅС‹Рµ СЃС‚Р°РІРєРё 2 С‚РѕРІР°СЂРѕРІ
+РћР±Рµ РјРѕРіСѓС‚ СЃСЃС‹Р»Р°С‚СЊСЃСЏ РЅР° РѕРґРёРЅ Recommendation.
+РўР°Рє РіРѕСЂР°Р·РґРѕ РїРѕРЅСЏС‚РЅРµРµ.
+
+21. РќРµ РІРІРѕРґРёРј РІР»РѕР¶РµРЅРЅС‹Рµ РіСЂСѓРїРїС‹
+V1:
+Action Group
+    в†“
+Atomic Actions
+Рё РІСЃС‘.
+РќРёРєР°РєРёС…:
+Category Group
+  в†“
+Replenishment Group
+    в†“
+Subgroup by warehouse
+      в†“
+Actions
+Р­С‚Рѕ Р±С‹СЃС‚СЂРѕ СЃРґРµР»Р°РµС‚ Actions UI РЅРµСѓРїСЂР°РІР»СЏРµРјС‹Рј.
+
+22. Р Р°Р·РЅРёС†Р° РјРµР¶РґСѓ Action Group Рё Category Action
+Р­С‚Рѕ РѕРґРёРЅ РёР· СЃР°РјС‹С… РІР°Р¶РЅС‹С… РјРѕРјРµРЅС‚РѕРІ.
+Grouped SKU Actions
+РџРѕРїРѕР»РЅРёС‚СЊ SKU417, SKU522, SKU816, SKU901.
+РЎРјС‹СЃР»:
+РІС‹РїРѕР»РЅРёС‚СЊ РѕРґРЅРѕС‚РёРїРЅРѕРµ РґРµР№СЃС‚РІРёРµ РѕС‚РґРµР»СЊРЅРѕ РЅР°Рґ С‡РµС‚С‹СЂСЊРјСЏ РєРѕРЅРєСЂРµС‚РЅС‹РјРё SKU.
+РџРѕСЌС‚РѕРјСѓ:
+4 Г— SKU Actions
+
+Category Action
+РџРµСЂРµСЃРјРѕС‚СЂРµС‚СЊ СЃС‚СЂР°С‚РµРіРёСЋ РїРѕРїРѕР»РЅРµРЅРёСЏ РєР°С‚РµРіРѕСЂРёРё В«РљРѕС„РµРјР°С€РёРЅС‹В».
+Р­С‚Рѕ СѓР¶Рµ СЂРµС€РµРЅРёРµ СѓСЂРѕРІРЅСЏ:
+Category
+Рё РїРѕСЌС‚РѕРјСѓ:
+1 Г— CATEGORY_REPLENISHMENT_PLAN
+
+23. РљР°Рє РІС‹Р±РёСЂР°С‚СЊ РјРµР¶РґСѓ РЅРёРјРё
+Р•СЃР»Рё Recommendation РјРѕР¶РЅРѕ РїРѕР»РЅРѕСЃС‚СЊСЋ СЂР°Р·Р»РѕР¶РёС‚СЊ:
+С‡С‚Рѕ СЃРґРµР»Р°С‚СЊ СЃ SKU417
+С‡С‚Рѕ СЃРґРµР»Р°С‚СЊ СЃ SKU522
+С‡С‚Рѕ СЃРґРµР»Р°С‚СЊ СЃ SKU816
+Рё РєР°Р¶РґС‹Р№ РїСѓРЅРєС‚ РёРјРµРµС‚ СЃР°РјРѕСЃС‚РѕСЏС‚РµР»СЊРЅРѕРµ РІС‹РїРѕР»РЅРµРЅРёРµ вЂ” СЌС‚Рѕ SKU Actions + Group.
+Р•СЃР»Рё СЃРјС‹СЃР» СЂРµРєРѕРјРµРЅРґР°С†РёРё:
+РёР·РјРµРЅРёС‚СЊ СѓРїСЂР°РІР»РµРЅС‡РµСЃРєРёР№ РїРѕРґС…РѕРґ Рє РєР°С‚РµРіРѕСЂРёРё РІ С†РµР»РѕРј,
+С‚Рѕ СЌС‚Рѕ Category Action.
+
+24. РќРµ РЅР°РґРѕ СЃРѕР·РґР°РІР°С‚СЊ РѕР±Р° СѓСЂРѕРІРЅСЏ Р±РµР· РЅРµРѕР±С…РѕРґРёРјРѕСЃС‚Рё
+РџР»РѕС…РѕР№ output:
+CATEGORY_REPLENISHMENT_PLAN
+Category X
+
++
+
+SKU_INCREASE_REPLENISHMENT 417
+SKU_INCREASE_REPLENISHMENT 522
+SKU_INCREASE_REPLENISHMENT 816
+РµСЃР»Рё Category Action РїСЂРѕСЃС‚Рѕ РїРѕРІС‚РѕСЂСЏРµС‚ С‚СЂРё SKU Actions.
+Deep prompt РґРѕР»Р¶РµРЅ РёР·Р±РµРіР°С‚СЊ С‚Р°РєРѕР№ redundancy.
+Category Action РЅСѓР¶РµРЅ, РєРѕРіРґР° РІ РЅС‘Рј РґРµР№СЃС‚РІРёС‚РµР»СЊРЅРѕ РµСЃС‚СЊ РґРѕРїРѕР»РЅРёС‚РµР»СЊРЅС‹Р№ category-level СЃРјС‹СЃР».
+Р­С‚Рѕ semantic quality rule, РєРѕС‚РѕСЂС‹Р№ РїСЂРѕРІРµСЂСЏРµРј evals, Р° РЅРµ backend.
+
+25. Campaign Action вЂ” РѕС‚РґРµР»СЊРЅС‹Р№ СЃР»СѓС‡Р°Р№
+РќР°РїСЂРёРјРµСЂ:
+CAMPAIGN_ADJUST_PRODUCT_SET
+РёРјРµРµС‚:
+target = Campaign58
+
+remove_skus:
+417
+522
+816
+Р­С‚Рѕ РѕРґРёРЅ Action, РЅРµСЃРјРѕС‚СЂСЏ РЅР° С‚СЂРё SKU.
+РџРѕС‡РµРјСѓ?
+РџРѕС‚РѕРјСѓ С‡С‚Рѕ РЅРµРїРѕСЃСЂРµРґСЃС‚РІРµРЅРЅРѕ РёР·РјРµРЅСЏРµРјС‹Р№ Р±РёР·РЅРµСЃ-РѕР±СЉРµРєС‚ вЂ” Campaign.
+РЈРїСЂР°РІР»РµРЅС‡РµСЃРєР°СЏ РѕРїРµСЂР°С†РёСЏ:
+РёР·РјРµРЅРёС‚СЊ product set Campaign58.
+SKU Р·РґРµСЃСЊ СЏРІР»СЏСЋС‚СЃСЏ РїР°СЂР°РјРµС‚СЂР°РјРё Campaign Action.
+
+26. РџСЂРё СЌС‚РѕРј child Materiality rule СЃРѕС…СЂР°РЅСЏРµС‚СЃСЏ
+Р•СЃР»Рё Campaign Action РјРµРЅСЏРµС‚ SKU:
+417
+522
+816
+РІСЃРµ РѕРЅРё РґРѕР»Р¶РЅС‹ Р±С‹С‚СЊ Material Entities.
+РРЅР°С‡Рµ Campaign Action РїСЂРµРІСЂР°С‰Р°РµС‚СЃСЏ РІ РѕР±С…РѕРґ Materiality.
+
+27. Persistent Action Case РѕСЃС‚Р°С‘С‚СЃСЏ Р°С‚РѕРјР°СЂРЅС‹Рј
+Р­С‚Рѕ РµС‰С‘ РѕРґРЅР° С„СѓРЅРґР°РјРµРЅС‚Р°Р»СЊРЅР°СЏ С‡Р°СЃС‚СЊ.
+Р”Р»СЏ РїСЂРёРјРµСЂР°:
+Action Case C1:
+SKU417 + INCREASE_REPLENISHMENT
+
+C2:
+SKU522 + INCREASE_REPLENISHMENT
+
+C3:
+SKU816 + INCREASE_REPLENISHMENT
+
+C4:
+SKU901 + INCREASE_REPLENISHMENT
+РќРµ СЃРѕР·РґР°С‘Рј РѕРґРёРЅ:
+Action Case:
+SKUs [417,522,816,901]
+
+28. Action Group РЅРµ РёРјРµРµС‚ СЃРѕР±СЃС‚РІРµРЅРЅРѕРіРѕ РЅРµР·Р°РІРёСЃРёРјРѕРіРѕ lifecycle
+Р­С‚Рѕ РёР·РјРµРЅРµРЅРёРµ РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ СЃР°РјРѕРіРѕ РїРµСЂРІРѕРіРѕ СѓРїСЂРѕС‰С‘РЅРЅРѕРіРѕ РѕР±СЉСЏСЃРЅРµРЅРёСЏ, Рё СЏ СЃС‡РёС‚Р°СЋ РµРіРѕ РїСЂР°РІРёР»СЊРЅС‹Рј.
+Canonical statuses СЃСѓС‰РµСЃС‚РІСѓСЋС‚ Сѓ child Action Cases.
+РќР°РїСЂРёРјРµСЂ:
+SKU417 в†’ DONE
+SKU522 в†’ OPEN
+SKU816 в†’ OPEN
+SKU901 в†’ DISMISSED
+Р“СЂСѓРїРїР° Р»РёС€СЊ РѕС‚РѕР±СЂР°Р¶Р°РµС‚:
+2 РёР· 4 С‚СЂРµР±СѓСЋС‚ РґРµР№СЃС‚РІРёСЏ.
+РќРµ СЃСѓС‰РµСЃС‚РІСѓРµС‚ РѕС‚РґРµР»СЊРЅРѕР№ РёСЃС‚РёРЅС‹:
+group.status = ?
+РєРѕС‚РѕСЂР°СЏ РјРѕРіР»Р° Р±С‹ РєРѕРЅС„Р»РёРєС‚РѕРІР°С‚СЊ СЃ РґРѕС‡РµСЂРЅРёРјРё Actions.
+
+29. РЎС‚Р°С‚СѓСЃ РіСЂСѓРїРїС‹ РІС‹С‡РёСЃР»СЏРµС‚СЃСЏ
+Р”Р»СЏ UI РјРѕР¶РЅРѕ РїРѕРєР°Р·Р°С‚СЊ:
+4 actions
+
+2 open
+1 done
+1 dismissed
+РќРѕ СЌС‚Рѕ derived projection.
+РќРµ РѕС‚РґРµР»СЊРЅС‹Р№ mutable business state.
+
+30. РЎРѕСЃС‚Р°РІ РіСЂСѓРїРїС‹ РјРѕР¶РµС‚ РјРµРЅСЏС‚СЊСЃСЏ РјРµР¶РґСѓ Publications
+Р­С‚Рѕ РѕС‡РµРЅСЊ РІР°Р¶РЅС‹Р№ РєРµР№СЃ.
+20 Р°РІРіСѓСЃС‚Р°:
+Group:
+417
+522
+816
+901
+21 Р°РІРіСѓСЃС‚Р°:
+417 в†’ СѓР¶Рµ РЅРµ С‚СЂРµР±СѓРµС‚ Action
+522 в†’ С‚СЂРµР±СѓРµС‚
+816 в†’ С‚СЂРµР±СѓРµС‚
+901 в†’ С‚СЂРµР±СѓРµС‚
+РўРµРєСѓС‰Р°СЏ РїСЂРѕРµРєС†РёСЏ:
+РџРѕРїРѕР»РЅРёС‚СЊ 3 С‚РѕРІР°СЂР°.
+РџСЂРё СЌС‚РѕРј РёСЃС‚РѕСЂРёС‡РµСЃРєР°СЏ Publication 20 Р°РІРіСѓСЃС‚Р° РѕСЃС‚Р°С‘С‚СЃСЏ РЅРµРёР·РјРµРЅРЅРѕР№ Рё РїСЂРѕРґРѕР»Р¶Р°РµС‚ РїРѕРєР°Р·С‹РІР°С‚СЊ С‡РµС‚С‹СЂРµ.
+
+31. РџРѕСЌС‚РѕРјСѓ Action Group РЅРµ РЅР°РґРѕ РґРµР»Р°С‚СЊ РґРѕР»РіРѕР¶РёРІСѓС‰РµР№ canonical СЃСѓС‰РЅРѕСЃС‚СЊСЋ
+Р­С‚Рѕ РІР°Р¶РЅС‹Р№ СЂРµР·СѓР»СЊС‚Р°С‚ Р°РЅР°Р»РёР·Р°.
+Р”РѕР»РіРѕР¶РёРІСѓС‰Р°СЏ СЃСѓС‰РЅРѕСЃС‚СЊ:
+Action Case
+Р“СЂСѓРїРїР°:
+Publication/UI Projection
+РџРѕС‚РѕРјСѓ С‡С‚Рѕ РµС‘ membership РµСЃС‚РµСЃС‚РІРµРЅРЅС‹Рј РѕР±СЂР°Р·РѕРј Р·Р°РІРёСЃРёС‚ РѕС‚ С‚РµРєСѓС‰РµР№ Publication.
+
+32. РќСѓР¶РЅР° РєРѕСЂСЂРµРєС‚РёСЂРѕРІРєР° РёРґРµРЅС‚РёС‡РЅРѕСЃС‚Рё Action Case
+РњРЅРѕРіРѕСЃСѓС‰РЅРѕСЃС‚РЅС‹Р№ СЃС†РµРЅР°СЂРёР№ РІС‹СЏРІР»СЏРµС‚ РµС‰С‘ РѕРґРЅСѓ РІР°Р¶РЅСѓСЋ РґРµС‚Р°Р»СЊ.
+РќРµРґРѕСЃС‚Р°С‚РѕС‡РЅРѕ РёРґРµРЅС‚РёС„РёС†РёСЂРѕРІР°С‚СЊ Case С‚РѕР»СЊРєРѕ:
+target + action_type
+РќР°РїСЂРёРјРµСЂ:
+SKU417 + SKU_ADJUST_AD_BID
+РјРѕР¶РµС‚ РѕС‚РЅРѕСЃРёС‚СЊСЃСЏ Рє:
+Campaign58
+РёР»Рё:
+Campaign79.
+Р­С‚Рѕ СЃРѕРІРµСЂС€РµРЅРЅРѕ СЂР°Р·РЅС‹Рµ Actions.
+РџРѕСЌС‚РѕРјСѓ canonical Action Case identity РґРѕР»Р¶РЅР° Р±С‹С‚СЊ:
+seller
++
+action_type
++
+target
++
+normalized_action_context
++
+intent_signature
+
+33. Р§С‚Рѕ С‚Р°РєРѕРµ normalized_action_context
+РќР°РїСЂРёРјРµСЂ:
+SKU_ADJUST_AD_BID:
+campaign=58
+SKU_JOIN_PROMOTION:
+promotion=91
+Р”Р»СЏ РѕР±С‹С‡РЅРѕР№ Price Action:
+context = none
+
+34. Р§С‚Рѕ С‚Р°РєРѕРµ intent_signature
+РќСѓР¶РЅРѕ С‚Р°РєР¶Рµ СЂР°Р·Р»РёС‡Р°С‚СЊ РїСЂРѕС‚РёРІРѕРїРѕР»РѕР¶РЅС‹Рµ СЂРµРєРѕРјРµРЅРґР°С†РёРё.
+РќР°РїСЂРёРјРµСЂ СЃРµРіРѕРґРЅСЏ:
+SKU_ADJUST_PRICE:
+2300 в†’ 2190
+Р° С‡РµСЂРµР· РЅРµРґРµР»СЋ:
+SKU_ADJUST_PRICE:
+2100 в†’ 2400
+Р­С‚Рѕ СѓР¶Рµ РЅРµ РїСЂРѕРґРѕР»Р¶РµРЅРёРµ СЃС‚Р°СЂРѕРіРѕ Action Case РІ РЅРѕСЂРјР°Р»СЊРЅРѕРј РїСЂРѕРґСѓРєС‚РѕРІРѕРј СЃРјС‹СЃР»Рµ.
+РџРѕСЌС‚РѕРјСѓ backend РјРѕР¶РµС‚ РґРµС‚РµСЂРјРёРЅРёСЂРѕРІР°РЅРЅРѕ РІС‹С‡РёСЃР»СЏС‚СЊ:
+PRICE:
+INCREASE / DECREASE
+
+BUDGET:
+INCREASE / DECREASE
+
+BID:
+INCREASE / DECREASE
+
+CAMPAIGN_STATE:
+ACTIVE / PAUSED
+
+CATALOG_STATE:
+ACTIVE / ARCHIVED
+
+35. Р—Р°С‡РµРј СЌС‚Рѕ РЅСѓР¶РЅРѕ
+Р•СЃР»Рё recommendation РѕСЃС‚Р°С‘С‚СЃСЏ:
+price decrease
+РЅРѕ С‡РёСЃР»Рѕ РјРµРЅСЏРµС‚СЃСЏ:
+2190 в†’ 2150
+СЌС‚Рѕ С‚РѕС‚ Р¶Рµ Action Case СЃ РѕР±РЅРѕРІР»С‘РЅРЅС‹Рј proposal.
+Р•СЃР»Рё РЅР°РїСЂР°РІР»РµРЅРёРµ РїРѕР»РЅРѕСЃС‚СЊСЋ РїРѕРјРµРЅСЏР»РѕСЃСЊ:
+DECREASE
+в†’
+INCREASE
+СЃС‚Р°СЂС‹Р№ Case РЅРµ РґРѕР»Р¶РµРЅ РЅРµР·Р°РјРµС‚РЅРѕ РїСЂРµРІСЂР°С‚РёС‚СЊСЃСЏ РІ РїСЂРѕС‚РёРІРѕРїРѕР»РѕР¶РЅРѕРµ РґРµР№СЃС‚РІРёРµ.
+Р­С‚Рѕ СѓР¶Рµ РЅРѕРІС‹Р№ occurrence.
+
+36. Р”Р»СЏ С‚Р°РєРѕРіРѕ СЃР»СѓС‡Р°СЏ РЅСѓР¶РµРЅ system state SUPERSEDED
+РЇ СЂРµРєРѕРјРµРЅРґСѓСЋ РїСЂРµРґСѓСЃРјРѕС‚СЂРµС‚СЊ РµРіРѕ РїСЂРё РїСЂРѕРµРєС‚РёСЂРѕРІР°РЅРёРё РїРѕР»РЅРѕРіРѕ Action Case lifecycle.
+РќР°РїСЂРёРјРµСЂ:
+old Action Case:
+Decrease price
+в†’ SUPERSEDED
+
+new Action Case:
+Increase price
+в†’ OPEN
+Р­С‚Рѕ Р»СѓС‡С€Рµ, С‡РµРј РїРµСЂРµРїРёСЃС‹РІР°С‚СЊ РёСЃС‚РѕСЂРёСЋ СЃС‚Р°СЂРѕРіРѕ Action.
+РЎР°Рј РїРѕР»РЅС‹Р№ lifecycle Р»РѕРіРёС‡РЅРµРµ РѕРєРѕРЅС‡Р°С‚РµР»СЊРЅРѕ Р·Р°РєСЂС‹С‚СЊ РЅР° Publication/Actions persistence СЌС‚Р°РїРµ.
+
+37. РљР°Рє Deep РґРѕР»Р¶РµРЅ РІРѕР·РІСЂР°С‰Р°С‚СЊ multi-entity Recommendation
+РЈРїСЂРѕС‰С‘РЅРЅРѕ:
+{
+  "scope_type": "ENTITY_SET",
+  "subject_entities": [
+    "SKU417",
+    "SKU522",
+    "SKU816",
+    "SKU901"
+  ],
+  "statement": "РџРѕРїРѕР»РЅРёС‚СЊ С‚РѕРІР°СЂС‹ СЃ РѕС‚СЃСѓС‚СЃС‚РІСѓСЋС‰РёРј Р·Р°РїР°СЃРѕРј Рё СЃРѕС…СЂР°РЅСЏСЋС‰РёРјСЃСЏ СЃРїСЂРѕСЃРѕРј.",
+  "actionability": "ACTIONABLE_NOW",
+  "finding_refs": [1, 2, 3, 4]
+}
+Р”Р°Р»РµРµ:
+Action 1 в†’ SKU417 в†’ Recommendation R7
+Action 2 в†’ SKU522 в†’ Recommendation R7
+Action 3 в†’ SKU816 в†’ Recommendation R7
+Action 4 в†’ SKU901 в†’ Recommendation R7
+
+38. Publication Projector СЃРѕР·РґР°С‘С‚ group
+РђР»РіРѕСЂРёС‚Рј РїРѕР»РЅРѕСЃС‚СЊСЋ РґРµС‚РµСЂРјРёРЅРёСЂРѕРІР°РЅРЅС‹Р№:
+Validated Actions
+        в†“
+partition by:
+recommendation_ref
+action_type
+target_kind
+normalized context
+        в†“
+if count >= 2
+в†’ Action Group Projection
+РќРёРєР°РєРѕРіРѕ AI Р·РґРµСЃСЊ Р±РѕР»СЊС€Рµ РЅРµС‚.
+
+39. Group title РЅРµ РЅСѓР¶РЅРѕ РїРѕРІС‚РѕСЂРЅРѕ РіРµРЅРµСЂРёСЂРѕРІР°С‚СЊ AI
+РќР°РїСЂРёРјРµСЂ Action Type:
+SKU_INCREASE_REPLENISHMENT
+РјРѕР¶РµС‚ РёРјРµС‚СЊ presentation template:
+1 в†’ В«РџРѕРїРѕР»РЅРёС‚СЊ С‚РѕРІР°СЂВ»
+N в†’ В«РџРѕРїРѕР»РЅРёС‚СЊ N С‚РѕРІР°СЂРѕРІВ»
+
+40. Рђ business explanation Р±РµСЂС‘Рј РёР· Recommendation
+РќР°РїСЂРёРјРµСЂ:
+РЈ С‚РѕРІР°СЂРѕРІ РѕС‚СЃСѓС‚СЃС‚РІСѓРµС‚ sellable stock РїСЂРё СЃРѕС…СЂР°РЅСЏСЋС‰РµРјСЃСЏ СЃРїСЂРѕСЃРµ.
+Р­С‚Рѕ СѓР¶Рµ РЅР°РїРёСЃР°Р» Deep.
+РўР°Рє РјС‹ РёР·Р±РµРіР°РµРј РЅРѕРІРѕРіРѕ AI-generation РЅР° Projection stage.
+
+41. Р”РѕРїРѕР»РЅРёС‚РµР»СЊРЅС‹Р№ factual qualifier
+Р•СЃР»Рё РґРµР№СЃС‚РІРёС‚РµР»СЊРЅРѕ РґР»СЏ РІСЃРµС… members:
+sellable_stock = 0
+Projector РјРѕР¶РµС‚ РґРµС‚РµСЂРјРёРЅРёСЂРѕРІР°РЅРЅРѕ РїРѕРєР°Р·Р°С‚СЊ:
+РџРѕРїРѕР»РЅРёС‚СЊ 4 С‚РѕРІР°СЂР° Р±РµР· РѕСЃС‚Р°С‚РєРѕРІ.
+РќРѕ С‚РѕР»СЊРєРѕ РµСЃР»Рё СЌС‚РѕС‚ qualifier РґРѕРєР°Р·Р°РЅ facts РІСЃРµС… СѓС‡Р°СЃС‚РЅРёРєРѕРІ.
+Р•СЃР»Рё:
+SKU417 в†’ 0
+SKU522 в†’ 0
+SKU816 в†’ 3 days
+SKU901 в†’ 1 day
+РЅР°Р·РІР°РЅРёРµ:
+РџРѕРїРѕР»РЅРёС‚СЊ 4 С‚РѕРІР°СЂР°
+Р° РЅРµ:
+4 С‚РѕРІР°СЂР° Р±РµР· РѕСЃС‚Р°С‚РєРѕРІ.
+Backend РЅРµ РґРѕР»Р¶РµРЅ РѕР±РѕР±С‰Р°С‚СЊ С„Р°РєС‚, РєРѕС‚РѕСЂС‹Р№ РЅРµ РѕС‚РЅРѕСЃРёС‚СЃСЏ РєРѕ РІСЃРµР№ РіСЂСѓРїРїРµ.
+
+42. Р’РЅСѓС‚СЂРё РіСЂСѓРїРїС‹ РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ РІРёРґРёС‚ individual facts
+РќР°РїСЂРёРјРµСЂ:
+SKU
+РћСЃС‚Р°С‚РѕРє
+РџРѕРєСЂС‹С‚РёРµ
+Р РµРєРѕРјРµРЅРґР°С†РёСЏ
+SKU417
+0
+0 РґРЅРµР№
++120
+SKU522
+0
+0 РґРЅРµР№
++40
+SKU816
+4
+0,8 РґРЅСЏ
++250
+SKU901
+0
+0 РґРЅРµР№
+РїРѕРїРѕР»РЅРёС‚СЊ
+РўРѕ РµСЃС‚СЊ Group СѓРјРµРЅСЊС€Р°РµС‚ РІРёР·СѓР°Р»СЊРЅС‹Р№ С€СѓРј, РЅРѕ РЅРµ СѓРЅРёС‡С‚РѕР¶Р°РµС‚ РґРµС‚Р°Р»РёР·Р°С†РёСЋ.
+
+43. РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ РґРѕР»Р¶РµРЅ РёРјРµС‚СЊ РІРѕР·РјРѕР¶РЅРѕСЃС‚СЊ СЂР°Р±РѕС‚Р°С‚СЊ СЃ РѕРґРЅРёРј child Action
+РќР°РїСЂРёРјРµСЂ:
+РџРѕРїРѕР»РЅРёС‚СЊ 4 С‚РѕРІР°СЂР°
+РџРѕР»СЊР·РѕРІР°С‚РµР»СЊ СЂР°СЃРєСЂС‹РІР°РµС‚ РєР°СЂС‚РѕС‡РєСѓ Рё РјРѕР¶РµС‚:
+SKU417 в†’ DONE
+РЅРµ Р·Р°С‚СЂР°РіРёРІР°СЏ РѕСЃС‚Р°Р»СЊРЅС‹Рµ.
+Р­С‚Рѕ РѕР±СЏР·Р°С‚РµР»СЊРЅРѕ.
+
+44. РњР°СЃСЃРѕРІР°СЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЊСЃРєР°СЏ РѕРїРµСЂР°С†РёСЏ
+РЇ С‚Р°РєР¶Рµ СЂРµРєРѕРјРµРЅРґСѓСЋ РїСЂРµРґСѓСЃРјРѕС‚СЂРµС‚СЊ:
+В«РћС‚РјРµС‚РёС‚СЊ РІСЃРµ РІС‹РїРѕР»РЅРµРЅРЅС‹РјРёВ»
+В«РћС‚РєР»РѕРЅРёС‚СЊ РІСЃРµВ»
+РєР°Рє bulk UI operation.
+РќРѕ С‚РµС…РЅРёС‡РµСЃРєРё СЌС‚Рѕ РЅРµ РёР·РјРµРЅРµРЅРёРµ Group.
+Backend РІС‹РїРѕР»РЅСЏРµС‚ N РѕС‚РґРµР»СЊРЅС‹С… РїРµСЂРµС…РѕРґРѕРІ Action Case, СЃРІСЏР·Р°РЅРЅС‹С… РѕРґРЅРёРј:
+bulk_operation_id
+РўР°Рє СЃРѕС…СЂР°РЅСЏРµС‚СЃСЏ Р°СѓРґРёС‚.
+
+45. Р‘СѓРґСѓС‰Р°СЏ Р°РІС‚РѕРјР°С‚РёР·Р°С†РёСЏ Ozon
+Р—РґРµСЃСЊ Р°С‚РѕРјР°СЂРЅР°СЏ РјРѕРґРµР»СЊ РѕСЃРѕР±РµРЅРЅРѕ РІР°Р¶РЅР°.
+РўРµРєСѓС‰РёР№ Ozon РёРЅС‚РµСЂС„РµР№СЃ СѓР¶Рµ РїРѕРґРґРµСЂР¶РёРІР°РµС‚ РјР°СЃСЃРѕРІРѕРµ РґРѕР±Р°РІР»РµРЅРёРµ/СѓРґР°Р»РµРЅРёРµ С‚РѕРІР°СЂРѕРІ РІ СЂРµРєР»Р°РјРЅС‹С… РєР°РјРїР°РЅРёСЏС…, Р° С‚РµРєСѓС‰РёР№ Performance API СЃРѕРґРµСЂР¶РёС‚ batch product operations; РґР»СЏ РЅРµРєРѕС‚РѕСЂС‹С… РјР°СЃСЃРѕРІС‹С… РјРµС‚РѕРґРѕРІ РґРѕРєСѓРјРµРЅС‚РёСЂРѕРІР°РЅ Р»РёРјРёС‚ РґРѕ 1000 С‚РѕРІР°СЂРѕРІ Р·Р° Р·Р°РїСЂРѕСЃ. Р”РѕРєСѓРјРµРЅС‚С‹ Ozon
+РџСЂРё СЌС‚РѕРј Performance contracts РёР·РјРµРЅСЏСЋС‚СЃСЏ: Ozon РѕР±РЅРѕРІР»СЏР» product/bid methods Рё РёС… РїР°СЂР°РјРµС‚СЂС‹ РІ 2026 РіРѕРґСѓ. GitHub
+РџРѕСЌС‚РѕРјСѓ РЅРµР»СЊР·СЏ РґРµР»Р°С‚СЊ:
+Action Group
+=
+Ozon API request.
+
+46. РџСЂР°РІРёР»СЊРЅР°СЏ Р±СѓРґСѓС‰Р°СЏ execution model
+РќР°РїСЂРёРјРµСЂ РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ РЅР°Р¶РёРјР°РµС‚:
+РџСЂРёРјРµРЅРёС‚СЊ РєРѕ РІСЃРµРј 40 SKU.
+Execution Layer:
+40 Atomic Actions
+в†“
+fresh revalidation РєР°Р¶РґРѕРіРѕ
+в†“
+37 valid
+3 stale/invalid
+в†“
+compatible Actions РѕР±СЉРµРґРёРЅСЏСЋС‚СЃСЏ
+РІ provider batches
+в†“
+batch requests Рє Ozon
+в†“
+СЂРµР·СѓР»СЊС‚Р°С‚ СЃРЅРѕРІР° СЂР°СЃРєР»Р°РґС‹РІР°РµС‚СЃСЏ
+РїРѕ 37 individual Actions
+РўРѕ РµСЃС‚СЊ batch вЂ” РѕРїС‚РёРјРёР·Р°С†РёСЏ С‚СЂР°РЅСЃРїРѕСЂС‚Р°.
+РќРµ business identity.
+
+47. РџРѕС‡РµРјСѓ СЌС‚Рѕ РІР°Р¶РЅРѕ РїСЂРё partial failure
+РџСЂРµРґСЃС‚Р°РІРёРј Ozon Р·Р°РїСЂРѕСЃ РЅР° РЅРµСЃРєРѕР»СЊРєРѕ SKU.
+Р РµР·СѓР»СЊС‚Р°С‚:
+SKU417 в†’ SUCCESS
+SKU522 в†’ SUCCESS
+SKU816 в†’ ERROR
+SKU901 в†’ SUCCESS
+Р•СЃР»Рё Aivion С…СЂР°РЅРёС‚ РѕРґРёРЅ РјР°СЃСЃРѕРІС‹Р№ Action:
+Р§С‚Рѕ СЏРІР»СЏРµС‚СЃСЏ СЂРµР·СѓР»СЊС‚Р°С‚РѕРј вЂ” SUCCESS РёР»Рё FAILED?
+РџСЂРё Р°С‚РѕРјР°СЂРЅРѕР№ РјРѕРґРµР»Рё:
+417 DONE
+522 DONE
+816 FAILED
+901 DONE
+РЅРёРєР°РєРѕР№ РїСЂРѕР±Р»РµРјС‹ РЅРµС‚.
+
+48. Provider batch limits РЅРµ РґРѕР»Р¶РЅС‹ РїРѕРїР°РґР°С‚СЊ РІ Action Contract
+РЎРµРіРѕРґРЅСЏ Ozon РјРѕР¶РµС‚ СЂР°Р·СЂРµС€Р°С‚СЊ:
+500
+1000
+С‚РѕРІР°СЂРѕРІ РІ РєРѕРЅРєСЂРµС‚РЅРѕР№ РѕРїРµСЂР°С†РёРё. РќР°РїСЂРёРјРµСЂ С‚РµРєСѓС‰Р°СЏ Performance documentation РѕС‚СЂР°Р¶Р°РµС‚ batch product operations Рё РѕС‚РґРµР»СЊРЅС‹Рµ РѕРіСЂР°РЅРёС‡РµРЅРёСЏ; РІ РѕРїРёСЃР°РЅРёРё product campaigns С‚Р°РєР¶Рµ СЃСѓС‰РµСЃС‚РІСѓРµС‚ РјР°СЃСЃРѕРІРѕРµ РґРѕР±Р°РІР»РµРЅРёРµ С‚РѕРІР°СЂРѕРІ. GitHub
+Р—Р°РІС‚СЂР° Р»РёРјРёС‚ РјРѕР¶РµС‚ РёР·РјРµРЅРёС‚СЊСЃСЏ.
+РџРѕСЌС‚РѕРјСѓ:
+Action Group = 3 000 SKU
+Р°СЂС…РёС‚РµРєС‚СѓСЂРЅРѕ РґРѕРїСѓСЃС‚РёРјР° РєР°Рє recommendation/UI set.
+Future Executor РїСЂРѕСЃС‚Рѕ СЂР°Р·РґРµР»РёС‚ РµС‘:
+batch 1
+batch 2
+batch 3
+...
+РІ СЃРѕРѕС‚РІРµС‚СЃС‚РІРёРё СЃ Р°РєС‚СѓР°Р»СЊРЅС‹Рј provider contract.
+
+49. РќРѕ Discovery/Deep budgets РІСЃС‘ СЂР°РІРЅРѕ РѕРіСЂР°РЅРёС‡РёРІР°СЋС‚ СЂРµР°Р»СЊРЅС‹Рµ РіСЂСѓРїРїС‹
+Р’ С‚РµРєСѓС‰РµРј v1 AI Р°РЅР°Р»РёР·РёСЂСѓРµС‚ С‚РѕР»СЊРєРѕ Material Entities.
+РџРѕСЌС‚РѕРјСѓ Deep РЅРµ СЃРјРѕР¶РµС‚ СЃРµРіРѕРґРЅСЏ СЃС„РѕСЂРјРёСЂРѕРІР°С‚СЊ:
+РР·РјРµРЅРёС‚СЊ 1 700 SKU,
+РµСЃР»Рё СЌС‚Рё 1 700 SKU РЅРµ Р±С‹Р»Рё РґРѕСЃС‚СѓРїРЅС‹ РєР°Рє main entities РІ Deep Pack.
+Р­С‚Рѕ РїСЂР°РІРёР»СЊРЅРѕ.
+РњР°СЃСЃРѕРІС‹Р№ Action РЅРµ РґРѕР»Р¶РµРЅ СЃС‚Р°РЅРѕРІРёС‚СЊСЃСЏ СЃРїРѕСЃРѕР±РѕРј РѕР±С…РѕРґР° bounded AI context.
+
+50. Multi-entity Recommendations РЅРµ Р·Р°РјРµРЅСЏСЋС‚ Category Materiality
+РќР°РїСЂРёРјРµСЂ 20 SKU РѕРґРЅРѕР№ Category РёРјРµСЋС‚ РЅРµР±РѕР»СЊС€РёРµ РёР·РјРµРЅРµРЅРёСЏ.
+Category СЃР°РјР° Material Рё Deep РїРѕРЅРёРјР°РµС‚ РѕР±С‰РёР№ pattern.
+Р’ Р·Р°РІРёСЃРёРјРѕСЃС‚Рё РѕС‚ РІС‹РІРѕРґР° РјРѕРіСѓС‚ РІРѕР·РЅРёРєРЅСѓС‚СЊ:
+CATEGORY_REPRICING_PLAN
+РёР»Рё bounded РЅР°Р±РѕСЂ РєРѕРЅРєСЂРµС‚РЅС‹С…:
+SKU_ADJUST_PRICE.
+AI РЅРµ РѕР±СЏР·Р°РЅ РїСЂРµРІСЂР°С‰Р°С‚СЊ Р»СЋР±СѓСЋ Category СЃРёС‚СѓР°С†РёСЋ РІ РґРµСЃСЏС‚РєРё SKU Actions.
+
+51. РћС‡РµРЅСЊ РІР°Р¶РЅРѕРµ РѕРіСЂР°РЅРёС‡РµРЅРёРµ РїРѕ РїРѕР»РЅРѕС‚Рµ
+Р•СЃР»Рё Recommendation РіРѕРІРѕСЂРёС‚:
+РџРѕРїРѕР»РЅРёС‚СЊ 4 SKU.
+Deep РґРѕР»Р¶РµРЅ РІРµСЂРЅСѓС‚СЊ Actions РґР»СЏ РІСЃРµС… С‡РµС‚С‹СЂС‘С…, РєРѕС‚РѕСЂС‹Рµ РѕР±РѕР·РЅР°С‡РµРЅС‹ РєР°Рє actionable subjects.
+РќРµР»СЊР·СЏ:
+subject_entities:
+417, 522, 816, 901
+
+Actions:
+417, 522
+Р±РµР· РѕР±СЉСЏСЃРЅРёРјРѕР№ РїСЂРёС‡РёРЅС‹.
+РЇ СЂРµРєРѕРјРµРЅРґСѓСЋ С‚РµС…РЅРёС‡РµСЃРєРё С‚СЂРµР±РѕРІР°С‚СЊ СЃРѕРѕС‚РІРµС‚СЃС‚РІРёРµ:
+ACTIONABLE_NOW multi-entity Recommendation
+в†’ explicit actionable_subject_refs
+в†’ РєР°Р¶РґС‹Р№ actionable subject РїРѕРєСЂС‹С‚ Action
+
+52. РќРѕ Recommendation РјРѕР¶РµС‚ РѕС…РІР°С‚С‹РІР°С‚СЊ Р±РѕР»СЊС€Рµ РѕР±СЉРµРєС‚РѕРІ, С‡РµРј Actions
+РРЅРѕРіРґР° СЌС‚Рѕ РїРѕР»РµР·РЅРѕ.
+РќР°РїСЂРёРјРµСЂ:
+Recommendation:
+РїРµСЂРµСЃРјРѕС‚СЂРµС‚СЊ РїРѕРїРѕР»РЅРµРЅРёРµ 5 SKU
+
+ACTIONABLE:
+417
+522
+816
+
+MONITOR:
+901
+999
+РќРѕ СЏ Р±С‹ РЅРµ СЂР°Р·СЂРµС€Р°Р» С‚Р°РєСѓСЋ СЃРјРµС€Р°РЅРЅСѓСЋ Recommendation РІ v1.
+РЎР»РёС€РєРѕРј РЅРµРѕРґРЅРѕР·РЅР°С‡РЅРѕ.
+Р›СѓС‡С€Рµ Deep СЃС„РѕСЂРјРёСЂСѓРµС‚:
+Recommendation R1:
+РїРѕРїРѕР»РЅРёС‚СЊ 3 SKU
+ACTIONABLE_NOW
+
+Recommendation R2:
+РЅР°Р±Р»СЋРґР°С‚СЊ РµС‰С‘ 2 SKU
+MONITOR
+РўР°Рє РєРѕРЅС‚СЂР°РєС‚ РЅР°РјРЅРѕРіРѕ С‡РёС‰Рµ.
+
+53. РЎР»РµРґРѕРІР°С‚РµР»СЊРЅРѕ, РѕРґРЅР° Recommendation РёРјРµРµС‚ РѕРґРёРЅ actionability
+Р’СЃРµ РµС‘ subjects РґРѕР»Р¶РЅС‹ СЃРѕРѕС‚РІРµС‚СЃС‚РІРѕРІР°С‚СЊ РѕРґРЅРѕРјСѓ СѓРїСЂР°РІР»РµРЅС‡РµСЃРєРѕРјСѓ СЃС‚Р°С‚СѓСЃСѓ:
+ACTIONABLE_NOW
+РёР»Рё:
+MONITOR
+РёР»Рё:
+INSUFFICIENT_EVIDENCE.
+
+54. Р“СЂСѓРїРїРёСЂСѓСЋС‚СЃСЏ С‚РѕР»СЊРєРѕ ACTIONABLE_NOW
+РџРѕС‚РѕРјСѓ С‡С‚Рѕ Action Group вЂ” РєРѕРЅС‚РµР№РЅРµСЂ РЅР°Рґ Actions.
+MONITOR РјРѕР¶РµС‚ РёРјРµС‚СЊ РѕС‚РґРµР»СЊРЅСѓСЋ UI-РіСЂСѓРїРїРёСЂРѕРІРєСѓ РїРѕР·Р¶Рµ, РЅРѕ СЌС‚Рѕ СѓР¶Рµ РіСЂСѓРїРїРёСЂРѕРІРєР° Recommendations/Insights, Р° РЅРµ Actions.
+РќРµ СЃРјРµС€РёРІР°С‚СЊ СЌС‚Рё РїРѕРЅСЏС‚РёСЏ.
+
+55. Validation Gates РґР»СЏ РґРѕРїРѕР»РЅРµРЅРёСЏ
+РќРµРѕР±С…РѕРґРёРјРѕ РґРѕР±Р°РІРёС‚СЊ:
+multi_entity_recommendation_scope_gate
+Р’СЃРµ subject refs СЃСѓС‰РµСЃС‚РІСѓСЋС‚ Рё РїСЂРёРЅР°РґР»РµР¶Р°С‚ РґРѕРїСѓСЃС‚РёРјРѕРјСѓ homogeneous kind.
+multi_entity_materiality_gate
+Р’СЃРµ main subjects РїСЂРѕС€Р»Рё Materiality.
+multi_entity_action_coverage_gate
+РљР°Р¶РґС‹Р№ subject ACTIONABLE_NOW Recommendation РїРѕРєСЂС‹С‚ СЃРѕРѕС‚РІРµС‚СЃС‚РІСѓСЋС‰РёРј Action.
+action_single_target_gate
+РљР°Р¶РґС‹Р№ atomic Action РёРјРµРµС‚ СЂРѕРІРЅРѕ РѕРґРёРЅ primary target.
+action_group_shared_recommendation_gate
+Р’СЃРµ group members РёРјРµСЋС‚ РѕРґРёРЅ Recommendation.
+action_group_homogeneous_type_gate
+РћРґРёРЅ Action Type.
+action_group_context_compatibility_gate
+Campaign/Promotion/etc. context СЃРѕРІРјРµСЃС‚РёРј.
+action_group_unique_member_gate
+РћРґРёРЅ Action РЅРµ РїСЂРёСЃСѓС‚СЃС‚РІСѓРµС‚ РґРІР°Р¶РґС‹.
+action_group_no_nested_group_gate
+РќРµС‚ РІР»РѕР¶РµРЅРЅС‹С… РіСЂСѓРїРї.
+action_group_projection_determinism_gate
+РћРґРёРЅР°РєРѕРІР°СЏ Publication РІСЃРµРіРґР° РґР°С‘С‚ РѕРґРЅСѓ Рё С‚Сѓ Р¶Рµ grouping projection.
+action_group_no_independent_status_gate
+Group status РЅРµ СЏРІР»СЏРµС‚СЃСЏ mutable source of truth.
+batch_execution_atomic_result_gate
+Р‘СѓРґСѓС‰РёР№ batch result РѕР±СЏР·Р°С‚РµР»СЊРЅРѕ СЂР°Р·РІРѕСЂР°С‡РёРІР°РµС‚СЃСЏ РґРѕ individual Action results.
+
+56. Evals
+РћС‚РґРµР»СЊРЅРѕ РЅСѓР¶РЅРѕ РґРѕР±Р°РІРёС‚СЊ synthetic scenarios.
+Р§РµС‚С‹СЂРµ stockout SKU
+Deep РґРѕР»Р¶РµРЅ:
+1 Recommendation
+4 Actions
+1 UI Group
+Р° РЅРµ:
+4 РѕРґРёРЅР°РєРѕРІС‹С… Recommendations.
+
+РўСЂРё SKU СЃ СЂР°Р·РЅС‹РјРё С†РµРЅР°РјРё
+Р”РѕРїСѓСЃС‚РёРјРѕ:
+1 Recommendation
+3 Г— SKU_ADJUST_PRICE
+3 СЂР°Р·РЅС‹С… recommended_price
+1 Group
+
+Р”РІР° Price Action СЃ СЂР°Р·РЅРѕР№ РїСЂРёС‡РёРЅРѕР№
+Р”РІР° СЂР°Р·РЅС‹С… Recommendations.
+РќРµСЃРјРѕС‚СЂСЏ РЅР° РѕРґРёРЅР°РєРѕРІС‹Р№ Action Type:
+2 Groups / individual cards
+Р° РЅРµ РѕРґРЅР° РіСЂСѓРїРїР°.
+
+Р”РІР° СЂР°Р·РЅС‹С… Campaign
+SKU_ADJUST_AD_BID
+Campaign58 Рё Campaign79 РЅРµ РіСЂСѓРїРїРёСЂСѓСЋС‚СЃСЏ РІРјРµСЃС‚Рµ.
+
+Evidence-only SKU
+Р•СЃР»Рё РѕРґРёРЅ СѓС‡Р°СЃС‚РЅРёРє group РїРѕСЏРІРёР»СЃСЏ С‚РѕР»СЊРєРѕ Evidence:
+INVALID
+
+Partial user completion
+4 members:
+2 DONE
+2 OPEN
+Group projection РєРѕСЂСЂРµРєС‚РЅРѕ РїРѕРєР°Р·С‹РІР°РµС‚ РѕСЃС‚Р°РІС€РёРµСЃСЏ РґРІР°.
+
+New Publication
+Р‘С‹Р»Рѕ:
+4 members
+СЃС‚Р°Р»Рѕ:
+3 members
+СЃС‚Р°СЂС‹Р№ Publication snapshot РѕСЃС‚Р°С‘С‚СЃСЏ СЃ С‡РµС‚С‹СЂСЊРјСЏ.
+
+57. РР·РјРµРЅРµРЅРёРµ С„РёР·РёС‡РµСЃРєРѕР№ РјРѕРґРµР»Рё
+Canonical Actions:
+action_cases
+action_case_proposals
+РѕСЃС‚Р°СЋС‚СЃСЏ РёРЅРґРёРІРёРґСѓР°Р»СЊРЅС‹РјРё.
+Р”РѕР±Р°РІР»СЏРµРј РїРѕРґРґРµСЂР¶РєСѓ multi-entity Recommendation:
+deep_recommendations
+deep_recommendation_subjects
+РіРґРµ:
+recommendation_id
+entity_kind
+entity_id
+ordinal
+
+58. Action Group Projection
+РњРѕР¶РЅРѕ С…СЂР°РЅРёС‚СЊ:
+publication_action_groups
+publication_action_group_members
+РќРѕ СЌС‚Рѕ immutable projection, Р° РЅРµ РЅРѕРІР°СЏ business source-of-truth entity.
+РќР°РїСЂРёРјРµСЂ:
+publication_action_groups
+
+id
+publication_id
+recommendation_id
+action_type_key
+target_kind
+context_signature
+member_count
+group_ordinal
+presentation_template_version
+
+59. Members
+publication_action_group_members
+
+group_id
+action_proposal_id
+action_case_id
+ordinal
+Р­С‚Рѕ РїРѕР·РІРѕР»РёС‚:
+РІРѕСЃРїСЂРѕРёР·РІРѕРґРёС‚СЊ СЃС‚Р°СЂСѓСЋ Publication;
+РІРёРґРµС‚СЊ, РїРѕС‡РµРјСѓ UI 20 Р°РІРіСѓСЃС‚Р° РїРѕРєР°Р·С‹РІР°Р» 4 SKU;
+РЅРµ Р·Р°РІРёСЃРµС‚СЊ РѕС‚ С‚РµРєСѓС‰РµРіРѕ СЃРѕСЃС‚РѕСЏРЅРёСЏ Action Cases.
+
+60. Current Actions view
+РўРµРєСѓС‰РёР№ СЂР°Р·РґРµР» В«Р”РµР№СЃС‚РІРёСЏВ» РјРѕР¶РµС‚ СЃС‚СЂРѕРёС‚СЊСЃСЏ СѓР¶Рµ РЅРµ С‚РѕР»СЊРєРѕ РёР· Publication snapshot, Р° РёР·:
+current/open Action Cases
++
+latest reaffirmed proposal
++
+latest recommendation
+Рё Р·Р°С‚РµРј РїСЂРёРјРµРЅСЏС‚СЊ С‚РѕС‚ Р¶Рµ deterministic grouping policy.
+Р­С‚Рѕ РїРѕР·РІРѕР»РёС‚ РіСЂСѓРїРїРµ РµСЃС‚РµСЃС‚РІРµРЅРЅРѕ РёР·РјРµРЅСЏС‚СЊСЃСЏ:
+4 в†’ 3 в†’ 2 в†’ 0.
+
+61. РСЃС‚РѕСЂРёСЏ Рё С‚РµРєСѓС‰РёР№ СЌРєСЂР°РЅ вЂ” СЂР°Р·РЅС‹Рµ РІРµС‰Рё
+Р­С‚Рѕ РїСЂРёРЅС†РёРїРёР°Р»СЊРЅРѕ.
+Publication 20.08
+РќР°РІСЃРµРіРґР° РїРѕРєР°Р·С‹РІР°РµС‚:
+Р РµРєРѕРјРµРЅРґРѕРІР°Р»РѕСЃСЊ РїРѕРїРѕР»РЅРёС‚СЊ 4 SKU.
+Current Actions 23.08
+РњРѕР¶РµС‚ РїРѕРєР°Р·С‹РІР°С‚СЊ:
+РћСЃС‚Р°Р»РѕСЃСЊ РїРѕРїРѕР»РЅРёС‚СЊ 2 SKU.
+РћР±Р° РїСЂРµРґСЃС‚Р°РІР»РµРЅРёСЏ РїСЂР°РІРёР»СЊРЅС‹Рµ.
+
+62. РћР±РЅРѕРІР»С‘РЅРЅР°СЏ С„РѕСЂРјСѓР»РёСЂРѕРІРєР° Action Case identity
+РЇ СЂРµРєРѕРјРµРЅРґСѓСЋ С‚Р°РєР¶Рµ СЃСЂР°Р·Сѓ РґРѕР±Р°РІРёС‚СЊ Рє РїСЂРµРґС‹РґСѓС‰РµРјСѓ РўР—:
+Action Case РёРґРµРЅС‚РёС„РёС†РёСЂСѓРµС‚СЃСЏ РЅРµ С‚РѕР»СЊРєРѕ action_type + target, Р° СЃС‚Р°Р±РёР»СЊРЅРѕР№ РєРѕРјР±РёРЅР°С†РёРµР№ seller + action_type_key + target + normalized_action_context + normalized_intent_signature.
+Р­С‚Рѕ РёСЃРїСЂР°РІР»СЏРµС‚ РїРѕС‚РµРЅС†РёР°Р»СЊРЅСѓСЋ Р°СЂС…РёС‚РµРєС‚СѓСЂРЅСѓСЋ РґС‹СЂСѓ РµС‰С‘ РґРѕ СЂРµР°Р»РёР·Р°С†РёРё.
+
+63. Р§С‚Рѕ РІ РёС‚РѕРіРµ РїРѕР»СѓС‡Р°РµС‚ РїРѕР»СЊР·РѕРІР°С‚РµР»СЊ
+Р’РјРµСЃС‚Рѕ:
+РџРѕРїРѕР»РЅРёС‚СЊ SKU417
+РџРѕРїРѕР»РЅРёС‚СЊ SKU522
+РџРѕРїРѕР»РЅРёС‚СЊ SKU816
+РџРѕРїРѕР»РЅРёС‚СЊ SKU901
+РѕРЅ РІРёРґРёС‚:
+РџРѕРїРѕР»РЅРёС‚СЊ 4 С‚РѕРІР°СЂР°
+РЈ С‚РѕРІР°СЂРѕРІ РЅРµРґРѕСЃС‚Р°С‚РѕС‡РЅС‹Р№ Р·Р°РїР°СЃ РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ С‚РµРєСѓС‰РµРіРѕ СЃРїСЂРѕСЃР°.
+417 вЂ” +120 С€С‚.522 вЂ” +40 С€С‚.816 вЂ” +250 С€С‚.901 вЂ” С‚СЂРµР±СѓРµС‚СЃСЏ РїРѕРїРѕР»РЅРµРЅРёРµ.
+РќРѕ РІРЅСѓС‚СЂРё Aivion СЌС‚Рѕ РІСЃС‘ РµС‰С‘:
+4 independent Action Cases.
+Р СЌС‚Рѕ, РЅР° РјРѕР№ РІР·РіР»СЏРґ, РєР»СЋС‡РµРІРѕР№ СЂРµР·СѓР»СЊС‚Р°С‚.
+
+РС‚РѕРіРѕРІР°СЏ С„РѕСЂРјСѓР»РёСЂРѕРІРєР° РґР»СЏ Р°СЂС…РёС‚РµРєС‚СѓСЂРЅРѕРіРѕ РўР—
+Aivion РґРѕР»Р¶РµРЅ РїРѕРґРґРµСЂР¶РёРІР°С‚СЊ multi-entity Recommendations РґР»СЏ СЃР»СѓС‡Р°РµРІ, РєРѕРіРґР° РµРґРёРЅРѕРµ СѓРїСЂР°РІР»РµРЅС‡РµСЃРєРѕРµ СЂРµС€РµРЅРёРµ РѕС‚РЅРѕСЃРёС‚СЃСЏ Рє РЅРµСЃРєРѕР»СЊРєРёРј Material Entities РѕРґРЅРѕРіРѕ С‚РёРїР°. Multi-entity Recommendation РЅРµ СЏРІР»СЏРµС‚СЃСЏ РјР°СЃСЃРѕРІС‹Рј Action Рё РЅРµ СЃРѕР·РґР°С‘С‚ РЅРѕРІС‹Р№ Action Target. РљР°Р¶РґС‹Р№ actionable subject С‚Р°РєРѕР№ Recommendation РґРѕР»Р¶РµРЅ РїРѕСЂРѕР¶РґР°С‚СЊ РѕС‚РґРµР»СЊРЅС‹Р№ Р°С‚РѕРјР°СЂРЅС‹Р№ Action Proposal СЃ РµРґРёРЅСЃС‚РІРµРЅРЅС‹Рј primary target, СЃРѕР±СЃС‚РІРµРЅРЅС‹РјРё parameters, Findings, Fact Handles Рё РїРѕСЃР»РµРґСѓСЋС‰РёРј Action Case.
+РћРґРЅРѕС‚РёРїРЅС‹Рµ Р°С‚РѕРјР°СЂРЅС‹Рµ Actions, СЃС„РѕСЂРјРёСЂРѕРІР°РЅРЅС‹Рµ РёР· РѕРґРЅРѕР№ Recommendation Рё РёРјРµСЋС‰РёРµ СЃРѕРІРјРµСЃС‚РёРјС‹Р№ action context, РјРѕРіСѓС‚ РѕР±СЉРµРґРёРЅСЏС‚СЊСЃСЏ Publication Projector РІ Action Group РґР»СЏ РїРѕР»СЊР·РѕРІР°С‚РµР»СЊСЃРєРѕРіРѕ РїСЂРµРґСЃС‚Р°РІР»РµРЅРёСЏ. Action Group СЏРІР»СЏРµС‚СЃСЏ immutable publication/presentation projection Рё РЅРµ РёРјРµРµС‚ СЃРѕР±СЃС‚РІРµРЅРЅРѕРіРѕ РЅРµР·Р°РІРёСЃРёРјРѕРіРѕ lifecycle РёР»Рё mutable status. РСЃС‚РѕС‡РЅРёРєРѕРј РёСЃС‚РёРЅС‹ РѕСЃС‚Р°СЋС‚СЃСЏ РѕС‚РґРµР»СЊРЅС‹Рµ Action Cases.
+Р“СЂСѓРїРїРёСЂРѕРІРєР° РЅРµ РІС‹РїРѕР»РЅСЏРµС‚СЃСЏ РЅР° РѕСЃРЅРѕРІР°РЅРёРё С‚РµРєСЃС‚РѕРІРѕРіРѕ РёР»Рё semantic similarity. РћРЅР° РѕРїСЂРµРґРµР»СЏРµС‚СЃСЏ РґРµС‚РµСЂРјРёРЅРёСЂРѕРІР°РЅРЅРѕ С‡РµСЂРµР· РѕР±С‰РёР№ recommendation_ref, action_type, target_kind Рё normalized action context. Actions СЂР°Р·РЅС‹С… С‚РёРїРѕРІ, РѕС‚РЅРѕСЃСЏС‰РёРµСЃСЏ Рє СЂР°Р·РЅС‹Рј Recommendations Р»РёР±Рѕ РёРјРµСЋС‰РёРµ РЅРµСЃРѕРІРјРµСЃС‚РёРјС‹Р№ Campaign/Promotion context, РЅРµ РѕР±СЉРµРґРёРЅСЏСЋС‚СЃСЏ.
+Р’СЃРµ main entities multi-entity Recommendation Рё child main entities Actions РґРѕР»Р¶РЅС‹ РїСЂРѕР№С‚Рё Materiality Рё РїСЂРёСЃСѓС‚СЃС‚РІРѕРІР°С‚СЊ РІ Discovery Pack. Evidence-only entities РЅРµ РјРѕРіСѓС‚ Р±С‹С‚СЊ РґРѕР±Р°РІР»РµРЅС‹ РІ Action Group РєР°Рє СѓРїСЂР°РІР»СЏРµРјС‹Рµ РѕР±СЉРµРєС‚С‹.
+Category/Campaign Actions РЅРµ Р·Р°РјРµРЅСЏСЋС‚СЃСЏ РіСЂСѓРїРїР°РјРё SKU Actions, РµСЃР»Рё СЃР°РјРѕ СѓРїСЂР°РІР»РµРЅС‡РµСЃРєРѕРµ СЂРµС€РµРЅРёРµ РѕС‚РЅРѕСЃРёС‚СЃСЏ Рє Category/Campaign РєР°Рє Рє РµРґРёРЅРѕРјСѓ target. Р’ С‚Рѕ Р¶Рµ РІСЂРµРјСЏ Category Action РЅРµ РґРѕР»Р¶РµРЅ РґСѓР±Р»РёСЂРѕРІР°С‚СЊ РЅР°Р±РѕСЂ SKU Actions Р±РµР· РѕС‚РґРµР»СЊРЅРѕРіРѕ category-level СЃРјС‹СЃР»Р°.
+Persistent Action Case РѕСЃС‚Р°С‘С‚СЃСЏ Р°С‚РѕРјР°СЂРЅС‹Рј. Р•РіРѕ identity СЃС‚СЂРѕРёС‚СЃСЏ РЅР° seller + action_type + target + normalized context + intent signature. РџРѕРІС‚РѕСЂРЅРѕРµ РїСЂРµРґР»РѕР¶РµРЅРёРµ С‚РѕРіРѕ Р¶Рµ РґРµР№СЃС‚РІРёСЏ РІ РїРѕСЃР»РµРґСѓСЋС‰РёС… Publications РѕР±РЅРѕРІР»СЏРµС‚ factual basis СЃСѓС‰РµСЃС‚РІСѓСЋС‰РµРіРѕ Case; РёР·РјРµРЅРµРЅРёРµ РїСЂРѕС‚РёРІРѕРїРѕР»РѕР¶РЅРѕРіРѕ intent РґРѕР»Р¶РЅРѕ СЂР°СЃСЃРјР°С‚СЂРёРІР°С‚СЊСЃСЏ РєР°Рє РЅРѕРІС‹Р№ occurrence, Р° РїСЂРµРґС‹РґСѓС‰РёР№ Case РЅРµ РїРµСЂРµРїРёСЃС‹РІР°РµС‚СЃСЏ.
+Р‘СѓРґСѓС‰Р°СЏ РІРѕР·РјРѕР¶РЅРѕСЃС‚СЊ РјР°СЃСЃРѕРІРѕРіРѕ РІС‹РїРѕР»РЅРµРЅРёСЏ РЅРµ РёР·РјРµРЅСЏРµС‚ canonical Action model. Execution Layer РјРѕР¶РµС‚ РѕР±СЉРµРґРёРЅСЏС‚СЊ РЅРµСЃРєРѕР»СЊРєРѕ atomic Actions РІ provider batch С‚РѕР»СЊРєРѕ РїРѕСЃР»Рµ РёРЅРґРёРІРёРґСѓР°Р»СЊРЅРѕР№ fresh-state revalidation. Provider batch limits Рё endpoint contracts РїСЂРёРЅР°РґР»РµР¶Р°С‚ versioned Execution Mapping Рё РЅРµ СЏРІР»СЏСЋС‚СЃСЏ С‡Р°СЃС‚СЊСЋ Action identity. Р§Р°СЃС‚РёС‡РЅС‹Р№ provider result РІСЃРµРіРґР° СЂР°Р·РІРѕСЂР°С‡РёРІР°РµС‚СЃСЏ РґРѕ РѕС‚РґРµР»СЊРЅС‹С… СЂРµР·СѓР»СЊС‚Р°С‚РѕРІ child Actions.
+Р§С‚Рѕ СЏ Р±С‹ СЃРµР№С‡Р°СЃ СЃС‡РёС‚Р°Р» РїСЂР°РІРёР»СЊРЅС‹Рј СЂРµС€РµРЅРёРµРј
+Р”Р»СЏ С‚РІРѕРµРіРѕ РїСЂРёРјРµСЂР°:
+В«РџРѕРїРѕР»РЅРёС‚СЊ С‚РѕРІР°СЂС‹ Р±РµР· РѕСЃС‚Р°С‚РєРѕРІ вЂ” 4 SKUВ»
+РёРґРµР°Р»СЊРЅР°СЏ СЃС‚СЂСѓРєС‚СѓСЂР° РёРјРµРЅРЅРѕ С‚Р°РєР°СЏ:
+1 multi-entity Recommendation
+        в†“
+4 atomic SKU Actions
+        в†“
+4 persistent Action Cases
+        в†“
+1 Action Group РІ РёРЅС‚РµСЂС„РµР№СЃРµ
+Р­С‚Рѕ РѕРґРЅРѕРІСЂРµРјРµРЅРЅРѕ СЂРµС€Р°РµС‚ СѓРґРѕР±СЃС‚РІРѕ РёРЅС‚РµСЂС„РµР№СЃР°, РєРѕСЂСЂРµРєС‚РЅРѕСЃС‚СЊ AI, Р°СѓРґРёС‚, РµР¶РµРґРЅРµРІРЅРѕРµ РѕР±РЅРѕРІР»РµРЅРёРµ Actions Рё Р±СѓРґСѓС‰СѓСЋ Р°РІС‚РѕРјР°С‚РёР·Р°С†РёСЋ С‡РµСЂРµР· Ozon.
+Р•РґРёРЅСЃС‚РІРµРЅРЅС‹Р№ РЅРµР±РѕР»СЊС€РѕР№ РїСЂРѕРґСѓРєС‚РѕРІС‹Р№ РјРѕРјРµРЅС‚, РєРѕС‚РѕСЂС‹Р№ СЏ Р±С‹ РµС‰С‘ Р·Р°С„РёРєСЃРёСЂРѕРІР°Р» РїРѕР·РґРЅРµРµ РїСЂРё РїСЂРѕРµРєС‚РёСЂРѕРІР°РЅРёРё СЂР°Р·РґРµР»Р° В«Р”РµР№СЃС‚РІРёСЏВ»: СЂР°Р·СЂРµС€Р°РµРј Р»Рё РїРѕР»СЊР·РѕРІР°С‚РµР»СЋ РЅР° РіСЂСѓРїРїРѕРІРѕР№ РєР°СЂС‚РѕС‡РєРµ РЅР°Р¶РёРјР°С‚СЊ В«Р’С‹РїРѕР»РЅРµРЅРѕ РґР»СЏ РІСЃРµС…В» / В«РћС‚РєР»РѕРЅРёС‚СЊ РІСЃРµВ». РђСЂС…РёС‚РµРєС‚СѓСЂРЅРѕ СЏ СЂРµРєРѕРјРµРЅРґСѓСЋ СЂР°Р·СЂРµС€РёС‚СЊ, РЅРѕ СЂРµР°Р»РёР·РѕРІС‹РІР°С‚СЊ СЌС‚Рѕ РєР°Рє bulk-РєРѕРјР°РЅРґСѓ РЅР°Рґ individual Action Cases, Р° РЅРµ РєР°Рє РёР·РјРµРЅРµРЅРёРµ СЃС‚Р°С‚СѓСЃР° СЃР°РјРѕР№ РіСЂСѓРїРїС‹.
+

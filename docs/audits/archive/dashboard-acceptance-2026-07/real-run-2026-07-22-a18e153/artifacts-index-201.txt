@@ -1,0 +1,19 @@
+﻿  id  |                kind                |          created_at           | bytes  
+------+------------------------------------+-------------------------------+--------
+ 1685 | unified_analysis_date_resolution   | 2026-07-22 11:43:06.130871+00 |   1619
+ 1686 | unified_analysis_pack_reference    | 2026-07-22 11:43:07.237486+00 |    314
+ 1687 | unified_dashboard_facts_v1         | 2026-07-22 11:43:07.274113+00 | 158024
+ 1688 | unified_source_reconciliation_v1   | 2026-07-22 11:43:07.293916+00 |    362
+ 1689 | unified_pack_generation_validation | 2026-07-22 11:43:08.76432+00  |    259
+ 1690 | unified_provider_request_summary   | 2026-07-22 11:43:11.616829+00 |   1050
+ 1691 | unified_provider_response_raw      | 2026-07-22 11:44:52.563917+00 | 116301
+ 1692 | unified_provider_response_summary  | 2026-07-22 11:44:52.571107+00 |    433
+ 1693 | unified_provider_usage             | 2026-07-22 11:44:52.572575+00 |    179
+ 1694 | unified_provider_terminal_attempt  | 2026-07-22 11:44:52.573985+00 |    700
+ 1695 | unified_analysis_output_raw        | 2026-07-22 11:44:53.416958+00 |  49538
+ 1696 | unified_analysis_output_raw        | 2026-07-22 11:44:53.428994+00 |  49538
+ 1697 | unified_analysis_output_validation | 2026-07-22 11:44:53.435352+00 |   1141
+ 1698 | unified_analysis_output_summary    | 2026-07-22 11:44:53.436777+00 |    136
+ 1699 | unified_provider_cleanup           | 2026-07-22 11:44:54.224841+00 |    149
+(15 rows)
+

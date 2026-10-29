@@ -1,0 +1,27 @@
+{
+  "_comment": "EXAMPLE ONLY — Xray JSON template for /etc/aivion/secrets/ai-egress-config.json. Do not commit real VLESS/Reality material. Keep the HTTP inbound on 0.0.0.0:10809 (AI_HTTPS_PROXY). Replace the freedom outbound with a fresh operator-provided VLESS(+Reality) outbound from HAPP/Xray. Do not mix fields from unrelated profiles or VLESS URIs.",
+  "log": {
+    "loglevel": "warning",
+    "access": "none"
+  },
+  "inbounds": [
+    {
+      "tag": "ai-http-in",
+      "listen": "0.0.0.0",
+      "port": 10809,
+      "protocol": "http",
+      "settings": {}
+    }
+  ],
+  "outbounds": [
+    {
+      "tag": "placeholder-replace-with-operator-vless",
+      "protocol": "freedom",
+      "settings": {}
+    }
+  ],
+  "routing": {
+    "domainStrategy": "AsIs",
+    "rules": []
+  }
+}

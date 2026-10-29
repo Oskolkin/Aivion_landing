@@ -1,0 +1,31 @@
+{
+  "uid": "aivion-chat",
+  "title": "Chat",
+  "schemaVersion": 38,
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "Chat turns",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "sum by (status) (chat_turns_total)", "legendFormat": "{{status}}", "refId": "A" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Chat tokens",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "chat_input_tokens_total", "legendFormat": "input", "refId": "A" },
+        { "expr": "chat_output_tokens_total", "legendFormat": "output", "refId": "B" }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Tool calls",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "sum by (tool_key) (chat_tool_calls_total)", "legendFormat": "{{tool_key}}", "refId": "A" }]
+    }
+  ]
+}

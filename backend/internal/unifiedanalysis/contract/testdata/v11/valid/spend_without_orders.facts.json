@@ -1,0 +1,16 @@
+{
+  "facts": [
+    {
+      "fact_id": "campaign:882000021529:spend_7d",
+      "metric_code": "spend_7d",
+      "scope_type": "campaign",
+      "entity_id": "882000021529"
+    },
+    {
+      "fact_id": "campaign:882000021529:ad_orders_7d",
+      "metric_code": "ad_orders_7d",
+      "scope_type": "campaign",
+      "entity_id": "882000021529"
+    }
+  ]
+}

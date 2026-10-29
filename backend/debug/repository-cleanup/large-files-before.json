@@ -1,0 +1,252 @@
+[
+  {
+    "size": 34888704,
+    "path": "backend/api.exe",
+    "sha": "971512f28fd2559797433ff32e9c836eda18bcf0"
+  },
+  {
+    "size": 18406400,
+    "path": "backend/node_modules/@img/sharp-win32-x64/lib/libvips-42.dll",
+    "sha": "301516dae60bc9e00ae474612683b57dd1b97d87"
+  },
+  {
+    "size": 14074368,
+    "path": "backend/dev-check-critical-skus.exe",
+    "sha": "ccdc5415fee6ca2c6df003b548166bdb5450cfc4"
+  },
+  {
+    "size": 14068736,
+    "path": "backend/dev-check-replenishment.exe",
+    "sha": "82aa92ccd5c40fa8f974ecbfc8b204a4dbac0936"
+  },
+  {
+    "size": 14028288,
+    "path": "backend/dev-check-stock-metrics.exe",
+    "sha": "8095576204c1a80f45bf696c8e3d5bda6a68b698"
+  },
+  {
+    "size": 8900872,
+    "path": "backend/node_modules/@img/sharp-wasm32/lib/sharp-wasm32-0.35.3.node.wasm",
+    "sha": "789d8076af0f1f614708055e53d887cfb8642002"
+  },
+  {
+    "size": 6896575,
+    "path": "backend/debug/dashboard-audit-seller-1-pub-74-run-162.zip",
+    "sha": "b0224fa66301f6c42c1ed93890f56d9dc8f3c20c"
+  },
+  {
+    "size": 5803753,
+    "path": "backend/debug/dashboard-audit-seller-1-pub-68-run-141.zip",
+    "sha": "57a7948e696cd2cbd352869b28645ae26ae0f70f"
+  },
+  {
+    "size": 2443909,
+    "path": "run50_inspect.json",
+    "sha": "e9fa3c89f61c3c942df0d1092d6c37e859e8489c"
+  },
+  {
+    "size": 2096090,
+    "path": "backend/debug/run-74/inspector-data.json",
+    "sha": "e26f274607a697e89bb0d0d502027075b0210e3d"
+  },
+  {
+    "size": 2065279,
+    "path": "backend/debug/run-72-diagnostics-v4/inspector-data.json",
+    "sha": "d447eaff8828d80bd730a45781d50dd60b1fa3b2"
+  },
+  {
+    "size": 2065279,
+    "path": "backend/debug/run-72-diagnostics-v4/inspector-data.json",
+    "sha": "d3b068bba9c0ee5d29733bdff1ae597dda5a91b5"
+  },
+  {
+    "size": 2065279,
+    "path": "backend/debug/run-72-diagnostics-v4/inspector-data.json",
+    "sha": "a4ab2a2d0c56a3494227461eceb110b6467a344d"
+  },
+  {
+    "size": 2065279,
+    "path": "backend/debug/run-72-diagnostics-v4/inspector-data.json",
+    "sha": "835b09753ca54740bf0df139dbde029240d63849"
+  },
+  {
+    "size": 2065278,
+    "path": "backend/debug/run-72-diagnostics-v4/inspector-data.json",
+    "sha": "8eb8bc69a0cef3c42194741be43a8c9cd1cf2fc6"
+  },
+  {
+    "size": 2032702,
+    "path": "backend/debug/run-72-diagnostics-v3/inspector-data.json",
+    "sha": "283d443d60bd84f18644e3c27197d6d81f94e35c"
+  },
+  {
+    "size": 1809592,
+    "path": "backend/debug/dashboard-audit-export/screenshots/dashboard-full-desktop.png",
+    "sha": "081836e70030245140bf58a6e1effb5df083f21e"
+  },
+  {
+    "size": 1809580,
+    "path": "backend/debug/dashboard-audit-export/screenshots/block-important-facts.png",
+    "sha": "3a374b7399bad2dd12e4a8deddd72090d51dda07"
+  },
+  {
+    "size": 1685926,
+    "path": "backend/debug/dashboard-audit-export/screenshots/dashboard-full-desktop.png",
+    "sha": "ed3177a6f08f3fe9eb6b5793827e7fbae8a1c903"
+  },
+  {
+    "size": 1685857,
+    "path": "backend/debug/dashboard-audit-export/screenshots/block-important-facts.png",
+    "sha": "9eca8bcabc673e4370a4f25fa497146781ff6799"
+  },
+  {
+    "size": 1674247,
+    "path": "backend/debug/run-72-final/inspector-data.json",
+    "sha": "01e5938a6fdf69e88c8a73642ec674b1a1c68cb8"
+  },
+  {
+    "size": 1581630,
+    "path": "backend/debug/dashboard-audit-export/screenshots/dashboard-full-desktop.png",
+    "sha": "ca4385e5d50029aea1885a35a75b8cf03415f6f3"
+  },
+  {
+    "size": 1581561,
+    "path": "backend/debug/dashboard-audit-export/screenshots/block-important-facts.png",
+    "sha": "0ba0dc31cae5be367632c7e6912f22392f91dce2"
+  },
+  {
+    "size": 1578386,
+    "path": "backend/debug/run-73/inspector-data.json",
+    "sha": "53ca434a52f1ee654f8aaafdb0d15e6653719789"
+  },
+  {
+    "size": 1458871,
+    "path": "frontend/debug-pulse-accept/seller-pulse-mobile.png",
+    "sha": "f286dcdcc33e743f89725f4b241453bb033c6c76"
+  },
+  {
+    "size": 1386454,
+    "path": "backend/debug/run-72-diagnostics-v4/index.html",
+    "sha": "f5d07c4cd7b25ad438c9cd2917bf09b43e5c7678"
+  },
+  {
+    "size": 1386454,
+    "path": "backend/debug/run-72-diagnostics-v4/index.html",
+    "sha": "dc636e5287d5033170916e6ca87eaf7f9c0c11c7"
+  },
+  {
+    "size": 1386454,
+    "path": "backend/debug/run-72-diagnostics-v4/index.html",
+    "sha": "d676c11c819d102352bda276c629a39ac55a05b1"
+  },
+  {
+    "size": 1386454,
+    "path": "backend/debug/run-72-diagnostics-v4/index.html",
+    "sha": "be852f7cd80207086e53f2737b4329dd88ff3a51"
+  },
+  {
+    "size": 1386453,
+    "path": "backend/debug/run-72-diagnostics-v4/index.html",
+    "sha": "781bc5d95819aa31c97b62af5f484783480313b6"
+  },
+  {
+    "size": 1377964,
+    "path": "backend/debug/run-74/index.html",
+    "sha": "ee86be68d1534b11a61b57000fc4ebd67a372149"
+  },
+  {
+    "size": 1352097,
+    "path": "backend/debug/run-72-diagnostics-v3/index.html",
+    "sha": "b9167eac177b325eebd60c17314959910676116e"
+  },
+  {
+    "size": 1294205,
+    "path": "backend/chunks/chunk-set.json",
+    "sha": "9d640270d967738a61d0da7352e74fa16417d7d4"
+  },
+  {
+    "size": 1283671,
+    "path": "frontend/debug-pulse-accept/seller-pulse-mobile.png",
+    "sha": "bcb853e2f1e4c2f0721085d5ad603b11423e3226"
+  },
+  {
+    "size": 1121572,
+    "path": "backend/ai-data-pack.json",
+    "sha": "2f4378b1061ca9caa89ca066ce82937e6a9cbede"
+  },
+  {
+    "size": 1091106,
+    "path": "backend/debug/run-72-final/index.html",
+    "sha": "d722905abec4c0449292e6d57e0d87763a4589d0"
+  },
+  {
+    "size": 1078382,
+    "path": "backend/chunks/chunk-set.json",
+    "sha": "793690e99af401b1187f6d65c1b9037f6a7a5c63"
+  },
+  {
+    "size": 1019189,
+    "path": "backend/debug/run-73/index.html",
+    "sha": "5e5e8fed3cc11401b3bd0532293e72e0e6bef52f"
+  },
+  {
+    "size": 1002441,
+    "path": "backend/debug/run-74/data-pack.json",
+    "sha": "42aeadeab52525323a842de0579fe9abd522ace4"
+  },
+  {
+    "size": 1002441,
+    "path": "backend/debug/run-73/data-pack.json",
+    "sha": "d6bd69efe637c23f64af456c459652cf38b99703"
+  },
+  {
+    "size": 1000622,
+    "path": "backend/debug/run-72-diagnostics-v3/data-pack.json",
+    "sha": "4f6c1087ca575a1596d213d720a853dcaf10542b"
+  },
+  {
+    "size": 832988,
+    "path": "backend/debug/_accept_worker_start.txt",
+    "sha": "716507f23ed02c85bb47f6ae8e2a9387e9eb1b52"
+  },
+  {
+    "size": 777652,
+    "path": "backend/chunks-current-fixed-v2/chunk-set.json",
+    "sha": "0972371838e725a15cc7d9425c504ba26c50b3d8"
+  },
+  {
+    "size": 777592,
+    "path": "backend/chunks-current-fixed/chunk-set.json",
+    "sha": "3aa971adaac654d30d98c27790c94717160213e0"
+  },
+  {
+    "size": 757076,
+    "path": "backend/internal/chatartifact/fonts/DejaVuSans.ttf",
+    "sha": "e5f7eecce43be41ff0703ed99e1553029b849f14"
+  },
+  {
+    "size": 705684,
+    "path": "backend/internal/chatartifact/fonts/DejaVuSans-Bold.ttf",
+    "sha": "6d65fa7dc41ae8ffae77a4a843a73ba31ffd78c7"
+  },
+  {
+    "size": 590500,
+    "path": "backend/ai-data-pack-current.json",
+    "sha": "de8d5b09f750ae4b99ef8af4b946b9e433edb9b7"
+  },
+  {
+    "size": 442368,
+    "path": "backend/node_modules/@img/sharp-win32-x64/lib/sharp-win32-x64-0.35.3.node",
+    "sha": "9612dbae2f0c95ce41641b42261c6ff0ba93e14a"
+  },
+  {
+    "size": 333312,
+    "path": "backend/node_modules/@img/sharp-win32-x64/lib/libvips-cpp-8.18.3.dll",
+    "sha": "52e2ca77e24f43a94571b5cab03e8ffcf8851180"
+  },
+  {
+    "size": 331256,
+    "path": "frontend/package-lock.json",
+    "sha": "39253cf59b43713a641f47315bb3734df23178c9"
+  }
+]

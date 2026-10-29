@@ -1,0 +1,27 @@
+﻿{
+    "model":  "gpt-4.1",
+    "strict":  true,
+    "attempt":  1,
+    "pack_id":  "pack:1:2026-07-08:17e80bbe7eccb4f8",
+    "metadata":  {
+                     "prompt_hash":  "9b0fd12db06cb28acf3505d254b47b73303cdbd6c6b7c876142d58ff807e3308",
+                     "aivion_run_id":  "201",
+                     "pipeline_mode":  "unified_analysis",
+                     "prompt_profile":  "analysis",
+                     "prompt_version":  "unified_analyst_v1_26"
+                 },
+    "pack_hash":  "17e80bbe7eccb4f8cf7740e1d1ada796c22e4dd581b61c76874c38da036be854",
+    "background":  true,
+    "request_id":  "req_7235fa068ef94f48a7bc064f222a5ba2",
+    "prompt_hash":  "9b0fd12db06cb28acf3505d254b47b73303cdbd6c6b7c876142d58ff807e3308",
+    "schema_hash":  "sha256:8c2474226f0de69ec18709df7da9853fa5fb11e00522caf829e270bc3ecc673b",
+    "schema_name":  "aivion_unified_analysis_v10",
+    "tool_choice":  "auto",
+    "container_id":  "cntr_6a60accc8f388191a5920ccacb6a1db507b27d377d5466f1",
+    "pipeline_mode":  "unified_analysis",
+    "prompt_profile":  "analysis",
+    "prompt_version":  "unified_analyst_v1_26",
+    "schema_version":  "aivion_unified_analysis_v10",
+    "container_file_id":  "cfile_6a60accd9e988191a14a88992406909e",
+    "max_output_tokens":  32768
+}

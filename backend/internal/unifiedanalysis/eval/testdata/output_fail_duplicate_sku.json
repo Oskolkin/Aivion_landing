@@ -1,0 +1,70 @@
+{
+  "schema_version": "aivion_unified_analysis_v1",
+  "analysis_meta": {
+    "pack_id": "pack_eval_dup",
+    "pack_hash": "sha256:eval",
+    "metric_date": "2026-07-08"
+  },
+  "analysis_outcome": "material_actions_found",
+  "dashboard": {
+    "account_summary": {
+      "status": "available",
+      "headline": "Дубли SKU",
+      "executive_summary": "Два действия ссылаются на один SKU.",
+      "metric_date": "2026-07-08"
+    },
+    "what_changed": { "status": "available", "groups": [] },
+    "category_summaries": [],
+    "sales_funnel": { "status": "available" },
+    "funnel_analysis": { "status": "available", "ai_analysis": { "status": "available" } },
+    "stock_coverage": { "status": "available" },
+    "ad_efficiency": { "status": "available" },
+    "risk_distribution": { "status": "available" },
+    "seller_pulse": { "kpis": [], "trend_7d": [] },
+    "sku_focus": {
+      "order_drop": [],
+      "stock_risk": [],
+      "no_sales_with_stock": [],
+      "key_skus": []
+    },
+    "top_action_ids": ["action_001"],
+    "recommended_action_ids": []
+  },
+  "actions": [
+    {
+      "analysis_action_id": "action_001",
+      "type": "stock_replenishment",
+      "category": "stock",
+      "priority": "critical",
+      "title": "Пополнить SKU A",
+      "summary": "Первое действие.",
+      "problem": "Низкий остаток.",
+      "why_now": "Срочно.",
+      "operational_goal": "Пополнить",
+      "expected_effect": "Продажи",
+      "scope": { "scope_type": "sku", "entity_ids": ["sku:901042000001"] },
+      "steps": [{ "order": 1, "title": "Шаг 1", "description": "Сделать поставку" }],
+      "completion_criteria": "Остаток восстановлен",
+      "evidence_summary": "stock low",
+      "confidence": "high"
+    },
+    {
+      "analysis_action_id": "action_002",
+      "type": "sku_orders_drop",
+      "category": "sku",
+      "priority": "important",
+      "title": "Разобрать падение SKU A",
+      "summary": "Второе действие на тот же SKU.",
+      "problem": "Падение заказов.",
+      "why_now": "Тренд отрицательный.",
+      "operational_goal": "Вернуть спрос",
+      "expected_effect": "Рост заказов",
+      "scope": { "scope_type": "sku", "entity_ids": ["sku:901042000001"] },
+      "steps": [{ "order": 1, "title": "Шаг 1", "description": "Проверить карточку" }],
+      "completion_criteria": "Заказы восстановлены",
+      "evidence_summary": "orders down",
+      "confidence": "medium"
+    }
+  ],
+  "limitations": []
+}

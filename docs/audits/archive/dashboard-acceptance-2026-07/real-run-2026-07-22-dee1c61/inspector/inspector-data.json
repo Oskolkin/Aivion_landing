@@ -1,0 +1,513 @@
+{
+  "artifact_index": [
+    {
+      "hash": "ca06cb2b6c5571dbcbf33a74f0b5763e22f0d6cbdcc5f890c81e1405b0b72907",
+      "id": 1633,
+      "kind": "unified_analysis_date_resolution"
+    },
+    {
+      "hash": "c6c082b902ff54728da879f06a2cefe1eec119a43c1774ef63cab33d254553a1",
+      "id": 1643,
+      "kind": "unified_analysis_output_raw"
+    },
+    {
+      "hash": "fd6a9e0b2dbaf154eb228dc8586533ebcf435d9008d6a97c7503b5add7c20717",
+      "id": 1645,
+      "kind": "unified_analysis_output_summary"
+    },
+    {
+      "hash": "4d5b2128248c7e95903b2b283efd8409c501e1a383ee0a3c475e5941e5a59c0a",
+      "id": 1644,
+      "kind": "unified_analysis_output_validation"
+    },
+    {
+      "hash": "17e80bbe7eccb4f8cf7740e1d1ada796c22e4dd581b61c76874c38da036be854",
+      "id": 1634,
+      "kind": "unified_analysis_pack_reference"
+    },
+    {
+      "hash": "bfce4f6b531b0e63694c7369903b1e4e5fe7e628189d0155cf4c89c1e17e8400",
+      "id": 1635,
+      "kind": "unified_dashboard_facts_v1"
+    },
+    {
+      "hash": "17e80bbe7eccb4f8cf7740e1d1ada796c22e4dd581b61c76874c38da036be854",
+      "id": 1637,
+      "kind": "unified_pack_generation_validation"
+    },
+    {
+      "hash": "5b3f612f11d1789402447d76fe6bcd165b648bdf36f39948bf9f5d6f5ffb46eb",
+      "id": 1646,
+      "kind": "unified_provider_cleanup"
+    },
+    {
+      "hash": "d8967e323e200b537a888d674318114d26eec13d181e46e91b4c07fc29f4be0a",
+      "id": 1638,
+      "kind": "unified_provider_request_summary"
+    },
+    {
+      "hash": "09495f84bbf7ebd66378f165c8cfd87a5de5590963558cd1fed831119726afb3",
+      "id": 1639,
+      "kind": "unified_provider_response_raw"
+    },
+    {
+      "hash": "09495f84bbf7ebd66378f165c8cfd87a5de5590963558cd1fed831119726afb3",
+      "id": 1640,
+      "kind": "unified_provider_response_summary"
+    },
+    {
+      "hash": "93313c0c06f2cf75d4fbb2a4cd4f00363274b12cd4adab520bbb5d3c74fe615c",
+      "id": 1641,
+      "kind": "unified_provider_usage"
+    },
+    {
+      "hash": "c77cee57571a017e361f4b61041548da06e7e909508099a805aad100134c9cfa",
+      "id": 1636,
+      "kind": "unified_source_reconciliation_v1"
+    }
+  ],
+  "include_raw": true,
+  "sections": {
+    "actions_compose_output": {
+      "notice": "Artifact not available for this pipeline version"
+    },
+    "actions_final_output": {
+      "notice": "Artifact not available for this pipeline version"
+    },
+    "actions_normalization": {
+      "notice": "Artifact not available for this pipeline version"
+    },
+    "actions_object_detail_merge": {
+      "notice": "Artifact not available for this pipeline version"
+    },
+    "actions_output": {
+      "notice": "Artifact not available for this pipeline version"
+    },
+    "actions_validation": {
+      "notice": "Artifact not available for this pipeline version"
+    },
+    "ai_pipeline_lineage": {
+      "notice": "Artifact not available for this pipeline version"
+    },
+    "data_pack": {
+      "notice": "Artifact not available for this pipeline version"
+    },
+    "global_context": {
+      "notice": "Artifact not available for this pipeline version"
+    },
+    "shared_chunk_analysis": {
+      "notice": "Artifact not available for this pipeline version"
+    }
+  },
+  "stages": [
+    {
+      "ai_calls": 0,
+      "execution": "generated",
+      "outcome": "unavailable",
+      "source": "current run",
+      "stage": "Data Pack"
+    },
+    {
+      "ai_calls": 0,
+      "execution": "generated",
+      "outcome": "unavailable",
+      "source": "current run",
+      "stage": "Shared Chunk Analysis"
+    },
+    {
+      "ai_calls": 0,
+      "execution": "generated",
+      "outcome": "unavailable",
+      "source": "current run",
+      "stage": "Global Context"
+    },
+    {
+      "ai_calls": 0,
+      "execution": "generated",
+      "outcome": "unavailable",
+      "source": "current run",
+      "stage": "Dashboard"
+    },
+    {
+      "ai_calls": 0,
+      "execution": "generated",
+      "outcome": "unavailable",
+      "source": "current run",
+      "stage": "Actions"
+    },
+    {
+      "ai_calls": 0,
+      "execution": "executed",
+      "outcome": "not published",
+      "source": "current run",
+      "stage": "Publication"
+    }
+  ],
+  "summary": {
+    "actions_adapter": "missing",
+    "actions_run_id": null,
+    "completed_at": "2026-07-22T12:03:37+03:00",
+    "created_at": "2026-07-22T12:02:30.497831+03:00",
+    "dashboard_run_id": null,
+    "data_pack_hash": "17e80bbe7eccb4f8cf7740e1d1ada796c22e4dd581b61c76874c38da036be854",
+    "global_context_hash": "",
+    "metric_date": "2026-07-08",
+    "pipeline_run_id": 195,
+    "published": false,
+    "seller_account_id": 1,
+    "status": "publication_blocked"
+  },
+  "views": {
+    "actions_input": {
+      "available": false
+    },
+    "artifacts": [
+      {
+        "id": 1640,
+        "kind": "unified_provider_response_summary",
+        "hash": "09495f84bbf7ebd66378f165c8cfd87a5de5590963558cd1fed831119726afb3",
+        "adapter_used": "native",
+        "parsed_status": "ok",
+        "content_completeness": "full_structured_document",
+        "raw_body_available": false
+      },
+      {
+        "id": 1645,
+        "kind": "unified_analysis_output_summary",
+        "hash": "fd6a9e0b2dbaf154eb228dc8586533ebcf435d9008d6a97c7503b5add7c20717",
+        "adapter_used": "native",
+        "parsed_status": "ok",
+        "content_completeness": "full_structured_document",
+        "raw_body_available": false
+      },
+      {
+        "id": 1646,
+        "kind": "unified_provider_cleanup",
+        "hash": "5b3f612f11d1789402447d76fe6bcd165b648bdf36f39948bf9f5d6f5ffb46eb",
+        "adapter_used": "native",
+        "parsed_status": "ok",
+        "content_completeness": "full_structured_document",
+        "raw_body_available": false
+      },
+      {
+        "id": 1634,
+        "kind": "unified_analysis_pack_reference",
+        "hash": "17e80bbe7eccb4f8cf7740e1d1ada796c22e4dd581b61c76874c38da036be854",
+        "adapter_used": "native",
+        "parsed_status": "ok",
+        "content_completeness": "full_structured_document",
+        "raw_body_available": false,
+        "schema_version": "aivion_analysis_pack_v1"
+      },
+      {
+        "id": 1636,
+        "kind": "unified_source_reconciliation_v1",
+        "hash": "c77cee57571a017e361f4b61041548da06e7e909508099a805aad100134c9cfa",
+        "adapter_used": "native",
+        "parsed_status": "ok",
+        "content_completeness": "full_structured_document",
+        "raw_body_available": false
+      },
+      {
+        "id": 1641,
+        "kind": "unified_provider_usage",
+        "hash": "93313c0c06f2cf75d4fbb2a4cd4f00363274b12cd4adab520bbb5d3c74fe615c",
+        "adapter_used": "native",
+        "parsed_status": "ok",
+        "content_completeness": "full_structured_document",
+        "raw_body_available": false
+      },
+      {
+        "id": 1643,
+        "kind": "unified_analysis_output_raw",
+        "hash": "c6c082b902ff54728da879f06a2cefe1eec119a43c1774ef63cab33d254553a1",
+        "adapter_used": "native",
+        "parsed_status": "ok",
+        "content_completeness": "raw_provider_body",
+        "raw_body_available": true,
+        "schema_version": "aivion_unified_analysis_v10"
+      },
+      {
+        "id": 1644,
+        "kind": "unified_analysis_output_validation",
+        "hash": "4d5b2128248c7e95903b2b283efd8409c501e1a383ee0a3c475e5941e5a59c0a",
+        "adapter_used": "native",
+        "parsed_status": "ok",
+        "content_completeness": "full_structured_document",
+        "raw_body_available": false,
+        "schema_version": "aivion_unified_analysis_v1"
+      },
+      {
+        "id": 1633,
+        "kind": "unified_analysis_date_resolution",
+        "hash": "ca06cb2b6c5571dbcbf33a74f0b5763e22f0d6cbdcc5f890c81e1405b0b72907",
+        "adapter_used": "native",
+        "parsed_status": "ok",
+        "content_completeness": "full_structured_document",
+        "raw_body_available": false
+      },
+      {
+        "id": 1635,
+        "kind": "unified_dashboard_facts_v1",
+        "hash": "bfce4f6b531b0e63694c7369903b1e4e5fe7e628189d0155cf4c89c1e17e8400",
+        "adapter_used": "native",
+        "parsed_status": "ok",
+        "content_completeness": "full_structured_document",
+        "raw_body_available": false,
+        "schema_version": "unified_dashboard_facts_v1"
+      },
+      {
+        "id": 1637,
+        "kind": "unified_pack_generation_validation",
+        "hash": "17e80bbe7eccb4f8cf7740e1d1ada796c22e4dd581b61c76874c38da036be854",
+        "adapter_used": "native",
+        "parsed_status": "ok",
+        "content_completeness": "full_structured_document",
+        "raw_body_available": false
+      },
+      {
+        "id": 1638,
+        "kind": "unified_provider_request_summary",
+        "hash": "d8967e323e200b537a888d674318114d26eec13d181e46e91b4c07fc29f4be0a",
+        "adapter_used": "native",
+        "parsed_status": "ok",
+        "content_completeness": "full_structured_document",
+        "raw_body_available": false
+      },
+      {
+        "id": 1639,
+        "kind": "unified_provider_response_raw",
+        "hash": "09495f84bbf7ebd66378f165c8cfd87a5de5590963558cd1fed831119726afb3",
+        "adapter_used": "native",
+        "parsed_status": "ok",
+        "content_completeness": "full_structured_document",
+        "raw_body_available": false
+      }
+    ],
+    "candidates": null,
+    "diagnostics": {
+      "ai_calls": {
+        "actions_calls": {
+          "ai_call_in_current_run": "executed",
+          "diagnostics": "partial",
+          "execution": "generated"
+        },
+        "dashboard_call": {
+          "call_diagnostics": {
+            "status": "not_captured"
+          },
+          "parsed_output": {
+            "status": "not_captured"
+          },
+          "raw_response": {
+            "status": "not_captured"
+          }
+        },
+        "global_context_call": {
+          "call_diagnostics": {
+            "status": "not_captured"
+          },
+          "parsed_output": {
+            "status": "not_captured"
+          },
+          "raw_response": {
+            "status": "not_captured"
+          }
+        },
+        "summary": [
+          {
+            "ai_call_in_current_run": "not_executed",
+            "ai_calls": 0,
+            "component": "global_context",
+            "diagnostics": "not_captured",
+            "execution": "generated",
+            "stage": "global_context",
+            "stage_outcome": ""
+          },
+          {
+            "ai_call_in_current_run": "not_executed",
+            "ai_calls": 0,
+            "component": "dashboard_synthesis",
+            "diagnostics": "not_captured",
+            "execution": "generated",
+            "stage": "dashboard",
+            "stage_outcome": ""
+          },
+          {
+            "ai_call_in_current_run": "executed",
+            "ai_calls": 0,
+            "component": "actions_synthesis",
+            "diagnostics": "not_captured",
+            "execution": "generated",
+            "stage": "actions_compose",
+            "stage_outcome": "unavailable"
+          }
+        ]
+      },
+      "completeness": [
+        {
+          "dimension": "Actions input",
+          "status": "not_captured",
+          "reason": "no actions input artifact"
+        },
+        {
+          "dimension": "Provider metadata",
+          "status": "not_captured",
+          "reason": "no raw output artifact"
+        },
+        {
+          "dimension": "Raw provider body",
+          "status": "not_captured",
+          "reason": "no raw output artifact"
+        },
+        {
+          "dimension": "Parsed AI draft",
+          "status": "not_captured",
+          "reason": "source run predates parsed-output artifact"
+        },
+        {
+          "dimension": "Normalization events",
+          "status": "not_captured",
+          "reason": "no normalization artifact"
+        },
+        {
+          "dimension": "Candidate references",
+          "status": "not_reconstructable",
+          "reason": "raw_candidate_references_not_captured"
+        },
+        {
+          "dimension": "Candidate coverage",
+          "status": "not_reconstructable",
+          "reason": "raw_candidate_references_not_captured"
+        },
+        {
+          "dimension": "Final Actions",
+          "status": "not_captured",
+          "reason": "no actions output"
+        },
+        {
+          "dimension": "Publication decision",
+          "status": "partial",
+          "reason": "inferred from run state"
+        }
+      ],
+      "failure_focus": {
+        "applicable": false
+      },
+      "stages_detail": [
+        {
+          "ai_calls": 0,
+          "execution": "generated",
+          "outcome": "unavailable",
+          "source": "current run",
+          "stage": "Data Pack"
+        },
+        {
+          "ai_calls": 0,
+          "execution": "generated",
+          "outcome": "unavailable",
+          "source": "current run",
+          "stage": "Shared Chunk Analysis"
+        },
+        {
+          "ai_calls": 0,
+          "execution": "generated",
+          "outcome": "unavailable",
+          "source": "current run",
+          "stage": "Global Context"
+        },
+        {
+          "ai_calls": 0,
+          "execution": "generated",
+          "outcome": "unavailable",
+          "source": "current run",
+          "stage": "Dashboard"
+        },
+        {
+          "ai_calls": 0,
+          "execution": "generated",
+          "outcome": "unavailable",
+          "source": "current run",
+          "stage": "Actions"
+        },
+        {
+          "ai_calls": 0,
+          "execution": "executed",
+          "outcome": "not published",
+          "source": "current run",
+          "stage": "Publication"
+        }
+      ],
+      "statuses": {
+        "actions_stage_status": "unavailable",
+        "ai_output_parse_status": "not_captured",
+        "artifact_content_completeness": "metadata_only",
+        "artifact_json_parse_status": "ok",
+        "pipeline_status": "",
+        "provider_call_status": "",
+        "raw_body_available": false,
+        "truncation_note": "",
+        "validation_execution_status": "not_run",
+        "validation_outcome": "not_run"
+      },
+      "timeline": [
+        {
+          "event": "created",
+          "stage": "pipeline"
+        },
+        {
+          "event": "Actions call started",
+          "stage": "actions"
+        },
+        {
+          "event": "Actions call finished",
+          "stage": "actions"
+        },
+        {
+          "event": "publication skipped",
+          "stage": "publication"
+        },
+        {
+          "event": "run finished",
+          "stage": "pipeline"
+        }
+      ]
+    },
+    "entities": null,
+    "facts": null,
+    "monitoring": {
+      "actions_execution": {
+        "kind": "actions_execution_diagnostics",
+        "message": "Artifact not available for this pipeline version",
+        "status": "not_available"
+      },
+      "chunk_ref_mappings": {
+        "kind": "shared_chunk_ref_mapping",
+        "message": "Artifact not available for this pipeline version",
+        "status": "not_available"
+      },
+      "final_output_validation": {
+        "kind": "final_output_semantic_validation",
+        "message": "Artifact not available for this pipeline version",
+        "status": "not_available"
+      },
+      "global_context_validation": {
+        "kind": "global_context_validation",
+        "message": "Artifact not available for this pipeline version",
+        "status": "not_available"
+      },
+      "metric_semantics": {
+        "kind": "metric_semantics_snapshot",
+        "message": "Artifact not available for this pipeline version",
+        "status": "not_available"
+      },
+      "publication_guard": {
+        "kind": "publication_guard_decision",
+        "message": "Artifact not available for this pipeline version",
+        "status": "not_available"
+      }
+    },
+    "quality": {},
+    "signals": null
+  }
+}

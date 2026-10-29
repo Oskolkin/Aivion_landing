@@ -1,0 +1,339 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://aivion.internal/schemas/analysis_policy_v2.schema.json",
+  "title": "Aivion Unified Analysis policy v2",
+  "description": "Machine-readable business-rule registry for Unified Analysis Part 1 (finding types, action taxonomy, thresholds, limitations, and rendering/text rules). Paired with the aivion_unified_analysis_v11 output contract. Not the current production policy (see backend/internal/unifiedanalysis/thresholdpolicy for the production threshold registry).",
+  "type": "object",
+  "properties": {
+    "policy_version": {
+      "type": "string",
+      "enum": ["analysis_policy_v2"]
+    },
+    "finding_type_registry": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/FindingTypeEntry" }
+    },
+    "action_type_registry": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/ActionTypeEntry" }
+    },
+    "action_type_to_category": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "action_limits": { "$ref": "#/$defs/ActionLimits" },
+    "text_limits": {
+      "type": "object",
+      "additionalProperties": { "type": "integer", "minimum": 1 }
+    },
+    "block_status_rules": { "$ref": "#/$defs/BlockStatusRules" },
+    "section_domain_rules": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/SectionDomainRule" }
+    },
+    "metric_rendering_rules": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/MetricRenderingRule" }
+    },
+    "thresholds": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/ThresholdEntry" }
+    },
+    "completion_rules": { "$ref": "#/$defs/CompletionRules" },
+    "priority_constraints": { "$ref": "#/$defs/PriorityConstraints" },
+    "scope_rules": { "$ref": "#/$defs/ScopeRules" },
+    "overlap_rules": { "$ref": "#/$defs/OverlapRules" },
+    "limitation_registry": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/LimitationEntry" }
+    },
+    "change_group_rules": { "$ref": "#/$defs/ChangeGroupRules" },
+    "sku_focus_limits": {
+      "type": "object",
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    },
+    "category_limits": { "$ref": "#/$defs/CategoryLimits" },
+    "recommended_check_types": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": { "type": "string" }
+      }
+    },
+    "causality_rules": { "$ref": "#/$defs/CausalityRules" },
+    "user_facing_text_fields": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "required": [
+    "policy_version",
+    "finding_type_registry",
+    "action_type_registry",
+    "action_type_to_category",
+    "action_limits",
+    "text_limits",
+    "block_status_rules",
+    "section_domain_rules",
+    "metric_rendering_rules",
+    "thresholds",
+    "completion_rules",
+    "priority_constraints",
+    "scope_rules",
+    "overlap_rules",
+    "limitation_registry",
+    "change_group_rules",
+    "sku_focus_limits",
+    "category_limits",
+    "recommended_check_types",
+    "causality_rules",
+    "user_facing_text_fields"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "Domain": {
+      "type": "string",
+      "enum": ["account", "sales", "funnel", "sku", "category", "advertising", "stock", "seller_pulse", "data_quality"]
+    },
+    "ScopeType": {
+      "type": "string",
+      "enum": ["account", "funnel", "sku", "campaign", "category"]
+    },
+    "Direction": {
+      "type": "string",
+      "enum": ["positive", "negative", "neutral"]
+    },
+    "Severity": {
+      "type": "string",
+      "enum": ["critical", "important", "watch", "none"]
+    },
+    "FindingTypeEntry": {
+      "type": "object",
+      "properties": {
+        "finding_type": { "type": "string" },
+        "domain": { "$ref": "#/$defs/Domain" },
+        "allowed_directions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/Direction" }
+        },
+        "allowed_severities": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/Severity" }
+        },
+        "allowed_scopes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/ScopeType" }
+        },
+        "required_metric_codes": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "actionable": { "type": "boolean" }
+      },
+      "required": [
+        "finding_type",
+        "domain",
+        "allowed_directions",
+        "allowed_severities",
+        "allowed_scopes",
+        "required_metric_codes",
+        "actionable"
+      ],
+      "additionalProperties": false
+    },
+    "ActionTypeEntry": {
+      "type": "object",
+      "properties": {
+        "action_type": { "type": "string" },
+        "category": { "type": "string" },
+        "domain": { "$ref": "#/$defs/Domain" },
+        "allowed_scope_types": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/ScopeType" }
+        },
+        "required_finding_types": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["action_type", "category", "domain", "allowed_scope_types", "required_finding_types"],
+      "additionalProperties": false
+    },
+    "ActionLimits": {
+      "type": "object",
+      "properties": {
+        "max_actions": { "type": "integer", "minimum": 1 },
+        "max_top_actions": { "type": "integer", "minimum": 1 },
+        "min_actions_material": { "type": "integer", "minimum": 0 },
+        "min_required_material": { "type": "integer", "minimum": 0 }
+      },
+      "required": ["max_actions", "max_top_actions", "min_actions_material", "min_required_material"],
+      "additionalProperties": false
+    },
+    "BlockStatusRules": {
+      "type": "object",
+      "properties": {
+        "blocks": { "type": "array", "items": { "type": "string" } },
+        "unavailable_when_no_data": { "type": "boolean" },
+        "limited_when_partial_data": { "type": "boolean" }
+      },
+      "required": ["blocks", "unavailable_when_no_data", "limited_when_partial_data"],
+      "additionalProperties": false
+    },
+    "SectionDomainRule": {
+      "type": "object",
+      "properties": {
+        "allowed_scope_types": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ScopeType" }
+        },
+        "forbidden_scope_types": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ScopeType" }
+        }
+      },
+      "required": ["allowed_scope_types"],
+      "additionalProperties": false
+    },
+    "MetricRenderingRule": {
+      "type": "object",
+      "properties": {
+        "render_format": {
+          "type": "string",
+          "enum": ["money", "integer", "percent", "days", "units", "ratio", "decimal"]
+        },
+        "delta_mode": {
+          "type": "string",
+          "enum": ["none", "absolute", "percent", "percentage_points"]
+        }
+      },
+      "required": ["render_format", "delta_mode"],
+      "additionalProperties": false
+    },
+    "ThresholdEntry": {
+      "type": "object",
+      "properties": {
+        "policy_id": { "type": "string" },
+        "metric_code": { "type": "string" },
+        "operator": { "type": "string", "enum": [">", ">=", "<", "<=", "=="] },
+        "value": { "type": "number" },
+        "unit": { "type": "string" },
+        "allowed_scope_types": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/ScopeType" }
+        }
+      },
+      "required": ["policy_id", "metric_code", "operator", "value", "unit", "allowed_scope_types"],
+      "additionalProperties": false
+    },
+    "CompletionRules": {
+      "type": "object",
+      "properties": {
+        "target_must_be_unmet_at_analysis_time": { "type": "boolean" },
+        "operator_direction": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      },
+      "required": ["target_must_be_unmet_at_analysis_time", "operator_direction"],
+      "additionalProperties": false
+    },
+    "PriorityConstraints": {
+      "type": "object",
+      "properties": {
+        "min_required_execution_tier_count": { "type": "integer", "minimum": 0 },
+        "severity_to_priority": {
+          "type": "object",
+          "additionalProperties": { "type": "string", "enum": ["critical", "important", "watch"] }
+        }
+      },
+      "required": ["min_required_execution_tier_count", "severity_to_priority"],
+      "additionalProperties": false
+    },
+    "ScopeRules": {
+      "type": "object",
+      "properties": {
+        "sku_single_action_ownership": { "type": "boolean" },
+        "campaign_single_action_ownership": { "type": "boolean" },
+        "account_scope_allows_empty_entity_ids": { "type": "boolean" },
+        "sku_scope_requires_nonempty_entity_ids": { "type": "boolean" },
+        "campaign_scope_requires_nonempty_entity_ids": { "type": "boolean" }
+      },
+      "required": [
+        "sku_single_action_ownership",
+        "campaign_single_action_ownership",
+        "account_scope_allows_empty_entity_ids",
+        "sku_scope_requires_nonempty_entity_ids",
+        "campaign_scope_requires_nonempty_entity_ids"
+      ],
+      "additionalProperties": false
+    },
+    "OverlapRules": {
+      "type": "object",
+      "properties": {
+        "sku_max_actions": { "type": "integer", "minimum": 1 },
+        "finding_max_primary_block": { "type": "integer", "minimum": 1 },
+        "dedupe_key": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["sku_max_actions", "finding_max_primary_block", "dedupe_key"],
+      "additionalProperties": false
+    },
+    "LimitationEntry": {
+      "type": "object",
+      "properties": {
+        "code": { "type": "string" },
+        "scope": {
+          "type": "string",
+          "enum": ["account", "history", "funnel", "stock", "advertising", "sku", "category"]
+        },
+        "severity": { "$ref": "#/$defs/Severity" },
+        "description": { "type": "string" },
+        "affected_tables": { "type": "array", "items": { "type": "string" } },
+        "affected_blocks": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["code", "scope", "severity", "description"],
+      "additionalProperties": false
+    },
+    "ChangeGroupRules": {
+      "type": "object",
+      "properties": {
+        "groups": { "type": "array", "items": { "type": "string" } },
+        "change_id_single_group": { "type": "boolean" },
+        "empty_group_text_required_when": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["groups", "change_id_single_group", "empty_group_text_required_when"],
+      "additionalProperties": false
+    },
+    "CategoryLimits": {
+      "type": "object",
+      "properties": {
+        "max_items": { "type": "integer", "minimum": 1 }
+      },
+      "required": ["max_items"],
+      "additionalProperties": false
+    },
+    "CausalityRules": {
+      "type": "object",
+      "properties": {
+        "forbidden_causal_claims": { "type": "array", "items": { "type": "string" } },
+        "require_finding_for_every_action": { "type": "boolean" },
+        "require_metric_claim_for_every_numeric_assertion": { "type": "boolean" }
+      },
+      "required": [
+        "forbidden_causal_claims",
+        "require_finding_for_every_action",
+        "require_metric_claim_for_every_numeric_assertion"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

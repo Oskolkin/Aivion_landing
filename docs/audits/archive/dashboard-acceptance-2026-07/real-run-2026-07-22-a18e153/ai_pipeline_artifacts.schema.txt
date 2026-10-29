@@ -1,0 +1,18 @@
+﻿                                         Table "public.ai_pipeline_artifacts"
+     Column      |           Type           | Collation | Nullable |                      Default                      
+-----------------+--------------------------+-----------+----------+---------------------------------------------------
+ id              | bigint                   |           | not null | nextval('ai_pipeline_artifacts_id_seq'::regclass)
+ pipeline_run_id | bigint                   |           | not null | 
+ kind            | text                     |           | not null | 
+ hash            | text                     |           |          | 
+ storage         | text                     |           | not null | 'db'::text
+ object_key      | text                     |           |          | 
+ payload_json    | jsonb                    |           |          | 
+ created_at      | timestamp with time zone |           | not null | now()
+Indexes:
+    "ai_pipeline_artifacts_pkey" PRIMARY KEY, btree (id)
+    "idx_ai_pipeline_artifacts_kind" btree (kind)
+    "idx_ai_pipeline_artifacts_run" btree (pipeline_run_id)
+Foreign-key constraints:
+    "ai_pipeline_artifacts_pipeline_run_id_fkey" FOREIGN KEY (pipeline_run_id) REFERENCES ai_pipeline_runs(id) ON DELETE CASCADE
+

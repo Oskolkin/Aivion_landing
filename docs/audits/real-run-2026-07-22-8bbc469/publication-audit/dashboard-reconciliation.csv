@@ -1,0 +1,9 @@
+check,status,entity_id,expected,actual,detail
+facts_pack_hash_matches_run,ok,,17e80bbe7eccb4f8cf7740e1d1ada796c22e4dd581b61c76874c38da036be854,17e80bbe7eccb4f8cf7740e1d1ada796c22e4dd581b61c76874c38da036be854,dashboard facts pack_hash vs the run's pack_hash
+facts_metric_date_matches_run,ok,,2026-07-08,2026-07-08,dashboard facts metric_date vs the run's metric_date
+frozen_metric_date_matches_run,ok,,2026-07-08,2026-07-08,frozen snapshot metric_date vs the run's metric_date
+dashboard_count_seller_pulse_kpis,ok,seller_pulse_kpis,facts=4,frozen=4,dashboard facts count vs frozen/served Dashboard API model count
+dashboard_count_seller_pulse_trend_days,ok,seller_pulse_trend_days,facts=7,frozen=7,dashboard facts count vs frozen/served Dashboard API model count
+dashboard_count_stock_segments,ok,stock_segments,facts=5,frozen=5,dashboard facts count vs frozen/served Dashboard API model count
+dashboard_count_funnel_stages,ok,funnel_stages,facts=5,frozen=5,dashboard facts count vs frozen/served Dashboard API model count
+dashboard_count_ad_points,ok,ad_points,facts=10,frozen=10,dashboard facts count vs frozen/served Dashboard API model count
